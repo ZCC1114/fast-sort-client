@@ -41,15 +41,15 @@ public sealed class MainViewModel : ViewModelBase
         Login = new LoginViewModel(SendLoginCaptchaAsync, LoginWithSmsAsync, LoginWithAccountAsync);
         Routes =
         [
-            new(AppRoute.Dashboard, "首页", "首"),
-            new(AppRoute.LiveRooms, "直播端", "直"),
-            new(AppRoute.Entertainment, "娱乐模式", "娱"),
-            new(AppRoute.Pick, "理货端", "理"),
-            new(AppRoute.DouyinRemark, "订单一键备注", "注"),
-            new(AppRoute.Blacklist, "黑名单", "黑"),
-            new(AppRoute.VipOrder, "充值记录", "充"),
-            new(AppRoute.DanmakuCookieTest, "直播授权测试", "授"),
-            new(AppRoute.Settings, "设置", "设")
+            new(AppRoute.Dashboard, "首页", "\uE80F"),
+            new(AppRoute.LiveRooms, "直播端", "\uE768"),
+            new(AppRoute.Entertainment, "娱乐模式", "\uE7FC"),
+            new(AppRoute.Pick, "理货端", "\uE8EC"),
+            new(AppRoute.DouyinRemark, "订单一键备注", "\uE70B"),
+            new(AppRoute.Blacklist, "黑名单", "\uE711"),
+            new(AppRoute.VipOrder, "充值记录", "\uE8C7"),
+            new(AppRoute.DanmakuCookieTest, "直播授权测试", "\uE774"),
+            new(AppRoute.Settings, "设置", "\uE713")
         ];
         SelectRouteCommand = new RelayCommand<RouteItemViewModel>(SelectRoute);
         LogoutCommand = new AsyncRelayCommand(LogoutAsync);

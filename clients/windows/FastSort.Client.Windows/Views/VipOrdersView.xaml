@@ -6,10 +6,11 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="12" />
+                <RowDefinition Height="14" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
+
             <DockPanel Grid.Row="0">
                 <StackPanel>
                     <TextBlock Text="订单列表"
@@ -22,7 +23,7 @@
                                Margin="0,4,0,0" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <ComboBox Width="360"
+                    <ComboBox Width="320"
                               SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                               SelectedValuePath="Tag"
                               Margin="0,0,12,0">
@@ -38,24 +39,65 @@
                 </StackPanel>
             </DockPanel>
 
-            <DataGrid Grid.Row="2"
-                      ItemsSource="{Binding DetailRows}"
-                      SelectedItem="{Binding SelectedRow}"
-                      AutoGenerateColumns="False"
-                      IsReadOnly="True"
-                      HeadersVisibility="Column"
-                      GridLinesVisibility="Horizontal"
-                      CanUserAddRows="False">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="套餐" Binding="{Binding Name}" Width="170" />
-                    <DataGridTextColumn Header="时长/方式" Binding="{Binding Detail}" Width="180" />
-                    <DataGridTextColumn Header="开始-结束时间" Binding="{Binding Meta}" Width="280" />
-                    <DataGridTextColumn Header="支付金额" Binding="{Binding Amount}" Width="120" />
-                    <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="120" />
-                    <DataGridTextColumn Header="创建时间" Binding="{Binding Time}" Width="180" />
-                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="220" />
-                </DataGrid.Columns>
-            </DataGrid>
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0" Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="58" />
+                        <ColumnDefinition Width="1.1*" />
+                        <ColumnDefinition Width="1.0*" />
+                        <ColumnDefinition Width="1.7*" />
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="170" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="序号" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                    <TextBlock Grid.Column="1" Text="套餐" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                    <TextBlock Grid.Column="2" Text="时长/方式" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                    <TextBlock Grid.Column="3" Text="开始-结束时间" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                    <TextBlock Grid.Column="4" Text="支付金额" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                    <TextBlock Grid.Column="5" Text="状态" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                    <TextBlock Grid.Column="6" Text="创建时间" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                </Grid>
+
+                <ListBox Grid.Row="1"
+                         ItemsSource="{Binding DetailRows}"
+                         SelectedItem="{Binding SelectedRow}"
+                         ItemContainerStyle="{StaticResource PlainListBoxItem}"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{StaticResource FastSortBorder}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="58" />
+                                        <ColumnDefinition Width="1.1*" />
+                                        <ColumnDefinition Width="1.0*" />
+                                        <ColumnDefinition Width="1.7*" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="170" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Id}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Detail}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="3" Text="{Binding Meta}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="4" Text="{Binding Amount}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="5" Text="{Binding Status}" FontWeight="SemiBold" Foreground="{StaticResource FastSortText}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="6" Text="{Binding Time}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
 
             <DockPanel Grid.Row="3" Margin="0,12,0,0">
                 <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource FastSortMuted}" VerticalAlignment="Center" />

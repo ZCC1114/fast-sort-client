@@ -3,10 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:FastSort.Client.Windows.Views"
         Title="迅拣"
-        Width="1440"
-        Height="900"
-        MinWidth="1180"
-        MinHeight="760"
+        Width="1000"
+        Height="760"
+        MinWidth="960"
+        MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
         Background="{StaticResource FastSortBackground}">
     <Grid>
         <Grid Visibility="{Binding IsAuthenticated, Converter={StaticResource InverseBoolToVisibilityConverter}}">
@@ -97,13 +99,13 @@
                     <StackPanel DockPanel.Dock="Bottom">
                         <Button Command="{Binding SelectRouteCommand}" CommandParameter="{Binding ProfileRoute}" Style="{StaticResource SidebarRouteButton}" Margin="0,0,0,4">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="◉" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" />
+                                <TextBlock Text="&#xE77B;" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="15" FontFamily="Segoe MDL2 Assets" />
                                 <TextBlock Text="个人中心" Foreground="{StaticResource FastSortText}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" />
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding LogoutCommand}" Style="{StaticResource SidebarRouteButton}">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="↩" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" />
+                                <TextBlock Text="&#xE8BB;" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="15" FontFamily="Segoe MDL2 Assets" />
                                 <TextBlock Text="退出登录" Foreground="{StaticResource FastSortMuted}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" />
                             </StackPanel>
                         </Button>
@@ -131,7 +133,7 @@
                                             <ColumnDefinition Width="22" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding IconText}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="13" FontWeight="SemiBold" TextAlignment="Center" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding IconText}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="15" FontFamily="Segoe MDL2 Assets" TextAlignment="Center" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     </Grid>
                                 </Button>
@@ -163,7 +165,7 @@
                 </Border>
 
                 <Grid Grid.Row="1" Background="{StaticResource FastSortGroupedBackground}">
-                    <ScrollViewer Padding="24,20,24,24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer Padding="24,20,24,24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <Grid>
                             <views:DashboardView DataContext="{Binding Dashboard}"
                                                  Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Dashboard}" />

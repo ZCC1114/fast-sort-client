@@ -22,7 +22,6 @@
                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                              Width="220"
                              Height="34"
-                             VerticalContentAlignment="Center"
                              Margin="0,0,10,0" />
                     <ComboBox Width="130"
                               SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
@@ -67,13 +66,21 @@
                                    FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FastSortText}" />
-                        <TextBlock Text="{Binding PageText}"
-                                   Foreground="{StaticResource FastSortMuted}"
-                                   FontSize="12"
-                                   Margin="0,4,0,12" />
+                        <Grid Margin="0,12,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="54" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="序号" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                            <TextBlock Grid.Column="1" Text="黑名单信息" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                            <TextBlock Grid.Column="2" Text="等级" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" HorizontalAlignment="Right" />
+                        </Grid>
                     </StackPanel>
+
                     <ListBox ItemsSource="{Binding PrimaryRows}"
                              SelectedItem="{Binding SelectedRow}"
+                             ItemContainerStyle="{StaticResource PlainListBoxItem}"
                              BorderThickness="0"
                              Background="Transparent">
                         <ListBox.ItemTemplate>
@@ -82,25 +89,39 @@
                                         CornerRadius="10"
                                         Padding="12"
                                         Margin="0,0,0,10">
-                                    <DockPanel>
-                                        <TextBlock Text="{Binding Meta}"
-                                                   DockPanel.Dock="Right"
-                                                   Foreground="{StaticResource FastSortAccent}"
-                                                   FontWeight="SemiBold" />
-                                        <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="44" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="54" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Id}"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <StackPanel Grid.Column="1">
                                             <TextBlock Text="{Binding Name}"
                                                        FontWeight="SemiBold"
-                                                       Foreground="{StaticResource FastSortText}" />
+                                                       Foreground="{StaticResource FastSortText}"
+                                                       TextTrimming="CharacterEllipsis" />
                                             <TextBlock Text="{Binding Detail}"
                                                        FontSize="12"
                                                        Foreground="{StaticResource FastSortMuted}"
-                                                       Margin="0,5,0,0" />
+                                                       Margin="0,5,0,0"
+                                                       TextTrimming="CharacterEllipsis" />
                                             <TextBlock Text="{Binding Time}"
                                                        FontSize="12"
                                                        Foreground="{StaticResource FastSortMuted}"
-                                                       Margin="0,5,0,0" />
+                                                       Margin="0,5,0,0"
+                                                       TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
-                                    </DockPanel>
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding Meta}"
+                                                   Foreground="{StaticResource FastSortAccent}"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Right" />
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -112,52 +133,89 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="12" />
+                        <RowDefinition Height="14" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <ItemsControl Grid.Row="0" ItemsSource="{Binding Metrics}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Columns="4" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="详情"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortText}" />
+                        <ItemsControl ItemsSource="{Binding Metrics}" Margin="0,14,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="4" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource FastSortBackground}"
+                                            CornerRadius="10"
+                                            Padding="12"
+                                            Margin="0,0,10,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource FastSortMuted}" />
+                                            <TextBlock Text="{Binding Value}"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Foreground="{StaticResource FastSortText}"
+                                                       Margin="0,5,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <ListBox Grid.Row="2"
+                             ItemsSource="{Binding DetailRows}"
+                             SelectedItem="{Binding SelectedRow}"
+                             ItemContainerStyle="{StaticResource PlainListBoxItem}"
+                             BorderThickness="0"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource FastSortBackground}"
                                         CornerRadius="10"
                                         Padding="12"
-                                        Margin="0,0,10,0">
+                                        Margin="0,0,0,10">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding Value}"
-                                                   FontSize="18"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource FastSortText}" />
-                                        <TextBlock Text="{Binding Title}"
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource FastSortText}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Amount}"
+                                                       DockPanel.Dock="Right"
+                                                       Foreground="{StaticResource FastSortAccent}"
+                                                       FontWeight="SemiBold" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Detail}"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   Margin="0,6,0,0"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Meta}"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   Margin="0,6,0,0" />
+                                        <TextBlock Text="{Binding Time}"
                                                    FontSize="12"
-                                                   Foreground="{StaticResource FastSortMuted}" />
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   Margin="0,6,0,0" />
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <DataGrid Grid.Row="2"
-                              ItemsSource="{Binding DetailRows}"
-                              SelectedItem="{Binding SelectedRow}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              HeadersVisibility="Column"
-                              CanUserAddRows="False">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="180" />
-                            <DataGridTextColumn Header="详情" Binding="{Binding Detail}" Width="*" />
-                            <DataGridTextColumn Header="类型" Binding="{Binding Meta}" Width="140" />
-                            <DataGridTextColumn Header="金额" Binding="{Binding Amount}" Width="100" />
-                            <DataGridTextColumn Header="时间" Binding="{Binding Time}" Width="170" />
-                        </DataGrid.Columns>
-                    </DataGrid>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
                     <DockPanel Grid.Row="3" Margin="0,12,0,0">
-                        <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource FastSortMuted}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding StatusText}"
+                                   Foreground="{StaticResource FastSortMuted}"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button Content="加载详情"
                                     Command="{Binding PrimaryActionCommand}"

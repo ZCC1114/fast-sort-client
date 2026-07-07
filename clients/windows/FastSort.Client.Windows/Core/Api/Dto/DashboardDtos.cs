@@ -18,11 +18,31 @@ public sealed class TrendResponse
 {
     public List<string>? Legend { get; set; }
     public List<string>? XAxis { get; set; }
-    public List<string>? Xaxis { get; set; }
     public List<TrendSeries>? Series { get; set; }
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? ExtensionData { get; set; }
 
     [JsonIgnore]
-    public IReadOnlyList<string> Labels => XAxis ?? Xaxis ?? [];
+    public IReadOnlyList<string> Labels => XAxis ?? ExtensionStringList("xaxis") ?? [];
+
+    private IReadOnlyList<string>? ExtensionStringList(string key)
+    {
+        if (ExtensionData is null)
+        {
+            return null;
+        }
+
+        var match = ExtensionData.FirstOrDefault(item =>
+            string.Equals(item.Key, key, StringComparison.OrdinalIgnoreCase));
+        if (match.Value.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        return match.Value.EnumerateArray()
+            .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() ?? "" : item.ToString())
+            .ToList();
+    }
 }
 
 public sealed class TrendSeries

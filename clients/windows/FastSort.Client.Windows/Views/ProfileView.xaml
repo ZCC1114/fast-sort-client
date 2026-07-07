@@ -4,63 +4,131 @@
              MinHeight="680">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="360" />
+            <ColumnDefinition Width="320" />
             <ColumnDefinition Width="16" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <Border Grid.Column="0" Style="{StaticResource CardBorder}">
             <StackPanel>
-                <TextBlock Text="账号资料"
+                <TextBlock Text="个人资料"
                            FontSize="18"
                            FontWeight="SemiBold"
                            Foreground="{StaticResource FastSortText}" />
-                <TextBlock Text="昵称" Foreground="{StaticResource FastSortMuted}" FontSize="12" Margin="0,14,0,4" />
-                <TextBox Text="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}" Height="34" />
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="12"
+                           Foreground="{StaticResource FastSortMuted}"
+                           TextWrapping="Wrap"
+                           Margin="0,6,0,16" />
+
+                <TextBlock Text="昵称" FontSize="12" Foreground="{StaticResource FastSortMuted}" />
+                <TextBox Text="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}" Height="34" Margin="0,6,0,10" />
                 <Button Content="保存昵称"
                         Command="{Binding PrimaryActionCommand}"
                         Style="{StaticResource PrimaryButton}"
-                        Margin="0,10,0,16" />
+                        Margin="0,0,0,16" />
 
-                <TextBlock Text="新密码" Foreground="{StaticResource FastSortMuted}" FontSize="12" Margin="0,0,0,4" />
-                <TextBox Text="{Binding InputTwo, UpdateSourceTrigger=PropertyChanged}" Height="34" />
+                <TextBlock Text="新密码" FontSize="12" Foreground="{StaticResource FastSortMuted}" />
+                <TextBox Text="{Binding InputTwo, UpdateSourceTrigger=PropertyChanged}" Height="34" Margin="0,6,0,10" />
                 <Button Content="保存密码"
                         Command="{Binding SecondaryActionCommand}"
-                        Margin="0,10,0,16" />
+                        Margin="0,0,0,16" />
 
-                <TextBlock Text="手机号" Foreground="{StaticResource FastSortMuted}" FontSize="12" Margin="0,0,0,4" />
-                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Height="34" />
-                <TextBlock Text="验证码" Foreground="{StaticResource FastSortMuted}" FontSize="12" Margin="0,10,0,4" />
-                <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" Height="34" />
+                <TextBlock Text="手机号" FontSize="12" Foreground="{StaticResource FastSortMuted}" />
+                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Height="34" Margin="0,6,0,10" />
+                <TextBlock Text="验证码" FontSize="12" Foreground="{StaticResource FastSortMuted}" />
+                <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" Height="34" Margin="0,6,0,10" />
                 <Button Content="发送/更新手机号"
                         Command="{Binding TertiaryActionCommand}"
-                        Margin="0,10,0,16" />
-
+                        Margin="0,0,0,16" />
                 <Button Content="注销账号"
                         Command="{Binding DangerActionCommand}"
-                        Foreground="{StaticResource FastSortDanger}" />
-                <TextBlock Text="{Binding StatusText}"
-                           Foreground="{StaticResource FastSortMuted}"
-                           TextWrapping="Wrap"
-                           Margin="0,14,0,0" />
+                        Foreground="{StaticResource FastSortDanger}"
+                        BorderBrush="{StaticResource FastSortDanger}" />
             </StackPanel>
         </Border>
 
         <Border Grid.Column="2" Style="{StaticResource CardBorder}">
-            <DataGrid ItemsSource="{Binding DetailRows}"
-                      SelectedItem="{Binding SelectedRow}"
-                      AutoGenerateColumns="False"
-                      IsReadOnly="True"
-                      HeadersVisibility="Column"
-                      CanUserAddRows="False">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="150" />
-                    <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="220" />
-                    <DataGridTextColumn Header="详情" Binding="{Binding Detail}" Width="*" />
-                    <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="180" />
-                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="220" />
-                </DataGrid.Columns>
-            </DataGrid>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="14" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="账号信息"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortText}" />
+                    <ItemsControl ItemsSource="{Binding Metrics}" Margin="0,14,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource FastSortBackground}"
+                                        CornerRadius="10"
+                                        Padding="12"
+                                        Margin="0,0,10,0">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource FastSortMuted}" />
+                                        <TextBlock Text="{Binding Value}"
+                                                   FontSize="16"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource FastSortText}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding DetailRows}"
+                         SelectedItem="{Binding SelectedRow}"
+                         ItemContainerStyle="{StaticResource PlainListBoxItem}"
+                         BorderThickness="0"
+                         Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource FastSortBackground}"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,0,10">
+                                <DockPanel>
+                                    <TextBlock Text="{Binding Status}"
+                                               DockPanel.Dock="Right"
+                                               Foreground="{StaticResource FastSortAccent}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               Width="160" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource FastSortText}" />
+                                        <TextBlock Text="{Binding Detail}"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   Margin="0,6,0,0"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Id}"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   Margin="0,6,0,0"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>

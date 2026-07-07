@@ -17,14 +17,14 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Style="{StaticResource CardBorder}" Margin="0,0,12,0" MinHeight="86">
+                    <Border Style="{StaticResource CardBorder}" Margin="0,0,12,12" MinHeight="86">
                         <DockPanel LastChildFill="True">
                             <Border Width="46"
-                                    Height="46"
+                                    Height="42"
                                     DockPanel.Dock="Left"
                                     Background="{StaticResource FastSortAccentSoft}"
                                     CornerRadius="23"
-                                    Margin="0,0,14,0">
+                                    Margin="0,0,10,0">
                                 <TextBlock Text="{Binding IconText}"
                                            Foreground="{StaticResource FastSortAccent}"
                                            FontSize="16"
@@ -34,11 +34,11 @@
                             </Border>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Value}"
-                                           FontSize="20"
+                                           FontSize="18"
                                            FontWeight="Bold"
                                            Foreground="{StaticResource FastSortText}" />
                                 <TextBlock Text="{Binding Title}"
-                                           FontSize="13"
+                                           FontSize="12"
                                            Foreground="{StaticResource FastSortMuted}"
                                            Margin="0,4,0,0" />
                             </StackPanel>
@@ -50,7 +50,7 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="2*" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="340" />
             </Grid.ColumnDefinitions>
@@ -79,14 +79,16 @@
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <Canvas Grid.Row="0">
-                                    <Polyline Points="0,215 120,180 250,205 380,130 520,160 640,90 760,120"
-                                              Stroke="{StaticResource FastSortAccent}"
-                                              StrokeThickness="3"
-                                              StrokeStartLineCap="Round"
-                                              StrokeEndLineCap="Round"
-                                              StrokeLineJoin="Round" />
-                                </Canvas>
+                                <Viewbox Grid.Row="0" Stretch="Fill">
+                                    <Canvas Width="760" Height="230">
+                                        <Polyline Points="18,180 145,145 278,168 410,92 540,125 665,54 742,78"
+                                                  Stroke="{StaticResource FastSortAccent}"
+                                                  StrokeThickness="3"
+                                                  StrokeStartLineCap="Round"
+                                                  StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round" />
+                                    </Canvas>
+                                </Viewbox>
                                 <TextBlock Grid.Row="1"
                                            Text="{Binding TrendSummary}"
                                            Foreground="{StaticResource FastSortMuted}"

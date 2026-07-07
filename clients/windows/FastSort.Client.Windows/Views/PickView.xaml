@@ -13,24 +13,31 @@
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top">
                     <DockPanel Margin="0,0,0,12">
-                        <TextBlock Text="批次"
+                        <TextBlock Text="当前批次"
                                    FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FastSortText}" />
                         <ComboBox DockPanel.Dock="Right"
-                                  Width="110"
+                                  Width="112"
                                   SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                                   SelectedValuePath="Tag">
                             <ComboBoxItem Content="当前批次" Tag="current" />
                             <ComboBoxItem Content="历史批次" Tag="history" />
                         </ComboBox>
                     </DockPanel>
+                    <TextBlock Text="序号    批次信息"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortMuted}"
+                               Margin="0,0,0,8" />
                     <Button Content="刷新批次"
                             Command="{Binding RefreshCommand}"
                             Margin="0,0,0,12" />
                 </StackPanel>
+
                 <ListBox ItemsSource="{Binding PrimaryRows}"
                          SelectedItem="{Binding SelectedRow}"
+                         ItemContainerStyle="{StaticResource PlainListBoxItem}"
                          BorderThickness="0"
                          Background="Transparent">
                     <ListBox.ItemTemplate>
@@ -43,7 +50,8 @@
                                     <TextBlock Text="{Binding Name}"
                                                FontSize="14"
                                                FontWeight="SemiBold"
-                                               Foreground="{StaticResource FastSortText}" />
+                                               Foreground="{StaticResource FastSortText}"
+                                               TextWrapping="Wrap" />
                                     <TextBlock Text="{Binding Time}"
                                                FontSize="12"
                                                Foreground="{StaticResource FastSortMuted}"
@@ -60,67 +68,110 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="12" />
+                    <RowDefinition Height="14" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <DockPanel Grid.Row="0">
-                    <StackPanel Orientation="Horizontal">
-                        <ComboBox Width="320"
-                                  SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
-                                  SelectedValuePath="Tag"
-                                  Margin="0,0,12,0">
-                            <ComboBoxItem Content="抖音" Tag="0" />
-                            <ComboBoxItem Content="淘宝" Tag="1" />
-                            <ComboBoxItem Content="小红书" Tag="2" />
-                            <ComboBoxItem Content="微信" Tag="3" />
-                            <ComboBoxItem Content="快手" Tag="4" />
-                        </ComboBox>
-                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 Width="260"
-                                 Height="34"
-                                 VerticalContentAlignment="Center" />
-                        <Button Content="搜索"
-                                Command="{Binding PrimaryActionCommand}"
-                                Style="{StaticResource PrimaryButton}"
-                                Margin="8,0,0,0" />
-                    </StackPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button Content="加载标签/加入黑名单"
-                                Command="{Binding PrimaryActionCommand}"
-                                Style="{StaticResource PrimaryButton}"
-                                Margin="0,0,8,0" />
-                        <Button Content="重置编号"
-                                Command="{Binding SecondaryActionCommand}" />
-                    </StackPanel>
-                </DockPanel>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="360" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
+                              SelectedValuePath="Tag"
+                              Margin="0,0,12,0">
+                        <ComboBoxItem Content="抖音" Tag="0" />
+                        <ComboBoxItem Content="淘宝" Tag="1" />
+                        <ComboBoxItem Content="小红书" Tag="2" />
+                        <ComboBoxItem Content="微信" Tag="3" />
+                        <ComboBoxItem Content="快手" Tag="4" />
+                    </ComboBox>
+                    <TextBox Grid.Column="1"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             Height="34"
+                             Margin="0,0,10,0" />
+                    <Button Grid.Column="2"
+                            Content="搜索"
+                            Command="{Binding PrimaryActionCommand}"
+                            Style="{StaticResource PrimaryButton}" />
+                </Grid>
 
-                <DataGrid Grid.Row="2"
-                          ItemsSource="{Binding DetailRows}"
-                          SelectedItem="{Binding SelectedRow}"
-                          AutoGenerateColumns="False"
-                          IsReadOnly="True"
-                          HeadersVisibility="Column"
-                          GridLinesVisibility="Horizontal"
-                          CanUserAddRows="False"
-                          CanUserDeleteRows="False">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="昵称" Binding="{Binding Name}" Width="180" />
-                        <DataGridTextColumn Header="编号/序号" Binding="{Binding Detail}" Width="220" />
-                        <DataGridTextColumn Header="数量" Binding="{Binding Meta}" Width="110" />
-                        <DataGridTextColumn Header="金额" Binding="{Binding Amount}" Width="100" />
-                        <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="120" />
-                        <DataGridTextColumn Header="创建时间" Binding="{Binding Time}" Width="170" />
-                    </DataGrid.Columns>
-                </DataGrid>
+                <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="56" />
+                            <ColumnDefinition Width="1.4*" />
+                            <ColumnDefinition Width="1.1*" />
+                            <ColumnDefinition Width="110" />
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="112" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="序号" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                        <TextBlock Grid.Column="1" Text="昵称" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                        <TextBlock Grid.Column="2" Text="编号/序号" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                        <TextBlock Grid.Column="3" Text="数量" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                        <TextBlock Grid.Column="4" Text="金额" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                        <TextBlock Grid.Column="5" Text="创建时间" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
+                        <TextBlock Grid.Column="6" Text="操作" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" HorizontalAlignment="Right" />
+                    </Grid>
+
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding DetailRows}"
+                             SelectedItem="{Binding SelectedRow}"
+                             ItemContainerStyle="{StaticResource PlainListBoxItem}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource FastSortBorder}"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="0,11">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="56" />
+                                            <ColumnDefinition Width="1.4*" />
+                                            <ColumnDefinition Width="1.1*" />
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="112" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Id}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource FastSortText}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Detail}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Meta}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="4" Text="{Binding Amount}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="5" Text="{Binding Time}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                        <Button Grid.Column="6"
+                                                Content="加入黑名单"
+                                                Command="{Binding DataContext.PrimaryActionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                HorizontalAlignment="Right"
+                                                Padding="10,5" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
 
                 <DockPanel Grid.Row="3" Margin="0,12,0,0">
-                    <TextBlock Text="{Binding PageText}" Foreground="{StaticResource FastSortMuted}" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding PageText}" Foreground="{StaticResource FastSortMuted}" VerticalAlignment="Center" />
+                        <CheckBox Content="重置序号" IsChecked="True" VerticalAlignment="Center" Margin="18,0,0,0" />
+                    </StackPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <CheckBox Content="重置序号" IsChecked="True" VerticalAlignment="Center" Margin="0,0,14,0" />
                         <Button Content="上一页" Command="{Binding PreviousPageCommand}" Margin="0,0,8,0" />
-                        <Button Content="下一页" Command="{Binding NextPageCommand}" />
+                        <Button Content="下一页" Command="{Binding NextPageCommand}" Margin="0,0,8,0" />
+                        <Button Content="重置编号" Command="{Binding SecondaryActionCommand}" Style="{StaticResource PrimaryButton}" />
                     </StackPanel>
                 </DockPanel>
             </Grid>

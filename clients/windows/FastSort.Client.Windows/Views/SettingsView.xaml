@@ -51,22 +51,69 @@
             </DockPanel>
         </Border>
 
-        <DataGrid Grid.Row="2"
-                  ItemsSource="{Binding DetailRows}"
-                  SelectedItem="{Binding SelectedRow}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal"
-                  CanUserAddRows="False"
-                  Background="{StaticResource FastSortSurface}">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="模块" Binding="{Binding Kind}" Width="150" />
-                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="220" />
-                <DataGridTextColumn Header="详情" Binding="{Binding Detail}" Width="*" />
-                <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="150" />
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="220" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <Border Grid.Row="2" Style="{StaticResource CardBorder}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="12" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <DockPanel>
+                    <StackPanel>
+                        <TextBlock Text="配置项"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortText}" />
+                        <TextBlock Text="{Binding StatusText}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource FastSortMuted}"
+                                   Margin="0,4,0,0"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </DockPanel>
+
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding DetailRows}"
+                         SelectedItem="{Binding SelectedRow}"
+                         ItemContainerStyle="{StaticResource PlainListBoxItem}"
+                         BorderThickness="0"
+                         Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource FastSortBackground}"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="160" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Kind}"
+                                               Foreground="{StaticResource FastSortAccent}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Name}"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource FastSortText}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding Detail}"
+                                               Foreground="{StaticResource FastSortMuted}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding Status}"
+                                               Foreground="{StaticResource FastSortMuted}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
