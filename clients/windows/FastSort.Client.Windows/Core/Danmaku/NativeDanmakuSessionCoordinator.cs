@@ -20,7 +20,7 @@ public sealed class NativeDanmakuSessionCoordinator
     {
         var liveType = JsonValue(room.LiveType);
         var platformKey = !string.IsNullOrWhiteSpace(room.PlatformKey)
-            ? room.PlatformKey
+            ? DanmakuPlatformRegistry.AdapterKeyForAuthorizationKey(room.PlatformKey)
             : DanmakuPlatformRegistry.PlatformKeyForLiveType(liveType);
         var liveSession = FirstNonEmpty(room.LiveSession, room.Cookies, room.Cookie, room.Session);
         var cookieHeader = DanmakuCookieSessionParser.CookieHeaderFromLiveSession(liveSession);

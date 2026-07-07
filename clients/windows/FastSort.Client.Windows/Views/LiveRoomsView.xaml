@@ -43,18 +43,18 @@
                            TextWrapping="Wrap"
                            VerticalAlignment="Center" />
                 <Button Grid.Column="3"
-                        Content="打开授权"
+                        Content="Open Auth"
                         Command="{Binding OpenSelectedPlatformCommand}"
                         Style="{StaticResource PrimaryButton}"
                         MinWidth="92"
                         Margin="10,0,8,0" />
                 <Button Grid.Column="4"
-                        Content="采集"
+                        Content="Collect"
                         Click="CollectButton_Click"
                         MinWidth="72"
                         Margin="0,0,8,0" />
                 <Button Grid.Column="5"
-                        Content="保存房间"
+                        Content="Save Room"
                         Command="{Binding SaveAuthorizedRoomCommand}"
                         MinWidth="92" />
             </Grid>
@@ -96,11 +96,11 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <DockPanel Margin="0,0,0,10">
-                        <TextBlock Text="后台直播间"
+                        <TextBlock Text="Backend Rooms"
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FastSortText}" />
-                        <Button Content="刷新"
+                        <Button Content="Refresh"
                                 Command="{Binding LoadRoomsCommand}"
                                 DockPanel.Dock="Right"
                                 MinWidth="68" />
@@ -110,8 +110,8 @@
                               SelectedItem="{Binding SelectedRoom}">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="名称" DisplayMemberBinding="{Binding Name}" Width="130" />
-                                <GridViewColumn Header="平台" DisplayMemberBinding="{Binding Platform}" Width="120" />
+                                <GridViewColumn Header="Name" DisplayMemberBinding="{Binding Name}" Width="130" />
+                                <GridViewColumn Header="Platform" DisplayMemberBinding="{Binding Platform}" Width="120" />
                                 <GridViewColumn Header="liveSession" DisplayMemberBinding="{Binding LiveSessionStatus}" Width="130" />
                             </GridView>
                         </ListView.View>
@@ -134,14 +134,19 @@
                     </Grid.RowDefinitions>
 
                     <DockPanel Margin="0,0,0,10">
-                        <TextBlock Text="授权和 native 事件"
+                        <TextBlock Text="Auth And Native Events"
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FastSortText}" />
-                        <Button Content="预检选中房间"
+                        <Button Content="Stop"
+                                Command="{Binding StopNativeConnectionCommand}"
+                                DockPanel.Dock="Right"
+                                MinWidth="72" />
+                        <Button Content="Connect"
                                 Command="{Binding ConnectSelectedRoomCommand}"
                                 DockPanel.Dock="Right"
-                                MinWidth="108" />
+                                MinWidth="86"
+                                Margin="0,0,8,0" />
                     </DockPanel>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,10">
@@ -170,10 +175,10 @@
                               ItemsSource="{Binding Events}">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="时间" DisplayMemberBinding="{Binding Time}" Width="64" />
-                                <GridViewColumn Header="平台" DisplayMemberBinding="{Binding Platform}" Width="70" />
-                                <GridViewColumn Header="状态" DisplayMemberBinding="{Binding Status}" Width="86" />
-                                <GridViewColumn Header="内容" DisplayMemberBinding="{Binding Content}" Width="260" />
+                                <GridViewColumn Header="Time" DisplayMemberBinding="{Binding Time}" Width="64" />
+                                <GridViewColumn Header="Platform" DisplayMemberBinding="{Binding Platform}" Width="90" />
+                                <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" Width="86" />
+                                <GridViewColumn Header="Content" DisplayMemberBinding="{Binding Content}" Width="260" />
                             </GridView>
                         </ListView.View>
                     </ListView>

@@ -11,9 +11,10 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
     private readonly LiveRoomsService _liveRoomsService;
     private readonly NativeDanmakuSessionCoordinator _coordinator;
     private readonly Func<string> _userIdProvider;
+    private INativeDanmakuConnection? _activeConnection;
     private bool _isLoading;
     private string _remark = "";
-    private string _statusText = "选择平台后打开工作台授权。";
+    private string _statusText = "Select a platform, open its workbench, then authorize and collect Cookie.";
     private LiveRoomRowViewModel? _selectedRoom;
 
     public LiveRoomsViewModel(
@@ -26,7 +27,8 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         _userIdProvider = userIdProvider;
         LoadRoomsCommand = new AsyncRelayCommand(() => LoadRoomsAsync(force: true), () => !IsLoading);
         SaveAuthorizedRoomCommand = new AsyncRelayCommand(SaveAuthorizedRoomAsync, CanSaveAuthorizedRoom);
-        ConnectSelectedRoomCommand = new AsyncRelayCommand(ConnectSelectedRoomAsync, () => SelectedRoom is not null && !IsLoading);
+        ConnectSelectedRoomCommand = new AsyncRelayCommand(ConnectSelectedRoomAsync, () => SelectedRoom is not null && !IsLoading && _activeConnection is null);
+        StopNativeConnectionCommand = new AsyncRelayCommand(StopNativeConnectionAsync, () => _activeConnection is not null);
     }
 
     public ObservableCollection<LiveRoomRowViewModel> Rooms { get; } = [];
@@ -39,6 +41,8 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
 
     public AsyncRelayCommand ConnectSelectedRoomCommand { get; }
 
+    public AsyncRelayCommand StopNativeConnectionCommand { get; }
+
     public bool IsLoading
     {
         get => _isLoading;
@@ -46,9 +50,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         {
             if (SetProperty(ref _isLoading, value))
             {
-                LoadRoomsCommand.RaiseCanExecuteChanged();
-                ConnectSelectedRoomCommand.RaiseCanExecuteChanged();
-                SaveAuthorizedRoomCommand.RaiseCanExecuteChanged();
+                RaiseCommandStates();
             }
         }
     }
@@ -72,7 +74,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         {
             if (SetProperty(ref _selectedRoom, value))
             {
-                ConnectSelectedRoomCommand.RaiseCanExecuteChanged();
+                RaiseCommandStates();
             }
         }
     }
@@ -87,7 +89,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         var userId = _userIdProvider();
         if (string.IsNullOrWhiteSpace(userId))
         {
-            StatusText = "缺少当前用户 ID，登录信息恢复后才能读取房间。";
+            StatusText = "Current user id is missing. Restore login before querying rooms.";
             return;
         }
 
@@ -101,7 +103,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
                 Rooms.Add(row);
             }
 
-            StatusText = $"已读取 {Rooms.Count} 个后台房间。正式开播只使用这些后台房间数据。";
+            StatusText = $"Loaded {Rooms.Count} backend rooms. Formal connect uses only backend room liveSession.";
         }
         catch (Exception ex)
         {
@@ -115,7 +117,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
 
     protected override void OnCollectedCookieChanged()
     {
-        SaveAuthorizedRoomCommand.RaiseCanExecuteChanged();
+        RaiseCommandStates();
     }
 
     private bool CanSaveAuthorizedRoom()
@@ -135,12 +137,12 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         {
             var name = string.IsNullOrWhiteSpace(Remark) ? SelectedPlatform.Name : Remark.Trim();
             await _liveRoomsService.AddAuthorizedRoomAsync(SelectedPlatform, name, CookieHeader);
-            StatusText = "已保存授权 Cookie 到后台房间 liveSession。";
+            StatusText = "Authorized Cookie saved to backend room liveSession.";
             await LoadRoomsAsync(force: true);
         }
         catch (Exception ex)
         {
-            StatusText = $"{ex.Message}。TODO：后端需确认该平台新增房间时 liveSession 保存字段。";
+            StatusText = $"{ex.Message}. TODO: backend must confirm liveSession fields for this platform.";
         }
         finally
         {
@@ -159,9 +161,16 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         Events.Clear();
         try
         {
-            await using var connection = await _coordinator.ConnectRoomAsync(SelectedRoom.Source, AddEventAsync);
-            StatusText = $"native adapter 预检完成：{connection.PlatformKey} / {connection.Status}";
-            await connection.StopAsync();
+            var connection = await _coordinator.ConnectRoomAsync(SelectedRoom.Source, AddEventAsync);
+            if (connection.Status is NativeDanmakuStatus.Error or NativeDanmakuStatus.NotStarted or NativeDanmakuStatus.LoginExpired)
+            {
+                await connection.StopAsync();
+                StatusText = $"Native adapter returned {connection.Status}: {connection.PlatformKey}.";
+                return;
+            }
+
+            _activeConnection = connection;
+            StatusText = $"Native adapter connected: {connection.PlatformKey}.";
         }
         catch (Exception ex)
         {
@@ -170,13 +179,37 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         finally
         {
             IsLoading = false;
+            RaiseCommandStates();
         }
+    }
+
+    private async Task StopNativeConnectionAsync()
+    {
+        if (_activeConnection is null)
+        {
+            return;
+        }
+
+        var connection = _activeConnection;
+        _activeConnection = null;
+        RaiseCommandStates();
+        await connection.StopAsync();
+        await AddEventAsync(NativeDanmakuEvent.StatusEvent(connection.PlatformKey, NativeDanmakuStatus.Stopped, "Stopped by user."));
+        StatusText = $"Native adapter stopped: {connection.PlatformKey}.";
     }
 
     private Task AddEventAsync(NativeDanmakuEvent nativeEvent)
     {
         App.Current.Dispatcher.Invoke(() => Events.Insert(0, NativeDanmakuEventRowViewModel.FromEvent(nativeEvent)));
         return Task.CompletedTask;
+    }
+
+    private void RaiseCommandStates()
+    {
+        LoadRoomsCommand.RaiseCanExecuteChanged();
+        ConnectSelectedRoomCommand.RaiseCanExecuteChanged();
+        StopNativeConnectionCommand.RaiseCanExecuteChanged();
+        SaveAuthorizedRoomCommand.RaiseCanExecuteChanged();
     }
 }
 
@@ -191,7 +224,7 @@ public sealed record LiveRoomRowViewModel(
     {
         var name = !string.IsNullOrWhiteSpace(item.RoomName)
             ? item.RoomName
-            : !string.IsNullOrWhiteSpace(item.RoomNumber) ? item.RoomNumber : "直播间";
+            : !string.IsNullOrWhiteSpace(item.RoomNumber) ? item.RoomNumber : "Live room";
         var platform = PlatformLabel(item.LiveType, item.PlatformKey);
         var metaParts = new[] { item.RoomNumber, item.Eid, item.Id }
             .Where(value => !string.IsNullOrWhiteSpace(value));
@@ -200,7 +233,7 @@ public sealed record LiveRoomRowViewModel(
             name,
             platform,
             string.Join(" / ", metaParts),
-            string.IsNullOrWhiteSpace(liveSession) ? "未保存 liveSession" : "已保存 liveSession",
+            string.IsNullOrWhiteSpace(liveSession) ? "No liveSession" : "liveSession saved",
             item);
     }
 
@@ -209,7 +242,10 @@ public sealed record LiveRoomRowViewModel(
         var key = !string.IsNullOrWhiteSpace(platformKey)
             ? platformKey
             : DanmakuPlatformRegistry.PlatformKeyForLiveType(JsonValue(liveType));
-        return DanmakuPlatformRegistry.PlatformForKey(key)?.Name ?? key;
+        var platform = DanmakuPlatformRegistry.PlatformForKey(key) ??
+                       DanmakuPlatformRegistry.AddablePlatforms.FirstOrDefault(item =>
+                           string.Equals(item.AdapterKey, key, StringComparison.OrdinalIgnoreCase));
+        return platform?.Name ?? DanmakuPlatformRegistry.AdapterKeyForAuthorizationKey(key);
     }
 
     private static string JsonValue(JsonElement? element)

@@ -6,13 +6,15 @@ namespace FastSort.Client.Windows.ViewModels;
 public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
 {
     private readonly NativeDanmakuSessionCoordinator _coordinator;
-    private string _saveResultText = "保存入口已预留，正式添加直播间会写入后台 liveSession。";
+    private INativeDanmakuConnection? _activeConnection;
+    private string _saveResultText = "Save entry is reserved. Formal rooms persist Cookie to backend liveSession.";
 
     public DanmakuCookieTestViewModel(NativeDanmakuSessionCoordinator coordinator)
     {
         _coordinator = coordinator;
         SaveCookieCommand = new AsyncRelayCommand(SaveCookieAsync, () => !string.IsNullOrWhiteSpace(CookieHeader));
-        RunNativePreflightCommand = new AsyncRelayCommand(RunNativePreflightAsync, () => !string.IsNullOrWhiteSpace(CookieHeader));
+        RunNativePreflightCommand = new AsyncRelayCommand(RunNativePreflightAsync, () => !string.IsNullOrWhiteSpace(CookieHeader) && _activeConnection is null);
+        StopNativeConnectionCommand = new AsyncRelayCommand(StopNativeConnectionAsync, () => _activeConnection is not null);
     }
 
     public ObservableCollection<NativeDanmakuEventRowViewModel> Events { get; } = [];
@@ -20,6 +22,8 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
     public AsyncRelayCommand SaveCookieCommand { get; }
 
     public AsyncRelayCommand RunNativePreflightCommand { get; }
+
+    public AsyncRelayCommand StopNativeConnectionCommand { get; }
 
     public string SaveResultText
     {
@@ -30,12 +34,12 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
     protected override void OnCollectedCookieChanged()
     {
         SaveCookieCommand.RaiseCanExecuteChanged();
-        RunNativePreflightCommand.RaiseCanExecuteChanged();
+        RaiseConnectionCommandStates();
     }
 
     private Task SaveCookieAsync()
     {
-        SaveResultText = "授权测试页不直接绑定房间；liveSession 保存由“直播间”页面通过后台房间接口执行。";
+        SaveResultText = "This test page does not bind a room. Use the Rooms page to save backend liveSession.";
         return Task.CompletedTask;
     }
 
@@ -48,7 +52,7 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
 
         Events.Clear();
         var request = new NativeDanmakuConnectRequest(
-            SelectedPlatform.Key,
+            SelectedPlatform.AdapterKey,
             null,
             null,
             null,
@@ -57,14 +61,45 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
             CookieHeader,
             SelectedPlatform.Name);
 
-        await using var connection = await _coordinator.ConnectAsync(request, AddEventAsync);
+        SaveResultText = $"Connecting native adapter: {SelectedPlatform.AdapterKey}";
+        var connection = await _coordinator.ConnectAsync(request, AddEventAsync);
+        if (connection.Status is NativeDanmakuStatus.Error or NativeDanmakuStatus.NotStarted or NativeDanmakuStatus.LoginExpired)
+        {
+            await connection.StopAsync();
+            SaveResultText = $"Native adapter returned {connection.Status}.";
+            return;
+        }
+
+        _activeConnection = connection;
+        SaveResultText = $"Native adapter connected: {connection.PlatformKey}.";
+        RaiseConnectionCommandStates();
+    }
+
+    private async Task StopNativeConnectionAsync()
+    {
+        if (_activeConnection is null)
+        {
+            return;
+        }
+
+        var connection = _activeConnection;
+        _activeConnection = null;
+        RaiseConnectionCommandStates();
         await connection.StopAsync();
+        await AddEventAsync(NativeDanmakuEvent.StatusEvent(connection.PlatformKey, NativeDanmakuStatus.Stopped, "Stopped by user."));
+        SaveResultText = $"Native adapter stopped: {connection.PlatformKey}.";
     }
 
     private Task AddEventAsync(NativeDanmakuEvent nativeEvent)
     {
         App.Current.Dispatcher.Invoke(() => Events.Insert(0, NativeDanmakuEventRowViewModel.FromEvent(nativeEvent)));
         return Task.CompletedTask;
+    }
+
+    private void RaiseConnectionCommandStates()
+    {
+        RunNativePreflightCommand.RaiseCanExecuteChanged();
+        StopNativeConnectionCommand.RaiseCanExecuteChanged();
     }
 }
 

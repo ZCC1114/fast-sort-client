@@ -5,6 +5,7 @@ namespace FastSort.Client.Windows.Core.Danmaku;
 public sealed record DanmakuPlatform(
     int Id,
     string Key,
+    string AdapterKey,
     string Name,
     string CookieDomain,
     string ContentScriptMatch,
@@ -130,6 +131,7 @@ public static class DanmakuPlatformRegistry
         new(
             1,
             "fxg",
+            "douyin",
             "抖音工作台",
             "jinritemai.com",
             "*://fxg.jinritemai.com/*",
@@ -140,6 +142,7 @@ public static class DanmakuPlatformRegistry
         new(
             4,
             "fxg_kol",
+            "douyin",
             "抖音达人工作台",
             "jinritemai.com",
             "*://buyin.jinritemai.com/*",
@@ -150,6 +153,7 @@ public static class DanmakuPlatformRegistry
         new(
             2,
             "xhs",
+            "xiaohongshu",
             "小红书工作台",
             "xiaohongshu.com",
             "*://ark.xiaohongshu.com/*",
@@ -160,6 +164,7 @@ public static class DanmakuPlatformRegistry
         new(
             3,
             "tb",
+            "taobao",
             "千牛工作台",
             "taobao.com",
             "*://myseller.taobao.com/*",
@@ -169,6 +174,7 @@ public static class DanmakuPlatformRegistry
             ["tmall.com"]),
         new(
             5,
+            "tiktok",
             "tiktok",
             "TikTok 工作台",
             "tiktokshopglobalselling.com",
@@ -181,6 +187,7 @@ public static class DanmakuPlatformRegistry
         new(
             6,
             "shopee",
+            "shopee",
             "Shopee/虾皮工作台",
             "shopee.cn",
             "*://seller.shopee.cn/?cnsc_shop_id=*",
@@ -192,6 +199,7 @@ public static class DanmakuPlatformRegistry
         new(
             7,
             "ec",
+            "wechat",
             "视频号工作台",
             "weixin.qq.com",
             "*://channels.weixin.qq.com/platform/*",
@@ -202,6 +210,7 @@ public static class DanmakuPlatformRegistry
         new(
             8,
             "ks",
+            "kuaishou",
             "快手工作台",
             "kwaixiaodian.com",
             "*://*.kwaixiaodian.com/*",
@@ -212,6 +221,7 @@ public static class DanmakuPlatformRegistry
         new(
             99,
             "wx_store",
+            "wechat_store",
             "微信小店工作台",
             "weixin.qq.com",
             "*://store.weixin.qq.com/*",
@@ -235,19 +245,23 @@ public static class DanmakuPlatformRegistry
         return Platforms.FirstOrDefault(platform => string.Equals(platform.Key, key, StringComparison.OrdinalIgnoreCase));
     }
 
+    public static string AdapterKeyForAuthorizationKey(string? key)
+    {
+        return PlatformForKey(key)?.AdapterKey ?? PlatformKeyForLiveType(key);
+    }
+
     public static string PlatformKeyForLiveType(string? liveType)
     {
         return (liveType ?? "0").Trim().ToLowerInvariant() switch
         {
-            "0" or "douyin" or "fxg" or "dy" => "fxg",
-            "fxg_kol" or "kol" => "fxg_kol",
-            "1" or "taobao" or "tb" => "tb",
-            "2" or "xhs" or "xiaohongshu" => "xhs",
-            "3" or "wx" or "wechat" or "video" or "ec" => "ec",
-            "4" or "ks" or "kuaishou" or "快手" => "ks",
+            "0" or "douyin" or "fxg" or "fxg_kol" or "dy" or "kol" => "douyin",
+            "1" or "taobao" or "tb" => "taobao",
+            "2" or "xhs" or "xiaohongshu" => "xiaohongshu",
+            "3" or "wx" or "wechat" or "video" or "ec" => "wechat",
+            "4" or "ks" or "kuaishou" or "快手" => "kuaishou",
             "tiktok" or "tk" => "tiktok",
             "shopee" => "shopee",
-            _ => "fxg"
+            _ => "douyin"
         };
     }
 }

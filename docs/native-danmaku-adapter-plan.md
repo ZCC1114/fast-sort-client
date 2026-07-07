@@ -860,4 +860,37 @@ Windows 不应做的事：
 rg -n "LocalDanmakuHelperManager|DanmakuLocalConnectionBuilder|127\\.0\\.0\\.1|8201|8301|8000|8865|uvicorn|python|\\.venv" clients/macos/FastSortClientMac/Sources clients/windows/FastSort.Client.Windows
 ```
 
+## Windows Progress Update - 2026-07-07
+
+This section records the current Windows implementation status in UTF-8/ASCII text.
+
+Completed in `clients/windows/FastSort.Client.Windows`:
+
+- `dotnet build clients/windows/FastSort.Client.Windows/FastSort.Client.Windows.csproj` passes.
+- WebView2 authorization pages are available for the cookie test view and the backend rooms view.
+- Adding a room requires only platform selection plus optional remark. The UI no longer exposes manual Cookie, roomId, short-link, share-link, Douyin id, unique_id, or session_id fields as the required add-room flow.
+- `DanmakuPlatformRegistry` separates authorization platform keys from adapter keys: `fxg/fxg_kol -> douyin`, `tb -> taobao`, `xhs -> xiaohongshu`, `ec -> wechat`, `ks -> kuaishou`.
+- `NativeDanmakuSessionCoordinator` reads backend room `liveSession`, parses Cookie, maps `liveType/platformKey` to the formal adapter key, and emits only unified `NativeDanmakuEvent` rows to UI.
+- The authorization test page and backend rooms page keep native connections open until Stop is pressed.
+- Shared native support was added under `Core/Danmaku/Shared`: HTTP helpers, gzip, SHA1/MD5, simple protobuf parsing/encoding, and `ClientWebSocket` session management.
+- Real Windows adapters are registered for Taobao, WeChat Channels, Kuaishou, and Xiaohongshu.
+- `douyin` remains a native placeholder. The macOS `sign.js` exists, but it depends on a browser-like `window/document/navigator/localStorage/canvas/WebGL` environment. Windows still needs a safe embedded browser/JS execution bridge before Douyin WSS/protobuf can be enabled without Node/Python.
+- `tiktok` and `shopee` remain placeholders until backend `liveType` and room save contracts are formalized.
+- No external Python helper launch path was added.
+
+Current testable scope:
+
+- WebView2 login and Cookie collection can be tested for all registered platforms.
+- Backend room save/read flow can be tested for Taobao, WeChat Channels, Xiaohongshu, and Kuaishou through the existing room APIs.
+- Native connection can be tested for Taobao, WeChat Channels, Xiaohongshu, and Kuaishou with real authorized accounts that are currently live.
+- Douyin can be tested only up to authorization, Cookie collection, backend liveSession save/read, and placeholder event output.
+
+Required final checks for this Windows slice:
+
+```powershell
+dotnet build clients/windows/FastSort.Client.Windows/FastSort.Client.Windows.csproj
+rg -n "LocalDanmakuHelperManager|DanmakuLocalConnectionBuilder|127\.0\.0\.1|8201|8301|8000|8865|uvicorn|python|\.venv|taobao_live|kuaishou_live|wx_live|xhs_live|DouyinLiveWebFetcher" clients/windows/FastSort.Client.Windows
+rg -n "必填|手动输入|手填|抖音号|unique_id|session_id|短链|分享链接|直播链接|房间号|roomId|room_id" clients/windows/FastSort.Client.Windows/Views clients/windows/FastSort.Client.Windows/ViewModels
+```
+
 最终正式链路不应命中 helper 启动、helper 端口和 Python 运行时依赖。测试文档中可以保留历史参考说明，但必须标记为“迁移参考，不是运行依赖”。

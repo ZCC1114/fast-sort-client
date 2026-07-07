@@ -24,6 +24,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <ComboBox ItemsSource="{Binding Platforms}"
@@ -38,24 +39,29 @@
                          Margin="10,0"
                          VerticalContentAlignment="Center" />
                 <Button Grid.Column="2"
-                        Content="打开"
+                        Content="Open"
                         Command="{Binding OpenSelectedPlatformCommand}"
                         Style="{StaticResource PrimaryButton}"
                         MinWidth="72"
                         Margin="0,0,8,0" />
                 <Button Grid.Column="3"
-                        Content="采集"
+                        Content="Collect"
                         Click="CollectButton_Click"
                         MinWidth="72"
                         Margin="0,0,8,0" />
                 <Button Grid.Column="4"
-                        Content="保存入口"
+                        Content="Save Entry"
                         Command="{Binding SaveCookieCommand}"
                         MinWidth="88"
                         Margin="0,0,8,0" />
                 <Button Grid.Column="5"
-                        Content="预检"
+                        Content="Connect"
                         Command="{Binding RunNativePreflightCommand}"
+                        MinWidth="72"
+                        Margin="0,0,8,0" />
+                <Button Grid.Column="6"
+                        Content="Stop"
+                        Command="{Binding StopNativeConnectionCommand}"
                         MinWidth="72" />
             </Grid>
         </Border>
@@ -86,7 +92,7 @@
                             Padding="16"
                             Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="当前 URL"
+                            <TextBlock Text="Current URL"
                                        Foreground="{StaticResource FastSortMuted}"
                                        FontSize="12" />
                             <TextBlock Text="{Binding CurrentUrl}"
@@ -114,7 +120,7 @@
                             Padding="16"
                             Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="脱敏 Cookie"
+                            <TextBlock Text="Masked Cookie"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource FastSortText}"
                                        Margin="0,0,0,8" />
@@ -133,7 +139,7 @@
                             CornerRadius="8"
                             Padding="16">
                         <StackPanel>
-                            <TextBlock Text="native adapter 事件"
+                            <TextBlock Text="Native Adapter Events"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource FastSortText}"
                                        Margin="0,0,0,8" />
@@ -141,10 +147,10 @@
                                       MinHeight="150">
                                 <ListView.View>
                                     <GridView>
-                                        <GridViewColumn Header="时间" DisplayMemberBinding="{Binding Time}" Width="64" />
-                                        <GridViewColumn Header="平台" DisplayMemberBinding="{Binding Platform}" Width="70" />
-                                        <GridViewColumn Header="状态" DisplayMemberBinding="{Binding Status}" Width="86" />
-                                        <GridViewColumn Header="内容" DisplayMemberBinding="{Binding Content}" Width="230" />
+                                        <GridViewColumn Header="Time" DisplayMemberBinding="{Binding Time}" Width="64" />
+                                        <GridViewColumn Header="Platform" DisplayMemberBinding="{Binding Platform}" Width="90" />
+                                        <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" Width="86" />
+                                        <GridViewColumn Header="Content" DisplayMemberBinding="{Binding Content}" Width="230" />
                                     </GridView>
                                 </ListView.View>
                             </ListView>
