@@ -260,15 +260,41 @@
                               ItemsSource="{Binding Events}"
                               BorderThickness="0"
                               Background="Transparent">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="时间" DisplayMemberBinding="{Binding Time}" Width="74" />
-                                <GridViewColumn Header="平台" DisplayMemberBinding="{Binding Platform}" Width="100" />
-                                <GridViewColumn Header="事件" DisplayMemberBinding="{Binding Event}" Width="90" />
-                                <GridViewColumn Header="状态" DisplayMemberBinding="{Binding Status}" Width="90" />
-                                <GridViewColumn Header="内容" DisplayMemberBinding="{Binding Content}" Width="420" />
-                            </GridView>
-                        </ListView.View>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{StaticResource FastSortBackground}"
+                                        CornerRadius="8"
+                                        Padding="10"
+                                        Margin="0,0,0,8">
+                                    <DockPanel>
+                                        <TextBlock Text="{Binding Time}"
+                                                   DockPanel.Dock="Right"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   FontSize="11"
+                                                   FontFamily="Consolas" />
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Platform}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource FastSortText}" />
+                                                <TextBlock Text="{Binding Event}"
+                                                           Foreground="{StaticResource FastSortAccent}"
+                                                           FontSize="12"
+                                                           Margin="10,0,0,0" />
+                                                <TextBlock Text="{Binding Status}"
+                                                           Foreground="{StaticResource FastSortMuted}"
+                                                           FontSize="12"
+                                                           Margin="10,0,0,0" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Content}"
+                                                       Foreground="{StaticResource FastSortText}"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,5,0,0" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
                     </ListView>
                 </Grid>
             </Border>

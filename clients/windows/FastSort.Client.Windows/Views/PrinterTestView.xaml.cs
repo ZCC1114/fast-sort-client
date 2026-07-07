@@ -2,9 +2,9 @@ using System.Windows.Controls;
 
 namespace FastSort.Client.Windows.Views;
 
-public partial class BusinessPageView : UserControl
+public partial class PrinterTestView : UserControl
 {
-    public BusinessPageView()
+    public PrinterTestView()
     {
         InitializeComponent();
     }

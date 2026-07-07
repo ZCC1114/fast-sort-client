@@ -1,0 +1,99 @@
+<UserControl x:Class="FastSort.Client.Windows.Views.PrinterTestView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinHeight="680">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Style="{StaticResource CardBorder}">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="打印机选择"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortText}" />
+                    <Button Content="刷新设备"
+                            Command="{Binding RefreshCommand}"
+                            Margin="0,12,0,12" />
+                    <ComboBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
+                              SelectedValuePath="Content"
+                              Height="34"
+                              Margin="0,0,0,8">
+                        <ComboBoxItem Content="TSPL" />
+                        <ComboBoxItem Content="CPCL" />
+                        <ComboBoxItem Content="ESC/POS" />
+                    </ComboBox>
+                    <DockPanel Margin="0,0,0,12">
+                        <TextBox Text="{Binding InputTwo, UpdateSourceTrigger=PropertyChanged}"
+                                 Width="90"
+                                 Height="34"
+                                 VerticalContentAlignment="Center"
+                                 Margin="0,0,8,0" />
+                        <TextBox Text="{Binding InputThree, UpdateSourceTrigger=PropertyChanged}"
+                                 Width="90"
+                                 Height="34"
+                                 VerticalContentAlignment="Center" />
+                    </DockPanel>
+                    <Button Content="生成预设指令"
+                            Command="{Binding PrimaryActionCommand}"
+                            Margin="0,0,0,12" />
+                </StackPanel>
+                <ListBox ItemsSource="{Binding DetailRows}"
+                         SelectedItem="{Binding SelectedRow}"
+                         BorderThickness="0"
+                         Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource FastSortBackground}"
+                                    CornerRadius="10"
+                                    Padding="12"
+                                    Margin="0,0,0,10">
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="{StaticResource FastSortText}"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Column="2" Style="{StaticResource CardBorder}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="12" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="指令内容"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource FastSortText}" />
+                <TextBox Grid.Row="2"
+                         Text="{Binding TextAreaText, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True"
+                         TextWrapping="NoWrap"
+                         FontFamily="Consolas"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto" />
+                <DockPanel Grid.Row="3" Margin="0,12,0,0">
+                    <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource FastSortMuted}" VerticalAlignment="Center" />
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="发送 RAW"
+                                Command="{Binding SecondaryActionCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                Margin="0,0,8,0" />
+                        <Button Content="清空日志"
+                                Command="{Binding TertiaryActionCommand}" />
+                    </StackPanel>
+                </DockPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

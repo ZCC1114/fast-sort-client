@@ -10,7 +10,7 @@ using FastSort.Client.Windows.Core.Printing;
 
 namespace FastSort.Client.Windows.ViewModels;
 
-public sealed class BusinessPageViewModel : ViewModelBase
+public sealed class BusinessModulesViewModel : ViewModelBase
 {
     private readonly BlacklistService _blacklistService;
     private readonly VipService _vipService;
@@ -62,7 +62,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
     private int _total;
     private BusinessRowViewModel? _selectedRow;
 
-    public BusinessPageViewModel(
+    public BusinessModulesViewModel(
         BlacklistService blacklistService,
         VipService vipService,
         ProfileService profileService,
@@ -96,6 +96,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
     public ObservableCollection<BusinessMetricViewModel> Metrics { get; } = [];
 
     public ObservableCollection<BusinessRowViewModel> Rows { get; } = [];
+
+    public ObservableCollection<BusinessRowViewModel> PrimaryRows { get; } = [];
+
+    public ObservableCollection<BusinessRowViewModel> DetailRows { get; } = [];
 
     public AsyncRelayCommand RefreshCommand { get; }
 
@@ -546,6 +550,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
     {
         Metrics.Clear();
         Rows.Clear();
+        PrimaryRows.Clear();
+        DetailRows.Clear();
         Total = 0;
         StatusText = "";
         SearchText = "";
@@ -727,7 +733,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         }
 
         var rooms = await _liveRoomsService.QueryRoomsByUserIdAsync(userId);
-        ReplaceRows(rooms.Select(room => new BusinessRowViewModel(
+        var rows = rooms.Select(room => new BusinessRowViewModel(
             "room",
             RoomName(room),
             PlatformLabel(room),
@@ -736,7 +742,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
             room.Id ?? "",
             "",
             RoomUrl(room),
-            room)));
+            room)).ToList();
+        ReplacePrimaryRows(rows);
+        ReplaceRows(rows);
+        ReplaceDetailRows([]);
         Total = Rows.Count;
         ReplaceMetrics(
             new("直播间", Rows.Count.ToString(CultureInfo.InvariantCulture)),
@@ -850,6 +859,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 "",
                 DateTimeOffset.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
                 nativeEvent));
+            DetailRows.Insert(0, Rows[0]);
             Total = Rows.Count;
         });
         return Task.CompletedTask;
@@ -868,7 +878,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var batches = useHistory
             ? result.HistoryCompletedPage?.List ?? []
             : result.NotComplete is null ? [] : [result.NotComplete];
-        ReplaceRows(batches.Select(batch => new BusinessRowViewModel(
+        var rows = batches.Select(batch => new BusinessRowViewModel(
             "batch",
             batch.BatchName ?? "未命名批次",
             $"状态 {JsonValue(batch.SortStatus)}",
@@ -877,7 +887,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
             batch.Id ?? "",
             "",
             batch.CreatedTime ?? "",
-            batch)));
+            batch)).ToList();
+        ReplacePrimaryRows(rows);
+        ReplaceRows(rows);
+        ReplaceDetailRows([]);
         Total = useHistory ? result.HistoryCompletedPage?.TotalValue ?? Rows.Count : Rows.Count;
         ReplaceMetrics(new("批次", useHistory ? "历史" : "当前"), new("行数", Rows.Count.ToString(CultureInfo.InvariantCulture)));
         StatusText = "选择批次后加载标签；选择标签后可加入黑名单。";
@@ -913,7 +926,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         try
         {
             var result = await _pickService.GetLiveTagsAsync(PageIndex, PageSize, userId, batch.Id, SearchText.Trim());
-            ReplaceRows((result.List ?? []).Select(tag => new BusinessRowViewModel(
+            var rows = (result.List ?? []).Select(tag => new BusinessRowViewModel(
                 "tag",
                 tag.OrderName ?? "未命名买家",
                 $"单号 {tag.OrderNumber} · 序号 {tag.OrderIndex}",
@@ -922,7 +935,9 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 tag.TagId ?? tag.Id ?? "",
                 tag.OrderAmounts ?? "",
                 tag.CreatedTime ?? "",
-                tag)));
+                tag)).ToList();
+            ReplaceDetailRows(rows);
+            ReplaceRows(rows);
             Total = result.TotalValue;
             ReplaceMetrics(
                 new("批次", batch.BatchName ?? "-"),
@@ -988,7 +1003,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var batches = useHistory
             ? result.HistoryCompletedPage?.List ?? []
             : result.NotComplete is null ? [] : [result.NotComplete];
-        ReplaceRows(batches.Select(batch => new BusinessRowViewModel(
+        var rows = batches.Select(batch => new BusinessRowViewModel(
             "batch",
             batch.BatchName ?? "未命名批次",
             $"状态 {JsonValue(batch.SortStatus)}",
@@ -997,7 +1012,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
             batch.Id ?? "",
             "",
             batch.CreatedTime ?? "",
-            batch)));
+            batch)).ToList();
+        ReplacePrimaryRows(rows);
+        ReplaceRows(rows);
+        ReplaceDetailRows([]);
         Total = useHistory ? result.HistoryCompletedPage?.TotalValue ?? Rows.Count : Rows.Count;
         ReplaceMetrics(new("平台", PlatformName(NormalizeRemarkLiveType())), new("行数", Rows.Count.ToString(CultureInfo.InvariantCulture)));
         StatusText = "选择批次后加载/导出；标签加载完成后再次点击会导出备注映射。";
@@ -1035,7 +1053,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         {
             var result = await _pickService.GetLiveTagsAsync(PageIndex, 100, userId, batch.Id, SearchText.Trim());
             var tags = result.List ?? [];
-            ReplaceRows(tags.Select(tag => new BusinessRowViewModel(
+            var rows = tags.Select(tag => new BusinessRowViewModel(
                 "tag",
                 tag.OrderName ?? "未命名买家",
                 GeneratedRemark(tag),
@@ -1044,7 +1062,9 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 tag.TagId ?? tag.Id ?? "",
                 tag.OrderAmounts ?? "",
                 tag.UpdatedTime ?? tag.CreatedTime ?? "",
-                tag)));
+                tag)).ToList();
+            ReplaceDetailRows(rows);
+            ReplaceRows(rows);
             Total = result.TotalValue;
             ReplaceMetrics(new("批次", batch.BatchName ?? "-"), new("备注行数", tags.Count.ToString(CultureInfo.InvariantCulture)));
             StatusText = "备注预览已加载。再次点击加载/导出会写入 JSON 并打开工作台。";
@@ -1112,7 +1132,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             SearchText.Trim(),
             FilterText.Trim(),
             InputOne.Trim());
-        ReplaceRows((result.List ?? []).Select(item => new BusinessRowViewModel(
+        var rows = (result.List ?? []).Select(item => new BusinessRowViewModel(
             "blacklist",
             item.OrderName ?? "-",
             $"{PlatformName(JsonValue(item.LiveType))} · {BlackTypeLabel(JsonValue(item.BlackType))}",
@@ -1121,7 +1141,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
             item.Id ?? "",
             item.SkipBillAmount ?? "",
             item.UpdatedTime ?? item.CreatedTime ?? "",
-            item)));
+            item)).ToList();
+        ReplacePrimaryRows(rows);
+        ReplaceRows(rows);
+        ReplaceDetailRows([]);
         Total = result.TotalValue;
         ReplaceMetrics(new("总数", Total.ToString(CultureInfo.InvariantCulture)), new("范围", userId is null ? "全局" : "我的"));
         StatusText = "选择黑名单行后点击加载详情。";
@@ -1160,6 +1183,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             detail.SkipBillAmount ?? "",
             detail.UpdatedTime ?? "",
             detail)));
+        ReplaceDetailRows(rows);
         ReplaceRows(rows);
         Total = rows.Count;
         ReplaceMetrics(
@@ -1191,7 +1215,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         }
 
         var result = await _vipService.GetPaymentOrdersAsync(PageIndex, PageSize, userId, PaymentStatus(FilterText));
-        ReplaceRows((result.List ?? []).Select(order => new BusinessRowViewModel(
+        var rows = (result.List ?? []).Select(order => new BusinessRowViewModel(
             "vip-order",
             order.VipInfoName ?? "VIP",
             $"时长 {order.VipInfoDuration ?? "-"} · {order.VipAddType ?? "-"}",
@@ -1200,7 +1224,9 @@ public sealed class BusinessPageViewModel : ViewModelBase
             order.Id ?? "",
             order.PaymentPrice ?? "",
             order.CreatedTime ?? "",
-            order)));
+            order)).ToList();
+        ReplaceDetailRows(rows);
+        ReplaceRows(rows);
         Total = result.TotalValue;
         ReplaceMetrics(new("订单数", Total.ToString(CultureInfo.InvariantCulture)), new("状态", FilterText));
         StatusText = "会员支付订单已加载。";
@@ -1564,6 +1590,25 @@ public sealed class BusinessPageViewModel : ViewModelBase
         }
 
         SelectedRow = Rows.FirstOrDefault();
+        ReplaceDetailRows(Rows);
+    }
+
+    private void ReplacePrimaryRows(IEnumerable<BusinessRowViewModel> rows)
+    {
+        PrimaryRows.Clear();
+        foreach (var row in rows)
+        {
+            PrimaryRows.Add(row);
+        }
+    }
+
+    private void ReplaceDetailRows(IEnumerable<BusinessRowViewModel> rows)
+    {
+        DetailRows.Clear();
+        foreach (var row in rows)
+        {
+            DetailRows.Add(row);
+        }
     }
 
     private void ReplaceMetrics(params BusinessMetricViewModel[] metrics)

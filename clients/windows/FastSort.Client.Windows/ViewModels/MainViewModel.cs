@@ -28,7 +28,7 @@ public sealed class MainViewModel : ViewModelBase
         Dashboard = new DashboardViewModel(new DashboardService(apiClient), () => CurrentUserId);
         DanmakuCookieTest = new DanmakuCookieTestViewModel(danmakuCoordinator);
         LiveRooms = new LiveRoomsViewModel(liveRoomsService, danmakuCoordinator, () => CurrentUserId);
-        BusinessPage = new BusinessPageViewModel(
+        BusinessPage = new BusinessModulesViewModel(
             new BlacklistService(apiClient),
             new VipService(apiClient),
             new ProfileService(apiClient),
@@ -65,7 +65,7 @@ public sealed class MainViewModel : ViewModelBase
 
     public DanmakuCookieTestViewModel DanmakuCookieTest { get; }
 
-    public BusinessPageViewModel BusinessPage { get; }
+    public BusinessModulesViewModel BusinessPage { get; }
 
     public IReadOnlyList<RouteItemViewModel> Routes { get; }
 

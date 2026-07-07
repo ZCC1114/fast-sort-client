@@ -16,159 +16,61 @@
                 <RowDefinition Height="70" />
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0"
-                        Orientation="Horizontal"
-                        Margin="42,24,0,0">
-                <Border Width="34"
-                        Height="34"
-                        CornerRadius="9"
-                        Background="{StaticResource FastSortAccent}">
-                    <TextBlock Text="拣"
-                               Foreground="White"
-                               FontSize="18"
-                               FontWeight="Bold"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="42,24,0,0">
+                <Border Width="34" Height="34" CornerRadius="9" Background="{StaticResource FastSortAccent}">
+                    <TextBlock Text="拣" Foreground="White" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Margin="10,0,0,0">
-                    <TextBlock Text="迅拣"
-                               Foreground="{StaticResource FastSortText}"
-                               FontSize="15"
-                               FontWeight="SemiBold" />
-                    <TextBlock Text="弹幕标签打印"
-                               Foreground="{StaticResource FastSortMuted}"
-                               FontSize="11"
-                               Margin="0,2,0,0" />
+                    <TextBlock Text="迅拣" Foreground="{StaticResource FastSortText}" FontSize="15" FontWeight="SemiBold" />
+                    <TextBlock Text="弹幕标签打印" Foreground="{StaticResource FastSortMuted}" FontSize="11" Margin="0,2,0,0" />
                 </StackPanel>
             </StackPanel>
 
-            <Border Grid.Row="1"
-                    Width="420"
-                    Padding="30"
-                    Style="{StaticResource CardBorder}"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center">
+            <Border Grid.Row="1" Width="420" Padding="30" Style="{StaticResource CardBorder}" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel DataContext="{Binding Login}">
-                    <TextBlock Text="欢迎使用迅拣"
-                               Foreground="{StaticResource FastSortMuted}"
-                               FontSize="13"
-                               FontWeight="Medium" />
-                    <TextBlock Text="登录"
-                               Foreground="{StaticResource FastSortText}"
-                               FontSize="34"
-                               FontWeight="Bold"
-                               Margin="0,6,0,18" />
+                    <TextBlock Text="Welcome to 迅拣" Foreground="{StaticResource FastSortMuted}" FontSize="13" FontWeight="Medium" />
+                    <TextBlock Text="Login" Foreground="{StaticResource FastSortText}" FontSize="34" FontWeight="Bold" Margin="0,6,0,18" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                        <RadioButton Content="验证码登录"
-                                     IsChecked="{Binding IsSmsLogin}"
-                                     GroupName="LoginMode"
-                                     Margin="0,0,18,0" />
-                        <RadioButton Content="账号登录"
-                                     IsChecked="{Binding IsAccountLogin}"
-                                     GroupName="LoginMode" />
+                        <RadioButton Content="SMS" IsChecked="{Binding IsSmsLogin}" GroupName="LoginMode" Margin="0,0,18,0" />
+                        <RadioButton Content="Account" IsChecked="{Binding IsAccountLogin}" GroupName="LoginMode" />
                     </StackPanel>
 
-                    <TextBlock Text="手机号"
-                               Foreground="{StaticResource FastSortMuted}"
-                               FontSize="12" />
-                    <TextBox Text="{Binding Phone, UpdateSourceTrigger=PropertyChanged}"
-                             Height="34"
-                             Margin="0,6,0,14" />
+                    <TextBlock Text="手机号" Foreground="{StaticResource FastSortMuted}" FontSize="12" />
+                    <TextBox Text="{Binding Phone, UpdateSourceTrigger=PropertyChanged}" Height="34" Margin="0,6,0,14" />
 
                     <Grid>
                         <StackPanel Visibility="{Binding IsSmsLogin, Converter={StaticResource BoolToVisibilityConverter}}">
                             <DockPanel Margin="0,0,0,8">
-                                <TextBlock Text="验证码"
-                                           Foreground="{StaticResource FastSortMuted}"
-                                           FontSize="12"
-                                           VerticalAlignment="Center" />
-                                <Button Content="{Binding SendCodeText}"
-                                        Command="{Binding SendCodeCommand}"
-                                        DockPanel.Dock="Right"
-                                        Foreground="{StaticResource FastSortAccent}"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Cursor="Hand" />
+                                <TextBlock Text="验证码" Foreground="{StaticResource FastSortMuted}" FontSize="12" VerticalAlignment="Center" />
+                                <Button Content="{Binding SendCodeText}" Command="{Binding SendCodeCommand}" DockPanel.Dock="Right" Foreground="{StaticResource FastSortAccent}" Background="Transparent" BorderThickness="0" />
                             </DockPanel>
                             <UniformGrid Columns="4" Margin="0,0,0,14">
-                                <TextBox Text="{Binding Code1, UpdateSourceTrigger=PropertyChanged}"
-                                         Height="44"
-                                         MaxLength="1"
-                                         FontSize="20"
-                                         FontWeight="SemiBold"
-                                         TextAlignment="Center"
-                                         Margin="0,0,10,0" />
-                                <TextBox Text="{Binding Code2, UpdateSourceTrigger=PropertyChanged}"
-                                         Height="44"
-                                         MaxLength="1"
-                                         FontSize="20"
-                                         FontWeight="SemiBold"
-                                         TextAlignment="Center"
-                                         Margin="0,0,10,0" />
-                                <TextBox Text="{Binding Code3, UpdateSourceTrigger=PropertyChanged}"
-                                         Height="44"
-                                         MaxLength="1"
-                                         FontSize="20"
-                                         FontWeight="SemiBold"
-                                         TextAlignment="Center"
-                                         Margin="0,0,10,0" />
-                                <TextBox Text="{Binding Code4, UpdateSourceTrigger=PropertyChanged}"
-                                         Height="44"
-                                         MaxLength="1"
-                                         FontSize="20"
-                                         FontWeight="SemiBold"
-                                         TextAlignment="Center" />
+                                <TextBox Text="{Binding Code1, UpdateSourceTrigger=PropertyChanged}" Height="44" MaxLength="1" FontSize="20" FontWeight="SemiBold" TextAlignment="Center" Margin="0,0,10,0" />
+                                <TextBox Text="{Binding Code2, UpdateSourceTrigger=PropertyChanged}" Height="44" MaxLength="1" FontSize="20" FontWeight="SemiBold" TextAlignment="Center" Margin="0,0,10,0" />
+                                <TextBox Text="{Binding Code3, UpdateSourceTrigger=PropertyChanged}" Height="44" MaxLength="1" FontSize="20" FontWeight="SemiBold" TextAlignment="Center" Margin="0,0,10,0" />
+                                <TextBox Text="{Binding Code4, UpdateSourceTrigger=PropertyChanged}" Height="44" MaxLength="1" FontSize="20" FontWeight="SemiBold" TextAlignment="Center" />
                             </UniformGrid>
                         </StackPanel>
-
                         <StackPanel Visibility="{Binding IsAccountLogin, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <TextBlock Text="密码"
-                                       Foreground="{StaticResource FastSortMuted}"
-                                       FontSize="12" />
-                            <PasswordBox Height="34"
-                                         Margin="0,6,0,14"
-                                         PasswordChanged="PasswordBox_PasswordChanged" />
+                            <TextBlock Text="密码" Foreground="{StaticResource FastSortMuted}" FontSize="12" />
+                            <PasswordBox Height="34" Margin="0,6,0,14" PasswordChanged="PasswordBox_PasswordChanged" />
                         </StackPanel>
                     </Grid>
 
-                    <CheckBox IsChecked="{Binding TermsAccepted}"
-                              Margin="0,0,0,16">
-                        <TextBlock FontSize="12"
-                                   Foreground="{StaticResource FastSortMuted}"
-                                   Text="我已阅读并同意服务协议与隐私政策" />
+                    <CheckBox IsChecked="{Binding TermsAccepted}" Margin="0,0,0,16">
+                        <TextBlock FontSize="12" Foreground="{StaticResource FastSortMuted}" Text="我已阅读并同意服务协议与隐私政策" />
                     </CheckBox>
 
-                    <Button Content="登录"
-                            Command="{Binding LoginCommand}"
-                            Style="{StaticResource PrimaryButton}"
-                            Height="40" />
-
-                    <TextBlock Text="{Binding ErrorText}"
-                               Foreground="{StaticResource FastSortDanger}"
-                               FontSize="13"
-                               TextWrapping="Wrap"
-                               Margin="0,12,0,0" />
-                    <TextBlock Text="{Binding SuccessText}"
-                               Foreground="{StaticResource FastSortSuccess}"
-                               FontSize="13"
-                               TextWrapping="Wrap"
-                               Margin="0,6,0,0" />
+                    <Button Content="Login" Command="{Binding LoginCommand}" Style="{StaticResource PrimaryButton}" Height="40" />
+                    <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource FastSortDanger}" FontSize="13" TextWrapping="Wrap" Margin="0,12,0,0" />
+                    <TextBlock Text="{Binding SuccessText}" Foreground="{StaticResource FastSortSuccess}" FontSize="13" TextWrapping="Wrap" Margin="0,6,0,0" />
                 </StackPanel>
             </Border>
 
-            <StackPanel Grid.Row="2"
-                        VerticalAlignment="Center"
-                        HorizontalAlignment="Center">
-                <TextBlock Text="ICP备案号：苏ICP备2025175795号-1A"
-                           Foreground="{StaticResource FastSortMuted}"
-                           FontSize="12"
-                           TextAlignment="Center" />
-                <TextBlock Text="Copyright © 2026 无锡市道亨科技有限责任公司"
-                           Foreground="{StaticResource FastSortMuted}"
-                           FontSize="12"
-                           TextAlignment="Center"
-                           Margin="0,6,0,0" />
+            <StackPanel Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="ICP备案号：苏ICP备2025175795号-1A" Foreground="{StaticResource FastSortMuted}" FontSize="12" TextAlignment="Center" />
+                <TextBlock Text="Copyright © 2026 无锡市道亨科技有限责任公司" Foreground="{StaticResource FastSortMuted}" FontSize="12" TextAlignment="Center" Margin="0,6,0,0" />
             </StackPanel>
         </Grid>
 
@@ -178,66 +80,31 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0"
-                    Background="{StaticResource FastSortSidebar}"
-                    BorderBrush="{StaticResource FastSortBorder}"
-                    BorderThickness="0,0,1,0">
+            <Border Grid.Column="0" Background="{StaticResource FastSortSidebar}" BorderBrush="{StaticResource FastSortBorder}" BorderThickness="0,0,1,0">
                 <DockPanel LastChildFill="True" Margin="10,18,10,16">
                     <StackPanel DockPanel.Dock="Top" Margin="4,0,4,18">
                         <StackPanel Orientation="Horizontal">
-                            <Border Width="34"
-                                    Height="34"
-                                    CornerRadius="9"
-                                    Background="{StaticResource FastSortAccent}">
-                                <TextBlock Text="拣"
-                                           Foreground="White"
-                                           FontSize="18"
-                                           FontWeight="Bold"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
+                            <Border Width="34" Height="34" CornerRadius="9" Background="{StaticResource FastSortAccent}">
+                                <TextBlock Text="拣" Foreground="White" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <StackPanel Margin="10,0,0,0">
-                                <TextBlock Text="迅拣"
-                                           Foreground="{StaticResource FastSortText}"
-                                           FontSize="15"
-                                           FontWeight="SemiBold" />
-                                <TextBlock Text="弹幕标签打印"
-                                           Foreground="{StaticResource FastSortMuted}"
-                                           FontSize="11"
-                                           Margin="0,2,0,0" />
+                                <TextBlock Text="迅拣" Foreground="{StaticResource FastSortText}" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Text="弹幕标签打印" Foreground="{StaticResource FastSortMuted}" FontSize="11" Margin="0,2,0,0" />
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Bottom">
-                        <Button Command="{Binding SelectRouteCommand}"
-                                CommandParameter="{Binding ProfileRoute}"
-                                Style="{StaticResource SidebarRouteButton}"
-                                Margin="0,0,0,4">
+                        <Button Command="{Binding SelectRouteCommand}" CommandParameter="{Binding ProfileRoute}" Style="{StaticResource SidebarRouteButton}" Margin="0,0,0,4">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="个"
-                                           Width="22"
-                                           TextAlignment="Center"
-                                           Foreground="{StaticResource FastSortMuted}" />
-                                <TextBlock Text="个人中心"
-                                           Foreground="{StaticResource FastSortText}"
-                                           FontSize="13"
-                                           FontWeight="Medium"
-                                           Margin="10,0,0,0" />
+                                <TextBlock Text="◉" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" />
+                                <TextBlock Text="个人中心" Foreground="{StaticResource FastSortText}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" />
                             </StackPanel>
                         </Button>
-                        <Button Command="{Binding LogoutCommand}"
-                                Style="{StaticResource SidebarRouteButton}">
+                        <Button Command="{Binding LogoutCommand}" Style="{StaticResource SidebarRouteButton}">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="退"
-                                           Width="22"
-                                           TextAlignment="Center"
-                                           Foreground="{StaticResource FastSortMuted}" />
-                                <TextBlock Text="退出登录"
-                                           Foreground="{StaticResource FastSortMuted}"
-                                           FontSize="13"
-                                           FontWeight="Medium"
-                                           Margin="10,0,0,0" />
+                                <TextBlock Text="↩" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" />
+                                <TextBlock Text="退出登录" Foreground="{StaticResource FastSortMuted}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -250,6 +117,7 @@
                                         Margin="0,0,0,4">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource SidebarRouteButton}">
+                                            <Setter Property="Foreground" Value="{StaticResource FastSortText}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
                                                     <Setter Property="Background" Value="{StaticResource FastSortAccentSoft}" />
@@ -263,20 +131,8 @@
                                             <ColumnDefinition Width="22" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding IconText}"
-                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                   FontSize="13"
-                                                   FontWeight="SemiBold"
-                                                   TextAlignment="Center"
-                                                   VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{Binding Title}"
-                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                                   FontSize="13"
-                                                   FontWeight="Medium"
-                                                   Margin="10,0,0,0"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding IconText}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="13" FontWeight="SemiBold" TextAlignment="Center" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     </Grid>
                                 </Button>
                             </DataTemplate>
@@ -291,233 +147,48 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0"
-                        Background="{StaticResource FastSortSurface}"
-                        BorderBrush="{StaticResource FastSortBorder}"
-                        BorderThickness="0,0,0,1">
+                <Border Grid.Row="0" Background="{StaticResource FastSortSurface}" BorderBrush="{StaticResource FastSortBorder}" BorderThickness="0,0,0,1">
                     <DockPanel LastChildFill="True" Margin="24,0">
-                        <StackPanel DockPanel.Dock="Right"
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center">
-                            <Button Content="Manual"
-                                    Command="{Binding OpenManualCommand}"
-                                    Style="{StaticResource TopbarTextButton}"
-                                    Margin="0,0,12,0" />
-                            <Button Content="Upgrade VIP"
-                                    Command="{Binding SelectRouteCommand}"
-                                    CommandParameter="{Binding PaymentRoute}"
-                                    Style="{StaticResource VipButton}"
-                                    Margin="0,0,12,0" />
-                            <TextBlock Text="{Binding ProfileName}"
-                                       VerticalAlignment="Center"
-                                       Foreground="{StaticResource FastSortText}"
-                                       FontSize="13"
-                                       FontWeight="Medium"
-                                       Margin="0,0,12,0" />
-                            <TextBlock Text="{Binding VipStatusText}"
-                                       VerticalAlignment="Center"
-                                       Foreground="{StaticResource FastSortMuted}"
-                                       FontSize="13"
-                                       FontWeight="Medium" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="Manual" Command="{Binding OpenManualCommand}" Style="{StaticResource TopbarTextButton}" Margin="0,0,12,0" />
+                            <Button Content="Upgrade VIP" Command="{Binding SelectRouteCommand}" CommandParameter="{Binding PaymentRoute}" Style="{StaticResource VipButton}" Margin="0,0,12,0" />
+                            <TextBlock Text="{Binding ProfileName}" VerticalAlignment="Center" Foreground="{StaticResource FastSortText}" FontSize="13" FontWeight="Medium" Margin="0,0,12,0" />
+                            <TextBlock Text="{Binding VipStatusText}" VerticalAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="13" FontWeight="Medium" />
                         </StackPanel>
-
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="{Binding SelectedRouteTitle}"
-                                       Foreground="{StaticResource FastSortText}"
-                                       FontSize="21"
-                                       FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding SelectedRouteSubtitle}"
-                                       Foreground="{StaticResource FastSortMuted}"
-                                       FontSize="12"
-                                       Margin="0,2,0,0" />
+                            <TextBlock Text="{Binding SelectedRouteTitle}" Foreground="{StaticResource FastSortText}" FontSize="21" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding SelectedRouteSubtitle}" Foreground="{StaticResource FastSortMuted}" FontSize="12" Margin="0,2,0,0" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
 
-                <Grid Grid.Row="1"
-                      Background="{StaticResource FastSortGroupedBackground}">
-                    <ScrollViewer Padding="24,20,24,24"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled">
+                <Grid Grid.Row="1" Background="{StaticResource FastSortGroupedBackground}">
+                    <ScrollViewer Padding="24,20,24,24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                         <Grid>
-                            <StackPanel DataContext="{Binding Dashboard}"
-                                        Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Dashboard}">
-                                <ItemsControl ItemsSource="{Binding Stats}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Columns="5" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Style="{StaticResource CardBorder}"
-                                                    Margin="0,0,12,18">
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Value}"
-                                                               FontSize="24"
-                                                               FontWeight="Bold"
-                                                               Foreground="{StaticResource FastSortText}" />
-                                                    <TextBlock Text="{Binding Title}"
-                                                               FontSize="12"
-                                                               Foreground="{StaticResource FastSortMuted}"
-                                                               Margin="0,4,0,0" />
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="390" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel Grid.Column="0" Margin="0,0,18,0">
-                                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,18">
-                                            <StackPanel>
-                                                <DockPanel>
-                                                    <TextBlock Text="打印报表"
-                                                               FontSize="18"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource FastSortText}" />
-                                                    <Button Content="刷新"
-                                                            Command="{Binding RefreshCommand}"
-                                                            DockPanel.Dock="Right" />
-                                                </DockPanel>
-                                                <TextBlock Text="{Binding TrendSummary}"
-                                                           Foreground="{StaticResource FastSortMuted}"
-                                                           FontSize="14"
-                                                           Margin="0,18,0,0" />
-                                                <Border Height="190"
-                                                        Background="{StaticResource FastSortBackground}"
-                                                        CornerRadius="8"
-                                                        Margin="0,14,0,0">
-                                                    <TextBlock Text="趋势图组件将在图表基础组件阶段补齐"
-                                                               Foreground="{StaticResource FastSortMuted}"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center" />
-                                                </Border>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <Border Style="{StaticResource CardBorder}">
-                                            <StackPanel>
-                                                <TextBlock Text="最新理货批次"
-                                                           FontSize="18"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="{StaticResource FastSortText}"
-                                                           Margin="0,0,0,14" />
-                                                <ItemsControl ItemsSource="{Binding Batches}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border Background="{StaticResource FastSortBackground}"
-                                                                    CornerRadius="8"
-                                                                    Padding="12"
-                                                                    Margin="0,0,0,10">
-                                                                <DockPanel>
-                                                                    <TextBlock Text="{Binding Status}"
-                                                                               Foreground="{StaticResource FastSortAccent}"
-                                                                               DockPanel.Dock="Right" />
-                                                                    <StackPanel>
-                                                                        <TextBlock Text="{Binding Platform}"
-                                                                                   FontWeight="SemiBold"
-                                                                                   Foreground="{StaticResource FastSortText}" />
-                                                                        <TextBlock Text="{Binding BatchName}"
-                                                                                   Foreground="{StaticResource FastSortMuted}"
-                                                                                   Margin="0,4,0,0" />
-                                                                        <TextBlock Text="{Binding CreatedTime}"
-                                                                                   Foreground="{StaticResource FastSortMuted}"
-                                                                                   FontSize="12"
-                                                                                   Margin="0,4,0,0" />
-                                                                    </StackPanel>
-                                                                </DockPanel>
-                                                            </Border>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Column="1">
-                                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,18">
-                                            <StackPanel>
-                                                <TextBlock Text="直播间"
-                                                           FontSize="18"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="{StaticResource FastSortText}"
-                                                           Margin="0,0,0,14" />
-                                                <ItemsControl ItemsSource="{Binding Rooms}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <DockPanel Margin="0,0,0,12">
-                                                                <TextBlock Text="{Binding Platform}"
-                                                                           Foreground="{StaticResource FastSortAccent}"
-                                                                           DockPanel.Dock="Right" />
-                                                                <StackPanel>
-                                                                    <TextBlock Text="{Binding Name}"
-                                                                               FontWeight="SemiBold"
-                                                                               Foreground="{StaticResource FastSortText}" />
-                                                                    <TextBlock Text="{Binding Handle}"
-                                                                               FontSize="12"
-                                                                               Foreground="{StaticResource FastSortMuted}" />
-                                                                </StackPanel>
-                                                            </DockPanel>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <Border Style="{StaticResource CardBorder}">
-                                            <StackPanel>
-                                                <DockPanel Margin="0,0,0,14">
-                                                    <TextBlock Text="黑名单"
-                                                               FontSize="18"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{StaticResource FastSortText}" />
-                                                    <TextBlock Text="{Binding BlacklistTotal, StringFormat=共 {0} 条}"
-                                                               DockPanel.Dock="Right"
-                                                               Foreground="{StaticResource FastSortMuted}" />
-                                                </DockPanel>
-                                                <ItemsControl ItemsSource="{Binding Blacklist}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <DockPanel Margin="0,0,0,12">
-                                                                <TextBlock Text="{Binding Level}"
-                                                                           Foreground="{StaticResource FastSortAccent}"
-                                                                           DockPanel.Dock="Right" />
-                                                                <StackPanel>
-                                                                    <TextBlock Text="{Binding OrderName}"
-                                                                               FontWeight="SemiBold"
-                                                                               Foreground="{StaticResource FastSortText}" />
-                                                                    <TextBlock Text="{Binding Meta}"
-                                                                               FontSize="12"
-                                                                               Foreground="{StaticResource FastSortMuted}" />
-                                                                </StackPanel>
-                                                            </DockPanel>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-                                </Grid>
-
-                                <TextBlock Text="{Binding ErrorText}"
-                                           Foreground="{StaticResource FastSortDanger}"
-                                           Margin="0,12,0,0" />
-                            </StackPanel>
-
+                            <views:DashboardView DataContext="{Binding Dashboard}"
+                                                 Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Dashboard}" />
                             <views:LiveRoomsView DataContext="{Binding LiveRooms}"
                                                  Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=LiveRooms}" />
-
+                            <views:EntertainmentView DataContext="{Binding BusinessPage}"
+                                                     Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Entertainment}" />
+                            <views:PickView DataContext="{Binding BusinessPage}"
+                                            Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Pick}" />
+                            <views:OrderRemarkView DataContext="{Binding BusinessPage}"
+                                                   Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=DouyinRemark}" />
+                            <views:BlacklistView DataContext="{Binding BusinessPage}"
+                                                 Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Blacklist}" />
+                            <views:VipOrdersView DataContext="{Binding BusinessPage}"
+                                                 Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=VipOrder}" />
                             <views:DanmakuCookieTestView DataContext="{Binding DanmakuCookieTest}"
                                                          Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=DanmakuCookieTest}" />
-
-                            <views:BusinessPageView DataContext="{Binding BusinessPage}"
-                                                    Visibility="{Binding DataContext.IsBusinessPageSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            <views:SettingsView DataContext="{Binding BusinessPage}"
+                                                Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Settings}" />
+                            <views:ProfileView DataContext="{Binding BusinessPage}"
+                                               Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Profile}" />
+                            <views:PaymentView DataContext="{Binding BusinessPage}"
+                                               Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Payment}" />
+                            <views:PrinterTestView DataContext="{Binding BusinessPage}"
+                                                   Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=PrinterTest}" />
                         </Grid>
                     </ScrollViewer>
                 </Grid>

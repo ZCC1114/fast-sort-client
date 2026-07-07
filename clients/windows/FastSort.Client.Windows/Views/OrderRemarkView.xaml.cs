@@ -1,0 +1,11 @@
+using System.Windows.Controls;
+
+namespace FastSort.Client.Windows.Views;
+
+public partial class OrderRemarkView : UserControl
+{
+    public OrderRemarkView()
+    {
+        InitializeComponent();
+    }
+}

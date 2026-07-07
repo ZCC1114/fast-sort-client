@@ -1,0 +1,225 @@
+<UserControl x:Class="FastSort.Client.Windows.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinHeight="680">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="18" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ItemsControl Grid.Row="0" ItemsSource="{Binding Stats}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="5" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource CardBorder}" Margin="0,0,12,0" MinHeight="86">
+                        <DockPanel LastChildFill="True">
+                            <Border Width="46"
+                                    Height="46"
+                                    DockPanel.Dock="Left"
+                                    Background="{StaticResource FastSortAccentSoft}"
+                                    CornerRadius="23"
+                                    Margin="0,0,14,0">
+                                <TextBlock Text="{Binding IconText}"
+                                           Foreground="{StaticResource FastSortAccent}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Value}"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource FastSortText}" />
+                                <TextBlock Text="{Binding Title}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource FastSortMuted}"
+                                           Margin="0,4,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="340" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0">
+                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,14">
+                            <TextBlock Text="打印报表"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource FastSortText}" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="7 天" Style="{StaticResource TopbarTextButton}" Margin="0,0,8,0" />
+                                <Button Content="30 天" Style="{StaticResource TopbarTextButton}" Margin="0,0,8,0" />
+                                <Button Content="刷新" Command="{Binding RefreshCommand}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <Border Height="310"
+                                Background="{StaticResource FastSortBackground}"
+                                CornerRadius="10"
+                                BorderBrush="{StaticResource FastSortBorder}"
+                                BorderThickness="1">
+                            <Grid Margin="18">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Canvas Grid.Row="0">
+                                    <Polyline Points="0,215 120,180 250,205 380,130 520,160 640,90 760,120"
+                                              Stroke="{StaticResource FastSortAccent}"
+                                              StrokeThickness="3"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round" />
+                                </Canvas>
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding TrendSummary}"
+                                           Foreground="{StaticResource FastSortMuted}"
+                                           FontSize="13"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,14,0,0" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="最新理货批次"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortText}"
+                                   Margin="0,0,0,14" />
+                        <ItemsControl ItemsSource="{Binding Batches}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource FastSortBackground}"
+                                            CornerRadius="10"
+                                            Padding="12"
+                                            Margin="0,0,0,10">
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Status}"
+                                                       DockPanel.Dock="Right"
+                                                       Foreground="{StaticResource FastSortAccent}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold" />
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Platform}"
+                                                           FontSize="14"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource FastSortText}" />
+                                                <TextBlock Text="{Binding BatchName}"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource FastSortMuted}"
+                                                           Margin="0,5,0,0" />
+                                                <TextBlock Text="{Binding CreatedTime}"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource FastSortMuted}"
+                                                           Margin="0,5,0,0" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2">
+                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="直播间"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortText}"
+                                   Margin="0,0,0,14" />
+                        <ItemsControl ItemsSource="{Binding Rooms}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource FastSortBackground}"
+                                            CornerRadius="10"
+                                            Padding="10"
+                                            Margin="0,0,0,10">
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Platform}"
+                                                       DockPanel.Dock="Right"
+                                                       Foreground="{StaticResource FastSortAccent}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold" />
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource FastSortText}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Handle}"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource FastSortMuted}"
+                                                           Margin="0,3,0,0" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,14">
+                            <TextBlock Text="黑名单"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource FastSortText}" />
+                            <TextBlock Text="{Binding BlacklistTotal, StringFormat=共 {0} 条}"
+                                       DockPanel.Dock="Right"
+                                       Foreground="{StaticResource FastSortMuted}"
+                                       FontSize="12" />
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding Blacklist}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <TextBlock Text="{Binding Level}"
+                                                   DockPanel.Dock="Right"
+                                                   Foreground="{StaticResource FastSortAccent}"
+                                                   FontWeight="SemiBold" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding OrderName}"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource FastSortText}" />
+                                            <TextBlock Text="{Binding Meta}"
+                                                       FontSize="12"
+                                                       Foreground="{StaticResource FastSortMuted}"
+                                                       Margin="0,3,0,0" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding ErrorText}"
+                                   Foreground="{StaticResource FastSortDanger}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

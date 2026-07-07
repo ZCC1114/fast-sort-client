@@ -216,6 +216,16 @@ public sealed class DashboardViewModel : ViewModelBase
 
         public string Title { get; }
 
+        public string IconText => Title switch
+        {
+            "打印标签数" => "印",
+            "扣费用户数" => "人",
+            "直播间数" => "播",
+            "标签模板数" => "签",
+            "黑名单数" => "黑",
+            _ => "拣"
+        };
+
         public string Value
         {
             get => _value;
