@@ -81,6 +81,77 @@ public sealed class LiveRoomsService
             new AddKuaishouRoomRequest("", roomName, "", "", liveSession, liveSession),
             cancellationToken);
     }
+
+    public Task<int> GetUserRoomStatusAsync(string id, CancellationToken cancellationToken = default)
+    {
+        return _apiClient.PostAsync<int>(
+            $"/app/fsUserRoom/getFsUserRoomStatus/{Uri.EscapeDataString(id)}",
+            null,
+            cancellationToken);
+    }
+
+    public Task UpdateXhsRoomAsync(
+        string id,
+        string title,
+        string cover,
+        CancellationToken cancellationToken = default)
+    {
+        return _apiClient.PostAsync(
+            "/app/fsUserRoom/updateFsUserXhsRoom",
+            new UpdateXhsRoomRequest(id, title, cover),
+            cancellationToken);
+    }
+
+    public Task UpdateRoomInfoAsync(
+        string id,
+        string userId,
+        string roomName,
+        string roomUrl,
+        CancellationToken cancellationToken = default)
+    {
+        return _apiClient.PostAsync(
+            "/app/fsUserRoom/updateFsUserRoomInfo",
+            new UpdateRoomInfoRequest(id, userId, roomName, roomUrl),
+            cancellationToken);
+    }
+
+    public Task DeleteRoomAsync(string id, CancellationToken cancellationToken = default)
+    {
+        return _apiClient.PostAsync(
+            $"/app/fsUserRoom/deleteFsUserRoom/{Uri.EscapeDataString(id)}",
+            null,
+            cancellationToken);
+    }
+
+    public Task<RoomPrintConfigResponse> GetUserRoomPostageAsync(
+        string userRoomId,
+        CancellationToken cancellationToken = default)
+    {
+        return _apiClient.PostAsync<RoomPrintConfigResponse>(
+            $"/app/fsLiveTag/getUserRoomPostage/{Uri.EscapeDataString(userRoomId)}",
+            null,
+            cancellationToken);
+    }
+
+    public Task<LiveRecordResponse> StartLiveAsync(
+        string userId,
+        string userRoomId,
+        string liveTitle,
+        CancellationToken cancellationToken = default)
+    {
+        return _apiClient.PostAsync<LiveRecordResponse>(
+            "/app/fsLiveRecord/startLive",
+            new StartLiveRequest(userId, userRoomId, liveTitle),
+            cancellationToken);
+    }
+
+    public Task FinishLiveAsync(string id, CancellationToken cancellationToken = default)
+    {
+        return _apiClient.PostAsync(
+            $"/app/fsLiveRecord/finishLive/{Uri.EscapeDataString(id)}",
+            null,
+            cancellationToken);
+    }
 }
 
 public sealed record AddTaobaoRoomRequest(string RoomName, string RoomNumber, string LiveSession);

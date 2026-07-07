@@ -432,43 +432,8 @@
                         <views:DanmakuCookieTestView DataContext="{Binding DanmakuCookieTest}"
                                                      Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=DanmakuCookieTest}" />
 
-                        <StackPanel Visibility="{Binding IsFeatureModulesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <ItemsControl ItemsSource="{Binding FeatureModules}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{StaticResource FastSortSurface}"
-                                                CornerRadius="18"
-                                                Padding="20"
-                                                Width="320"
-                                                MinHeight="170"
-                                                Margin="0,0,18,18">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding Title}"
-                                                           FontSize="18"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="{StaticResource FastSortText}"
-                                                           Margin="0,0,0,12" />
-                                                <ItemsControl ItemsSource="{Binding Items}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <TextBlock Text="{Binding}"
-                                                                       Foreground="{StaticResource FastSortMuted}"
-                                                                       TextWrapping="Wrap"
-                                                                       Margin="0,0,0,8" />
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
+                        <views:BusinessPageView DataContext="{Binding BusinessPage}"
+                                                Visibility="{Binding DataContext.IsBusinessPageSelected, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                 </Grid>
             </Grid>

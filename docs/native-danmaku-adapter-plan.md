@@ -885,6 +885,24 @@ Current testable scope:
 - Native connection can be tested for Taobao, WeChat Channels, Xiaohongshu, and Kuaishou with real authorized accounts that are currently live.
 - Douyin can be tested only up to authorization, Cookie collection, backend liveSession save/read, and placeholder event output.
 
+## Windows Business Parity Update - 2026-07-07
+
+The Windows client now also mirrors the remaining macOS business modules inside
+`clients/windows/FastSort.Client.Windows`.
+
+Implemented:
+
+- Removed the old non-functional `FeatureModules` placeholder path.
+- Added `BusinessPageView` / `BusinessPageViewModel` for Entertainment, Pick, Remark, Blacklist, VIP Orders, Settings, Profile, Payment, and Printer Test.
+- Added Windows API services for the macOS Feature/Pick/Settings/Profile/VIP endpoints.
+- Extended Windows `LiveRoomsService` with status, update, delete, room print config, start-live, and finish-live APIs.
+- Added flexible JSON string handling for backend fields that can be returned as numbers/strings.
+- Added Windows-native RAW printer enumeration and send support through WinSpool.
+- Entertainment mode consumes backend room `liveSession` through the same `NativeDanmakuSessionCoordinator`; no external Python helper was added.
+- Remark export writes a JSON payload from backend live-tag rows and opens the relevant merchant workbench page. It does not automate the browser or require any old helper service.
+
+See `docs/windows-business-parity-plan.md` for the route-by-route test checklist and remaining boundaries.
+
 Required final checks for this Windows slice:
 
 ```powershell

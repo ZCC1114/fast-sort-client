@@ -13,7 +13,8 @@ public sealed class ApiClient
     private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString
+        NumberHandling = JsonNumberHandling.AllowReadingFromString,
+        Converters = { new FlexibleStringJsonConverter() }
     };
 
     public ApiClient(HttpClient httpClient, Func<string?> tokenProvider)
@@ -125,4 +126,27 @@ public sealed class ApiException : Exception
     }
 
     public int? Code { get; }
+}
+
+internal sealed class FlexibleStringJsonConverter : JsonConverter<string>
+{
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        return reader.TokenType switch
+        {
+            JsonTokenType.Null => null,
+            JsonTokenType.String => reader.GetString(),
+            JsonTokenType.Number => reader.TryGetInt64(out var longValue)
+                ? longValue.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : reader.GetDouble().ToString(System.Globalization.CultureInfo.InvariantCulture),
+            JsonTokenType.True => bool.TrueString,
+            JsonTokenType.False => bool.FalseString,
+            _ => JsonDocument.ParseValue(ref reader).RootElement.GetRawText()
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value);
+    }
 }
