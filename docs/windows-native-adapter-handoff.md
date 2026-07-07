@@ -221,18 +221,18 @@ POST /app/fsUserRoom/addUpdateFsUserXhsRoom
 - 后端解析 raw Cookie，只保存白名单 Cookie：
   - `a1`
   - `web_session`
-  - `access-token-redlive.xiaohongshu.com`
+  - `access-token-ark.xiaohongshu.com`
   - `customer-sso-sid`
-  - `x-user-id-redlive.xiaohongshu.com`
+  - `x-user-id-ark.xiaohongshu.com`
 - `liveSession` 保存为 `{"cookies":{...},"user_id":"..."}`。
-- 如果能解析 `x-user-id-redlive.xiaohongshu.com`，会写入 `roomNumber`。
+- 如果能解析 `x-user-id-ark.xiaohongshu.com`，会写入 `roomNumber`。
 - 返回 `ApiResult.result(flag)`。
 
 Windows 侧新增房间时：
 
 - 只打开小红书 ark/客服工作台登录页。
 - 不要求用户手填 roomId。
-- 开播时 adapter 必须从 `liveSession` 取 Cookie 后解析当前直播。
+- 开播时 adapter 必须从 `liveSession` 取 ark Cookie 后解析当前直播；不要再跳转或依赖 `redlive.xiaohongshu.com/live_plan`。
 
 ### 视频号
 

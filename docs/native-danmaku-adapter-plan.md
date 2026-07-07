@@ -565,13 +565,13 @@ Windows 验收：
 原因：
 
 - 当前正确方向是 ark 工作台 Cookie。
-- macOS 当前实现会在客户端内用 ark/客服工作台 Cookie 补齐直播所需登录态并连接平台 WebSocket，不启动外部服务。
-- 后续仍要把当前直播解析和弹幕来源进一步收敛到 ark 工作台接口。
+- macOS 当前测试页已经移除直播助手入口，可从 ark 直播中控捕获房间标识和弹幕 payload，不启动外部服务。
+- 后续仍要把当前直播解析和弹幕来源进一步固化为 ark 工作台 native 请求链路，避免依赖页面已经打开。
 
 参考边界：
 
 - 可以参考 `/Users/zcc/Documents/git-workspace-zcc/xhs_live` 的历史实现，但只能作为协议迁移参考。
-- 正式运行路径必须在客户端 adapter 内完成 Cookie 补齐、直播解析和弹幕连接。
+- 正式运行路径必须在客户端 adapter 内完成 Cookie 读取、直播解析和弹幕连接，不再把 redlive 直播助手作为登录态补齐方案。
 
 技术步骤：
 

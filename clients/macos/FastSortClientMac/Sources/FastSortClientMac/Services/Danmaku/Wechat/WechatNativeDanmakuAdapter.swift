@@ -12,6 +12,7 @@ struct WechatNativeRoomInit {
 final class WechatLiveAPIClient {
     private let sessionid: String
     private let wxuin: String
+    private let aid = UUID().uuidString.lowercased()
     private let fingerprint = UUID().uuidString.replacingOccurrences(of: "-", with: "")
 
     private(set) var finderUsername = ""
@@ -21,19 +22,24 @@ final class WechatLiveAPIClient {
     private(set) var liveCookies = ""
     private var lastStatus: Int?
 
-    init(session: DanmakuWeChatSession) {
+    init(session: DanmakuWeChatSession, finderUsername: String? = nil) {
         self.sessionid = session.sessionid.replaceSpacesWithPlus()
         self.wxuin = session.wxuin
+        self.finderUsername = finderUsername?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     func start() async throws -> WechatNativeRoomInit {
-        try await authData()
+        if finderUsername.isEmpty {
+            try await authData()
+        } else {
+            try? await authData()
+        }
         try await helperUploadParams()
         try await checkLiveStatus(emitStatus: nil)
         guard !liveId.isEmpty, !liveObjectId.isEmpty else {
             throw NativeDanmakuAdapterError.notStarted("视频号")
         }
-        try await getLiveInfo()
+        try? await getLiveInfo()
         try await joinLive()
         try await onlineMember()
         return roomInit
@@ -124,7 +130,7 @@ final class WechatLiveAPIClient {
         _ = try await post(
             path: "live/get_live_info",
             referer: "https://channels.weixin.qq.com/platform/live/liveBuild",
-            body: liveBody([:])
+            body: liveInfoBody()
         )
     }
 
@@ -154,12 +160,16 @@ final class WechatLiveAPIClient {
     }
 
     private func post(path: String, referer: String, body: [String: Any]) async throws -> [String: Any] {
-        let url = URL(string: "https://channels.weixin.qq.com/cgi-bin/mmfinderassistant-bin/\(path)")!
+        guard let url = requestURL(path: path, pageURL: referer) else {
+            throw NativeDanmakuError("视频号接口 URL 构造失败：\(path)")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 30
+        request.httpShouldHandleCookies = false
         request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
         request.setValue("zh-CN,zh;q=0.9", forHTTPHeaderField: "Accept-Language")
+        request.setValue("keep-alive", forHTTPHeaderField: "Connection")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("https://channels.weixin.qq.com", forHTTPHeaderField: "Origin")
         request.setValue(referer, forHTTPHeaderField: "Referer")
@@ -167,16 +177,28 @@ final class WechatLiveAPIClient {
         request.setValue(wxuin.isEmpty ? "0000000000" : wxuin, forHTTPHeaderField: "X-WECHAT-UIN")
         request.setValue(fingerprint, forHTTPHeaderField: "finger-print-device-id")
         request.setValue("sessionid=\(sessionid); wxuin=\(wxuin)", forHTTPHeaderField: "Cookie")
+        request.setValue("empty", forHTTPHeaderField: "Sec-Fetch-Dest")
+        request.setValue("cors", forHTTPHeaderField: "Sec-Fetch-Mode")
+        request.setValue("same-origin", forHTTPHeaderField: "Sec-Fetch-Site")
+        request.setValue("\"Chromium\";v=\"136\", \"Google Chrome\";v=\"136\", \"Not.A/Brand\";v=\"99\"", forHTTPHeaderField: "sec-ch-ua")
+        request.setValue("?0", forHTTPHeaderField: "sec-ch-ua-mobile")
+        request.setValue("\"Windows\"", forHTTPHeaderField: "sec-ch-ua-platform")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw NativeDanmakuError("视频号接口请求失败：\(path) \(error.localizedDescription)")
+        }
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw http.statusCode == 401 || http.statusCode == 403
                 ? NativeDanmakuAdapterError.loginExpired("视频号")
-                : NativeDanmakuError("视频号接口 HTTP \(http.statusCode)")
+                : NativeDanmakuError("视频号接口 \(path) HTTP \(http.statusCode)")
         }
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw NativeDanmakuError("视频号接口返回不是 JSON")
+            throw NativeDanmakuError("视频号接口 \(path) 返回不是 JSON")
         }
         let errCode = NativeDanmakuHTTP.flexibleInt(object["errCode"]) ?? 0
         if errCode == 300330 {
@@ -184,9 +206,25 @@ final class WechatLiveAPIClient {
         }
         if errCode != 0 {
             let message = text(object, "errMsg")
-            throw NativeDanmakuError(message.isEmpty ? "视频号接口错误：\(errCode)" : message)
+            throw NativeDanmakuError(message.isEmpty ? "视频号接口 \(path) 错误：\(errCode)" : "视频号接口 \(path) 返回 \(errCode)：\(message)")
         }
         return object
+    }
+
+    private func requestURL(path: String, pageURL: String) -> URL? {
+        var components = URLComponents(string: "https://channels.weixin.qq.com/cgi-bin/mmfinderassistant-bin/\(path)")
+        components?.queryItems = [
+            URLQueryItem(name: "_aid", value: aid),
+            URLQueryItem(name: "_rid", value: randomRequestId()),
+            URLQueryItem(name: "_pageUrl", value: pageURL)
+        ]
+        return components?.url
+    }
+
+    private func randomRequestId() -> String {
+        let prefix = String(fingerprint.prefix(8))
+        let suffix = UInt32.random(in: UInt32.min...UInt32.max)
+        return "\(prefix)-\(String(format: "%08x", suffix))"
     }
 
     private func baseBody(logFinderId: String = "") -> [String: Any] {
@@ -209,6 +247,12 @@ final class WechatLiveAPIClient {
         for (key, value) in extra {
             body[key] = value
         }
+        return body
+    }
+
+    private func liveInfoBody() -> [String: Any] {
+        var body = baseBody(logFinderId: finderUsername)
+        body["liveObjectId"] = liveObjectId
         return body
     }
 
@@ -264,7 +308,7 @@ final class WechatNativeDanmakuAdapter: NativeDanmakuAdapter {
         guard let session = DanmakuCookieSessionParser.wechatSession(fromLiveSession: request.liveSession) else {
             throw NativeDanmakuAdapterError.missingWeChatSession
         }
-        let client = WechatLiveAPIClient(session: session)
+        let client = WechatLiveAPIClient(session: session, finderUsername: request.roomNumber)
         let roomInit = try await client.start()
         let key = cacheKey(for: request)
         preparedClientsByRoomKey[key] = client
@@ -296,7 +340,7 @@ final class WechatNativeDanmakuAdapter: NativeDanmakuAdapter {
             guard let session = DanmakuCookieSessionParser.wechatSession(fromLiveSession: request.liveSession) else {
                 throw NativeDanmakuAdapterError.missingWeChatSession
             }
-            client = WechatLiveAPIClient(session: session)
+            client = WechatLiveAPIClient(session: session, finderUsername: request.roomNumber)
             roomInit = try await client.start()
         }
 

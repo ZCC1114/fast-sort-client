@@ -26,7 +26,7 @@ enum DanmakuDirectAdapterKind: Equatable {
         case .taobao:
             return "淘宝通过本机 adapter 读取千牛工作台登录态、解析直播间并连接 impaas 弹幕源，不经过迅拣后端转发弹幕。"
         case .xiaohongshu:
-            return "小红书先采集 ark 工作台登录态；如仅有 ark token，需要再打开直播助手页补齐 redlive 登录态后连接弹幕。"
+            return "小红书通过 ark 工作台登录态进入直播中控，客户端优先使用中控接口捕获的房间和弹幕数据。"
         case .kuaishou:
             return "快手通过本机 adapter 解析 liveStreamId/token 后直连平台 WebSocket。"
         case .shopee:
@@ -36,7 +36,7 @@ enum DanmakuDirectAdapterKind: Equatable {
         case .tiktok:
             return "TikTok 当前通过本机 adapter 负责 TikTokLive 协议连接。"
         case .wechat:
-            return "视频号当前通过本机 adapter 从 Cookie 读取 sessionid/wxuin 并连接弹幕。"
+            return "视频号当前优先通过工作台直播接口捕获评论流；未捕获到接口时回退到 sessionid/wxuin 直接请求方案。"
         }
     }
 }
@@ -56,10 +56,6 @@ struct DanmakuPlatform: Identifiable, Equatable {
     static let all: [DanmakuPlatform] = DanmakuPlatformRegistry.platforms
 
     func matchesSuccessURL(_ urlString: String) -> Bool {
-        if key == "xhs",
-           wildcardMatches(urlString, pattern: "*://redlive.xiaohongshu.com/*") {
-            return true
-        }
         return wildcardMatches(urlString, pattern: contentScriptMatch) && wildcardMatches(urlString, pattern: pageHandlerMatch)
     }
 
@@ -92,7 +88,7 @@ struct DanmakuPlatform: Identifiable, Equatable {
         case .taobao:
             return "无需输入：千牛工作台登录态会用于解析当前直播"
         case .xiaohongshu:
-            return "无需输入：采集 ark 工作台 Cookie 后，可打开直播助手页补齐 redlive Cookie"
+            return "无需输入：采集 ark 工作台 Cookie 后，进入直播中控会用于解析当前直播"
         case .kuaishou:
             return "无需输入：快手工作台登录态会用于解析当前直播"
         case .shopee:
@@ -203,7 +199,7 @@ enum DanmakuPlatformRegistry {
             contentScriptMatch: "*://ark.xiaohongshu.com/*",
             pageHandlerMatch: "*://ark.xiaohongshu.com/app-system/home*",
             loginURL: URL(string: "https://customer.xiaohongshu.com/login?service=https://ark.xiaohongshu.com/app-system/home")!,
-            cookieURLs: [URL(string: "https://redlive.xiaohongshu.com/live_plan")!],
+            cookieURLs: [],
             allowedDomains: [],
             systemImage: "book.closed.fill"
         ),

@@ -77,12 +77,6 @@ struct XiaohongshuCookieJar {
         return normalized.isEmpty ? "unknown_sid" : normalized
     }
 
-    var canHydrateRedlive: Bool {
-        cookies[Self.redliveTokenKey]?.isEmpty == false
-            || cookies[Self.arkTokenKey]?.isEmpty == false
-            || cookies["customer-sso-sid"]?.isEmpty == false
-    }
-
     static func normalizedToken(_ value: String) -> String {
         var token = value.trimmingCharacters(in: .whitespacesAndNewlines)
         for prefix in ["customer.red_live.", "customer.ark."] where token.hasPrefix(prefix) {
@@ -94,17 +88,8 @@ struct XiaohongshuCookieJar {
 }
 
 final class XiaohongshuRoomResolver: Sendable {
-    private let hydrateURLs = [
-        URL(string: "https://customer.xiaohongshu.com/login?service=https%3A%2F%2Fredlive.xiaohongshu.com%2Flive_plan")!,
-        URL(string: "https://redlive.xiaohongshu.com/live_plan")!,
-        URL(string: "https://redlive.xiaohongshu.com/")!
-    ]
-
     func resolveRoom(request: NativeDanmakuConnectRequest) async throws -> XiaohongshuResolvedRoom {
-        var cookieJar = XiaohongshuCookieJar(cookieHeader: request.cookieHeader)
-        if cookieJar.canHydrateRedlive {
-            cookieJar = try await hydrateRedliveCookies(cookieJar)
-        }
+        let cookieJar = XiaohongshuCookieJar(cookieHeader: request.cookieHeader)
         var userId = cookieJar.userIdFromCookies()
         if userId?.isEmpty != false {
             userId = try await fetchUserId(cookieJar: cookieJar)
@@ -115,36 +100,7 @@ final class XiaohongshuRoomResolver: Sendable {
         if let roomId = xhsRoomId(from: request.eid ?? request.roomNumber ?? "") {
             return XiaohongshuResolvedRoom(roomId: roomId, title: roomId, userId: userId, sid: cookieJar.sid(), cookieHeader: cookieJar.header())
         }
-        let room = try await fetchLivingRoom(cookieJar: cookieJar, userId: userId)
-        return XiaohongshuResolvedRoom(
-            roomId: room.roomId,
-            title: room.title,
-            userId: userId,
-            sid: cookieJar.sid(),
-            cookieHeader: cookieJar.header()
-        )
-    }
-
-    private func hydrateRedliveCookies(_ cookieJar: XiaohongshuCookieJar) async throws -> XiaohongshuCookieJar {
-        var jar = cookieJar
-        for url in hydrateURLs {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 10
-            request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
-            request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
-            request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
-            request.setValue(jar.header(), forHTTPHeaderField: "Cookie")
-            let (_, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { continue }
-            let setCookies = http.allHeaderFields
-                .filter { "\($0.key)".caseInsensitiveCompare("Set-Cookie") == .orderedSame }
-                .map { "\($0.value)" }
-            jar.merge(setCookieHeaders: setCookies, url: url)
-            if jar.value(XiaohongshuCookieJar.redliveTokenKey)?.isEmpty == false {
-                break
-            }
-        }
-        return jar
+        throw NativeDanmakuError("小红书 ark 工作台 Cookie 已采集，但还未从直播中控解析到当前直播间。请在授权窗口进入“直播中控”，等待捕获到弹幕或直播标识后再连接。")
     }
 
     private func fetchUserId(cookieJar: XiaohongshuCookieJar) async throws -> String? {
@@ -183,51 +139,6 @@ final class XiaohongshuRoomResolver: Sendable {
             }
         }
         return nil
-    }
-
-    private func fetchLivingRoom(cookieJar: XiaohongshuCookieJar, userId: String) async throws -> (roomId: String, title: String) {
-        let tokens = cookieJar.tokenCandidates()
-        var lastBusinessMessage: String?
-        var sawInvalidToken = false
-        for token in tokens.isEmpty ? [""] : tokens {
-            var request = URLRequest(url: URL(string: "https://live-assistant.xiaohongshu.com/api/sns/live/living_room")!)
-            request.timeoutInterval = 10
-            request.setValue("*/*", forHTTPHeaderField: "Accept")
-            request.setValue(userId, forHTTPHeaderField: "account-id")
-            request.setValue("live-assistant.xiaohongshu.com", forHTTPHeaderField: "Host")
-            request.setValue("https://redlive.xiaohongshu.com", forHTTPHeaderField: "Origin")
-            request.setValue("https://redlive.xiaohongshu.com/", forHTTPHeaderField: "Referer")
-            request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
-            request.setValue(cookieJar.header(), forHTTPHeaderField: "Cookie")
-            if !token.isEmpty {
-                request.setValue(token, forHTTPHeaderField: "Authorization")
-            }
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                continue
-            }
-            if object["success"] as? Bool == false {
-                let message = NativeDanmakuHTTP.firstText(object, keys: ["msg", "message", "result"], fallback: "接口返回失败")
-                lastBusinessMessage = message
-                if message.contains("Access Token无效") {
-                    sawInvalidToken = true
-                }
-                continue
-            }
-            let dataObject = object["data"] as? [String: Any] ?? [:]
-            let roomId = "\(dataObject["room_id"] ?? "")".trimmingCharacters(in: .whitespacesAndNewlines)
-            if !roomId.isEmpty {
-                return (roomId, "\(dataObject["title"] ?? roomId)")
-            }
-        }
-        if sawInvalidToken {
-            throw NativeDanmakuError("小红书直播助手接口返回 Access Token无效。请先点击“打开小红书直播助手”，确认页面登录成功后重新采集 Cookie，再连接弹幕。")
-        }
-        if let lastBusinessMessage {
-            throw NativeDanmakuError("小红书直播助手接口返回：\(lastBusinessMessage)")
-        }
-        throw NativeDanmakuAdapterError.notStarted("小红书")
     }
 
     private func xhsRoomId(from value: String) -> String? {
