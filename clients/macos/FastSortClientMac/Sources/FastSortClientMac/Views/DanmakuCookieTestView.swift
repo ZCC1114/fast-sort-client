@@ -278,7 +278,8 @@ struct DanmakuCookieTestView: View {
                 onWebViewReady: viewModel.attachWebView(_:),
                 onNavigation: viewModel.handleNavigation(url:),
                 isAllowedNavigation: viewModel.isAllowedNavigation(url:),
-                onBlockedNavigation: viewModel.handleBlockedNavigation(url:)
+                onBlockedNavigation: viewModel.handleBlockedNavigation(url:),
+                onWorkbenchCapture: viewModel.handleWorkbenchCapture(payload:)
             )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
@@ -423,6 +424,9 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     private var activeDirectSession: DanmakuWebSocketSession?
     private var activeNativeConnection: (any NativeDanmakuConnection)?
     private var seenDanmuMessageIds = Set<String>()
+    private var capturedWorkbenchPayloads: [String] = []
+    private var capturedWorkbenchPayloadSignatures = Set<String>()
+    private var capturedDouyinRoomInput: String?
 
     var selectedPlatform: DanmakuPlatform {
         DanmakuPlatform.all.first { $0.id == selectedPlatformID } ?? DanmakuPlatform.all[0]
@@ -444,6 +448,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         showCookieValues = false
         closeDanmuSocket(clearMessages: true)
         liveRoomInput = ""
+        clearWorkbenchCaptures()
         lastAutoCollectURL = ""
         statusText = "已切换到 \(platform.name)，准备打开登录页。"
         statusLevel = .info
@@ -454,6 +459,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         currentURLText = selectedPlatform.loginURL.absoluteString
         isPageMatched = false
         matchText = "等待登录"
+        clearWorkbenchCaptures()
         statusText = "已加载 \(selectedPlatform.name) 登录地址。"
         statusLevel = .info
         loadRequest = DanmakuLoadRequest(url: selectedPlatform.loginURL)
@@ -541,6 +547,26 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         statusLevel = .error
     }
 
+    func handleWorkbenchCapture(payload: DanmakuWebCapturePayload) {
+        guard selectedPlatform.directDanmuAdapter == .douyin else { return }
+        let text = payload.combinedText
+        guard !text.isEmpty else { return }
+        let signature = payload.signature
+        guard !capturedWorkbenchPayloadSignatures.contains(signature) else { return }
+        capturedWorkbenchPayloadSignatures.insert(signature)
+        capturedWorkbenchPayloads.append(text)
+        if capturedWorkbenchPayloads.count > 80 {
+            capturedWorkbenchPayloads.removeFirst(capturedWorkbenchPayloads.count - 80)
+        }
+
+        guard let candidate = douyinRoomInputCandidate(from: text) else { return }
+        if capturedDouyinRoomInput != candidate {
+            statusText = "已从抖店中控接口响应捕获到直播标识：\(candidate)。现在可以点击“连接弹幕”。"
+            statusLevel = .success
+        }
+        capturedDouyinRoomInput = candidate
+    }
+
     func collectCookies(trigger: String) {
         guard !isCollecting else { return }
         guard webView != nil else {
@@ -562,6 +588,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         cookieSnapshots = []
         showCookieValues = false
         closeDanmuSocket(clearMessages: true)
+        clearWorkbenchCaptures()
         isPageMatched = false
         matchText = "等待登录"
         lastAutoCollectURL = ""
@@ -694,11 +721,23 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         let input = liveRoomInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard input.isEmpty, adapter == .douyin else { return input }
 
+        if let capturedDouyinRoomInput {
+            appendDanmuMessage(.system("已使用抖店中控接口捕获到的直播标识：\(capturedDouyinRoomInput)"))
+            return capturedDouyinRoomInput
+        }
+
+        if let capturedCandidate = douyinRoomInputCandidate(from: capturedWorkbenchPayloads.joined(separator: "\n")) {
+            capturedDouyinRoomInput = capturedCandidate
+            appendDanmuMessage(.system("已从已捕获的抖店中控接口响应解析到直播标识：\(capturedCandidate)"))
+            return capturedCandidate
+        }
+
         guard let candidate = await douyinRoomInputFromCurrentWebView() else {
-            appendDanmuMessage(.system("未能从当前抖店中控页面解析到 room_id/live_id，将继续用 Cookie 请求工作台兜底；如仍失败，需要补充中控接口 HAR。"))
+            appendDanmuMessage(.system("未能从当前抖店中控页面或已捕获的 \(capturedWorkbenchPayloads.count) 条接口响应解析到 room_id/live_id，将继续用 Cookie 请求工作台兜底；如仍失败，需要等待中控页面刷新接口或补充中控接口 HAR。"))
             return ""
         }
 
+        capturedDouyinRoomInput = candidate
         appendDanmuMessage(.system("已从当前抖店中控页面解析到直播标识：\(candidate)"))
         return candidate
     }
@@ -772,23 +811,30 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             .replacingOccurrences(of: "\\/", with: "/")
             .replacingOccurrences(of: "\\u0026", with: "&")
 
-        for key in [
+        let roomKeys = [
             "room_id", "roomId", "webcast_room_id", "webcastRoomId",
-            "live_room_id", "liveRoomId", "roomID", "RoomId"
-        ] {
+            "room_id_str", "roomIdStr", "webcast_room_id_str", "webcastRoomIdStr",
+            "live_room_id", "liveRoomId", "live_room_id_str", "liveRoomIdStr",
+            "current_room_id", "currentRoomId", "ecom_live_room_id", "ecomLiveRoomId",
+            "im_room_id", "imRoomId", "roomID", "RoomId"
+        ]
+        for key in roomKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
                isDouyinRoomIdCandidate(value) {
                 return value
             }
         }
 
+        let roomKeyPattern = roomKeys
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
         let roomPatterns = [
-            ##"["'](?:roomId|room_id|webcastRoomId|webcast_room_id|liveRoomId|live_room_id|roomID|RoomId)["']\s*[:=]\s*["']?(\d{5,30})"##,
-            ##"(?:roomId|room_id|webcastRoomId|webcast_room_id|liveRoomId|live_room_id|roomID|RoomId)\\?["']?\s*[:=]\s*\\?["']?(\d{5,30})"##,
-            ##"(?:room_id|roomId|webcast_room_id|webcastRoomId)=([0-9]{5,30})"##
+            #"["'](?:\#(roomKeyPattern))["']\s*[:=]\s*["']?(\d{5,30})"#,
+            #"\\?["'](?:\#(roomKeyPattern))\\?["']\s*[:=]\s*\\?["']?(\d{5,30})"#,
+            #"(?:(?:\#(roomKeyPattern))=)([0-9]{5,30})"#
         ]
         for pattern in roomPatterns {
-            if let value = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: pattern),
+            if let value = firstDouyinRegexValue(in: decoded, pattern: pattern),
                isDouyinRoomIdCandidate(value) {
                 return value
             }
@@ -801,19 +847,46 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             return livePageId
         }
 
-        for key in ["live_id", "liveId", "webcastLiveId", "anchorLiveId", "douyinId"] {
+        let liveKeys = [
+            "live_id", "liveId", "live_id_str", "liveIdStr",
+            "webcastLiveId", "webcast_live_id", "anchorLiveId", "anchor_live_id",
+            "douyinId"
+        ]
+        for key in liveKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
                isDouyinLiveIdCandidate(value) {
                 return value
             }
         }
 
-        let livePattern = ##"["'](?:liveId|live_id|webcastLiveId|anchorLiveId|douyinId)["']\s*[:=]\s*["']?([A-Za-z0-9_\-]{4,80})"##
-        if let value = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: livePattern),
-           isDouyinLiveIdCandidate(value) {
-            return value
+        let liveKeyPattern = liveKeys
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
+        let livePatterns = [
+            #"["'](?:\#(liveKeyPattern))["']\s*[:=]\s*["']?([A-Za-z0-9_\-]{4,80})"#,
+            #"\\?["'](?:\#(liveKeyPattern))\\?["']\s*[:=]\s*\\?["']?([A-Za-z0-9_\-]{4,80})"#
+        ]
+        for pattern in livePatterns {
+            if let value = firstDouyinRegexValue(in: decoded, pattern: pattern),
+               isDouyinLiveIdCandidate(value) {
+                return value
+            }
         }
 
+        return nil
+    }
+
+    private func firstDouyinRegexValue(in text: String, pattern: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = regex.firstMatch(in: text, range: range) else { return nil }
+        for index in stride(from: match.numberOfRanges - 1, through: 1, by: -1) {
+            guard let valueRange = Range(match.range(at: index), in: text) else { continue }
+            let value = String(text[valueRange])
+            if !value.isEmpty {
+                return value
+            }
+        }
         return nil
     }
 
@@ -823,6 +896,12 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
     private func isDouyinLiveIdCandidate(_ value: String) -> Bool {
         value.range(of: #"^[A-Za-z0-9_\-]{4,80}$"#, options: .regularExpression) != nil
+    }
+
+    private func clearWorkbenchCaptures() {
+        capturedWorkbenchPayloads = []
+        capturedWorkbenchPayloadSignatures = []
+        capturedDouyinRoomInput = nil
     }
 
     private func handleNativeDanmuEvent(_ event: NativeDanmakuEvent, adapter: DanmakuDirectAdapterKind) {
@@ -958,6 +1037,29 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     }
 }
 
+struct DanmakuWebCapturePayload {
+    let kind: String
+    let url: String
+    let status: Int
+    let href: String
+    let text: String
+
+    var combinedText: String {
+        [kind, url, "\(status)", href, text]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
+
+    var signature: String {
+        [
+            kind,
+            url,
+            "\(status)",
+            String(text.prefix(512))
+        ].joined(separator: "|")
+    }
+}
+
 private struct DanmakuAuthWebView: NSViewRepresentable {
     let request: DanmakuLoadRequest?
     let dataStore: WKWebsiteDataStore
@@ -965,12 +1067,14 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
     let onNavigation: (URL) -> Void
     let isAllowedNavigation: (URL) -> Bool
     let onBlockedNavigation: (URL) -> Void
+    let onWorkbenchCapture: (DanmakuWebCapturePayload) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onNavigation: onNavigation,
             isAllowedNavigation: isAllowedNavigation,
-            onBlockedNavigation: onBlockedNavigation
+            onBlockedNavigation: onBlockedNavigation,
+            onWorkbenchCapture: onWorkbenchCapture
         )
     }
 
@@ -978,6 +1082,16 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = dataStore
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+        let userContentController = WKUserContentController()
+        userContentController.add(context.coordinator, name: Coordinator.captureHandlerName)
+        userContentController.addUserScript(
+            WKUserScript(
+                source: Coordinator.captureScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: false
+            )
+        )
+        configuration.userContentController = userContentController
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -991,7 +1105,8 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
         context.coordinator.update(
             onNavigation: onNavigation,
             isAllowedNavigation: isAllowedNavigation,
-            onBlockedNavigation: onBlockedNavigation
+            onBlockedNavigation: onBlockedNavigation,
+            onWorkbenchCapture: onWorkbenchCapture
         )
         guard let request else { return }
         guard context.coordinator.lastRequestID != request.id else { return }
@@ -999,30 +1114,150 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
         nsView.load(URLRequest(url: request.url))
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+        nsView.configuration.userContentController.removeScriptMessageHandler(forName: Coordinator.captureHandlerName)
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+        static let captureHandlerName = "fastSortDanmakuCapture"
+        static let captureScript = #"""
+        (() => {
+          if (window.__fastSortDanmakuCaptureInstalled) return;
+          window.__fastSortDanmakuCaptureInstalled = true;
+
+          const handler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.fastSortDanmakuCapture;
+          const keywordPattern = /jinritemai|douyin|bytedance|webcast|room|live|anchor|comment|message|chat|control|互动|直播|中控/i;
+          const text = value => {
+            if (value === undefined || value === null) return "";
+            if (typeof value === "string") return value;
+            if (value instanceof ArrayBuffer) return "";
+            try { return JSON.stringify(value); } catch (_) { return String(value); }
+          };
+          const post = (kind, url, status, value) => {
+            try {
+              if (!handler) return;
+              const body = text(value);
+              if (!body && !url) return;
+              const sample = `${url || ""}\n${body.slice(0, 2000)}`;
+              if (!keywordPattern.test(sample)) return;
+              handler.postMessage({
+                kind,
+                url: String(url || ""),
+                status: Number(status || 0),
+                href: String(location.href || ""),
+                text: body.slice(0, 180000),
+                ts: Date.now()
+              });
+            } catch (_) {}
+          };
+          const shouldReadBody = (url, contentType) => {
+            const target = String(url || "");
+            const type = String(contentType || "");
+            return keywordPattern.test(target) || /json|text|javascript|html|xml/i.test(type);
+          };
+
+          const nativeFetch = window.fetch;
+          if (typeof nativeFetch === "function") {
+            window.fetch = function(input, init) {
+              const url = typeof input === "string" ? input : (input && input.url) || "";
+              return nativeFetch.apply(this, arguments).then(response => {
+                try {
+                  const contentType = response.headers && response.headers.get ? response.headers.get("content-type") : "";
+                  if (shouldReadBody(url || response.url, contentType)) {
+                    response.clone().text()
+                      .then(body => post("fetch", url || response.url, response.status, body))
+                      .catch(() => {});
+                  } else {
+                    post("fetch-url", url || response.url, response.status, url || response.url);
+                  }
+                } catch (_) {}
+                return response;
+              });
+            };
+          }
+
+          const nativeOpen = XMLHttpRequest.prototype.open;
+          const nativeSend = XMLHttpRequest.prototype.send;
+          XMLHttpRequest.prototype.open = function(method, url) {
+            this.__fastSortDanmakuURL = url;
+            this.__fastSortDanmakuMethod = method;
+            return nativeOpen.apply(this, arguments);
+          };
+          XMLHttpRequest.prototype.send = function() {
+            try {
+              this.addEventListener("loadend", () => {
+                try {
+                  const url = this.responseURL || this.__fastSortDanmakuURL || "";
+                  const contentType = this.getResponseHeader ? this.getResponseHeader("content-type") : "";
+                  if (!shouldReadBody(url, contentType)) {
+                    post("xhr-url", url, this.status, url);
+                    return;
+                  }
+                  let body = "";
+                  if (!this.responseType || this.responseType === "text") {
+                    body = this.responseText || "";
+                  } else if (this.responseType === "json") {
+                    body = text(this.response);
+                  }
+                  post("xhr", url, this.status, body);
+                } catch (_) {}
+              });
+            } catch (_) {}
+            return nativeSend.apply(this, arguments);
+          };
+
+          const NativeWebSocket = window.WebSocket;
+          if (typeof NativeWebSocket === "function") {
+            const FastSortWebSocket = function(url, protocols) {
+              post("websocket-open", url, 0, String(url || ""));
+              const socket = protocols === undefined ? new NativeWebSocket(url) : new NativeWebSocket(url, protocols);
+              try {
+                socket.addEventListener("message", event => {
+                  if (typeof event.data === "string") {
+                    post("websocket-message", url, 0, event.data);
+                  }
+                });
+              } catch (_) {}
+              return socket;
+            };
+            FastSortWebSocket.prototype = NativeWebSocket.prototype;
+            try { Object.setPrototypeOf(FastSortWebSocket, NativeWebSocket); } catch (_) {}
+            for (const key of ["CONNECTING", "OPEN", "CLOSING", "CLOSED"]) {
+              try { Object.defineProperty(FastSortWebSocket, key, { value: NativeWebSocket[key] }); } catch (_) {}
+            }
+            window.WebSocket = FastSortWebSocket;
+          }
+        })();
+        """#
+
         var lastRequestID: UUID?
         private var onNavigation: (URL) -> Void
         private var isAllowedNavigation: (URL) -> Bool
         private var onBlockedNavigation: (URL) -> Void
+        private var onWorkbenchCapture: (DanmakuWebCapturePayload) -> Void
 
         init(
             onNavigation: @escaping (URL) -> Void,
             isAllowedNavigation: @escaping (URL) -> Bool,
-            onBlockedNavigation: @escaping (URL) -> Void
+            onBlockedNavigation: @escaping (URL) -> Void,
+            onWorkbenchCapture: @escaping (DanmakuWebCapturePayload) -> Void
         ) {
             self.onNavigation = onNavigation
             self.isAllowedNavigation = isAllowedNavigation
             self.onBlockedNavigation = onBlockedNavigation
+            self.onWorkbenchCapture = onWorkbenchCapture
         }
 
         func update(
             onNavigation: @escaping (URL) -> Void,
             isAllowedNavigation: @escaping (URL) -> Bool,
-            onBlockedNavigation: @escaping (URL) -> Void
+            onBlockedNavigation: @escaping (URL) -> Void,
+            onWorkbenchCapture: @escaping (DanmakuWebCapturePayload) -> Void
         ) {
             self.onNavigation = onNavigation
             self.isAllowedNavigation = isAllowedNavigation
             self.onBlockedNavigation = onBlockedNavigation
+            self.onWorkbenchCapture = onWorkbenchCapture
         }
 
         func webView(
@@ -1057,6 +1292,7 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
             if let url = webView.url {
                 onNavigation(url)
             }
+            webView.evaluateJavaScript(Self.captureScript, completionHandler: nil)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -1080,6 +1316,21 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
                 }
             }
             return nil
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == Self.captureHandlerName,
+                  let body = message.body as? [String: Any] else { return }
+            let payload = DanmakuWebCapturePayload(
+                kind: body["kind"] as? String ?? "",
+                url: body["url"] as? String ?? "",
+                status: body["status"] as? Int ?? 0,
+                href: body["href"] as? String ?? "",
+                text: body["text"] as? String ?? ""
+            )
+            DispatchQueue.main.async { [onWorkbenchCapture] in
+                onWorkbenchCapture(payload)
+            }
         }
 
         private static func requiresPlatformWhitelist(_ url: URL) -> Bool {
