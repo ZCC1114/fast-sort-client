@@ -26,7 +26,7 @@ enum DanmakuDirectAdapterKind: Equatable {
         case .taobao:
             return "淘宝通过本机 adapter 读取千牛工作台登录态、解析直播间并连接 impaas 弹幕源，不经过迅拣后端转发弹幕。"
         case .xiaohongshu:
-            return "小红书采集 ark 工作台登录态；后续需要补齐 native getRoomId 和弹幕拉取 adapter。"
+            return "小红书先采集 ark 工作台登录态；如仅有 ark token，需要再打开直播助手页补齐 redlive 登录态后连接弹幕。"
         case .kuaishou:
             return "快手通过本机 adapter 解析 liveStreamId/token 后直连平台 WebSocket。"
         case .shopee:
@@ -56,7 +56,11 @@ struct DanmakuPlatform: Identifiable, Equatable {
     static let all: [DanmakuPlatform] = DanmakuPlatformRegistry.platforms
 
     func matchesSuccessURL(_ urlString: String) -> Bool {
-        wildcardMatches(urlString, pattern: contentScriptMatch) && wildcardMatches(urlString, pattern: pageHandlerMatch)
+        if key == "xhs",
+           wildcardMatches(urlString, pattern: "*://redlive.xiaohongshu.com/*") {
+            return true
+        }
+        return wildcardMatches(urlString, pattern: contentScriptMatch) && wildcardMatches(urlString, pattern: pageHandlerMatch)
     }
 
     func matches(cookie: HTTPCookie) -> Bool {
@@ -88,7 +92,7 @@ struct DanmakuPlatform: Identifiable, Equatable {
         case .taobao:
             return "无需输入：千牛工作台登录态会用于解析当前直播"
         case .xiaohongshu:
-            return "无需输入：ark 工作台登录态会用于解析当前直播"
+            return "无需输入：采集 ark 工作台 Cookie 后，可打开直播助手页补齐 redlive Cookie"
         case .kuaishou:
             return "无需输入：快手工作台登录态会用于解析当前直播"
         case .shopee:
@@ -199,7 +203,7 @@ enum DanmakuPlatformRegistry {
             contentScriptMatch: "*://ark.xiaohongshu.com/*",
             pageHandlerMatch: "*://ark.xiaohongshu.com/app-system/home*",
             loginURL: URL(string: "https://customer.xiaohongshu.com/login?service=https://ark.xiaohongshu.com/app-system/home")!,
-            cookieURLs: [],
+            cookieURLs: [URL(string: "https://redlive.xiaohongshu.com/live_plan")!],
             allowedDomains: [],
             systemImage: "book.closed.fill"
         ),

@@ -187,6 +187,8 @@ final class XiaohongshuRoomResolver: Sendable {
 
     private func fetchLivingRoom(cookieJar: XiaohongshuCookieJar, userId: String) async throws -> (roomId: String, title: String) {
         let tokens = cookieJar.tokenCandidates()
+        var lastBusinessMessage: String?
+        var sawInvalidToken = false
         for token in tokens.isEmpty ? [""] : tokens {
             var request = URLRequest(url: URL(string: "https://live-assistant.xiaohongshu.com/api/sns/live/living_room")!)
             request.timeoutInterval = 10
@@ -205,11 +207,25 @@ final class XiaohongshuRoomResolver: Sendable {
                   let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 continue
             }
+            if object["success"] as? Bool == false {
+                let message = NativeDanmakuHTTP.firstText(object, keys: ["msg", "message", "result"], fallback: "接口返回失败")
+                lastBusinessMessage = message
+                if message.contains("Access Token无效") {
+                    sawInvalidToken = true
+                }
+                continue
+            }
             let dataObject = object["data"] as? [String: Any] ?? [:]
             let roomId = "\(dataObject["room_id"] ?? "")".trimmingCharacters(in: .whitespacesAndNewlines)
             if !roomId.isEmpty {
                 return (roomId, "\(dataObject["title"] ?? roomId)")
             }
+        }
+        if sawInvalidToken {
+            throw NativeDanmakuError("小红书直播助手接口返回 Access Token无效。请先点击“打开小红书直播助手”，确认页面登录成功后重新采集 Cookie，再连接弹幕。")
+        }
+        if let lastBusinessMessage {
+            throw NativeDanmakuError("小红书直播助手接口返回：\(lastBusinessMessage)")
         }
         throw NativeDanmakuAdapterError.notStarted("小红书")
     }

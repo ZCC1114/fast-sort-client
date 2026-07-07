@@ -70,6 +70,13 @@ struct DanmakuCookieTestView: View {
             .buttonStyle(AccentOutlineButtonStyle())
             .disabled(viewModel.isCollecting)
 
+            if viewModel.selectedPlatform.key == "xhs" {
+                Button("打开小红书直播助手") {
+                    viewModel.loadXiaohongshuLiveAssistant()
+                }
+                .buttonStyle(AccentOutlineButtonStyle())
+            }
+
             Divider()
 
             VStack(alignment: .leading, spacing: 8) {
@@ -452,6 +459,18 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         loadRequest = DanmakuLoadRequest(url: selectedPlatform.loginURL)
     }
 
+    func loadXiaohongshuLiveAssistant() {
+        guard selectedPlatform.key == "xhs",
+              let url = URL(string: "https://redlive.xiaohongshu.com/live_plan") else { return }
+        currentURLText = url.absoluteString
+        isPageMatched = false
+        matchText = "等待直播助手登录态"
+        lastAutoCollectURL = ""
+        statusText = "已打开小红书直播助手页。页面加载完成后会自动采集 redlive Cookie，也可以手动点“立即采集 Cookie”。"
+        statusLevel = .info
+        loadRequest = DanmakuLoadRequest(url: url)
+    }
+
     var isDanmuConnected: Bool {
         danmuStatus == .open || danmuStatus == .connecting
     }
@@ -781,6 +800,12 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             statusLevel = .error
         } else {
             let domains = Set(filtered.map(\.domain)).sorted().joined(separator: ", ")
+            let names = Set(filtered.map(\.name))
+            if selectedPlatform.key == "xhs", !names.contains("access-token-redlive.xiaohongshu.com") {
+                statusText = "\(trigger)完成，采集到 \(filtered.count) 条 Cookie，但缺少 redlive token。请点击“打开小红书直播助手”，页面加载成功后重新采集 Cookie。域名：\(domains)"
+                statusLevel = .error
+                return
+            }
             statusText = "\(trigger)完成，采集到 \(filtered.count) 条 Cookie。域名：\(domains)"
             statusLevel = .success
         }
