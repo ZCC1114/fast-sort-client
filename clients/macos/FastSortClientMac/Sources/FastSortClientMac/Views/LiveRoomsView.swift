@@ -4,6 +4,7 @@ import SwiftUI
 struct LiveRoomsView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var pageActivation: PageActivationState
+    let navigate: ((AppRoute) -> Void)?
 
     @State private var activeLiveType = "0"
     @State private var searchText = ""
@@ -16,7 +17,6 @@ struct LiveRoomsView: View {
     @State private var printMode = "manual"
     @State private var isLoadingRooms = false
     @State private var isStarting = false
-    @State private var isAddingRoom = false
     @State private var errorText = ""
     @State private var toastText = ""
     @State private var hasLoaded = false
@@ -25,21 +25,15 @@ struct LiveRoomsView: View {
     @State private var pendingComments: [LiveDanmuComment] = []
     @State private var seenMessageIds = Set<String>()
     @State private var socketSession: DanmakuWebSocketSession?
+    @State private var nativeDanmakuConnection: (any NativeDanmakuConnection)?
+    @State private var nativePreparedSession: NativeDanmakuPreparedSession?
     @State private var socketLoopTask: Task<Void, Never>?
     @State private var heartbeatTask: Task<Void, Never>?
     @State private var reconnectTask: Task<Void, Never>?
     @State private var reconnectCount = 0
     @State private var isManualSocketClose = false
 
-    @State private var showAddRoomDialog = false
-    @State private var addRoomType = "0"
-    @State private var addRoomInput = ""
-    @State private var addRoomCookie = ""
-    @State private var addRoomCover = ""
     @State private var showSettingsDialog = false
-    @State private var showTaobaoLinkDialog = false
-    @State private var taobaoLinkInput = ""
-    @State private var pendingTaobaoRoom: RoomListItem?
 
     @State private var onlyPrintFans = false
     @State private var uniqueMode = false
@@ -62,6 +56,10 @@ struct LiveRoomsView: View {
     @State private var connectedPrinterName = ""
 
     private let platforms = PlatformCatalog.all
+
+    init(navigate: ((AppRoute) -> Void)? = nil) {
+        self.navigate = navigate
+    }
 
     private var filteredRooms: [RoomListItem] {
         rooms.filter { room in
@@ -112,14 +110,8 @@ struct LiveRoomsView: View {
                     .padding(.bottom, 18)
             }
         }
-        .sheet(isPresented: $showAddRoomDialog) {
-            addRoomDialog
-        }
         .sheet(isPresented: $showSettingsDialog) {
             settingsDialog
-        }
-        .sheet(isPresented: $showTaobaoLinkDialog) {
-            taobaoLinkDialog
         }
         .task(id: pageActivation.isActive) {
             guard pageActivation.isActive, !hasLoaded else { return }
@@ -145,7 +137,7 @@ struct LiveRoomsView: View {
                     .foregroundStyle(FastSortTheme.muted)
                 Spacer()
                 Button {
-                    openAddRoomDialog()
+                    navigate?(.danmakuCookieTest)
                 } label: {
                     Label("添加直播间", systemImage: "plus")
                 }
@@ -536,142 +528,6 @@ struct LiveRoomsView: View {
         .buttonStyle(.plain)
     }
 
-    private var addRoomDialog: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("添加直播间")
-                        .font(.system(size: 22, weight: .bold))
-                    Text("按 Web 端相同接口创建直播间，创建后自动刷新列表")
-                        .font(.system(size: 13))
-                        .foregroundStyle(FastSortTheme.muted)
-                }
-                Spacer()
-                Button {
-                    closeAddRoomDialog()
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(IconCircleButtonStyle())
-            }
-
-            platformTabsForAddRoom
-
-            addRoomFields
-
-            HStack {
-                Spacer()
-                Button("取消") {
-                    closeAddRoomDialog()
-                }
-                .buttonStyle(AccentOutlineButtonStyle())
-                Button(isAddingRoom ? "添加中..." : "添加") {
-                    Task { await submitAddRoom() }
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .disabled(isAddingRoom || addRoomSubmitDisabled)
-            }
-        }
-        .padding(24)
-        .frame(width: 620)
-        .background(FastSortTheme.background)
-    }
-
-    private var platformTabsForAddRoom: some View {
-        MacChoiceGroup("平台", selection: Binding(
-            get: { addRoomType },
-            set: { next in
-                addRoomType = next
-                addRoomInput = ""
-                addRoomCookie = ""
-                addRoomCover = ""
-            }
-        ), options: platforms.map { MacChoiceOption(label: $0.label, value: $0.liveType) }, minItemWidth: 58)
-    }
-
-    @ViewBuilder
-    private var addRoomFields: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if addRoomType == "0" {
-                fieldLabel("抖音直播间号")
-                TextField("请输入抖音直播间号", text: $addRoomInput)
-                    .webTextInput()
-                helperText("对应 Web 端 addFsUserRoom/{roomNumber} 接口")
-            } else if addRoomType == "1" {
-                fieldLabel("淘宝直播间名称")
-                TextField("请输入淘宝直播间名称", text: $addRoomInput)
-                    .webTextInput()
-                fieldLabel("千牛 Cookie")
-                TextEditor(text: $addRoomCookie)
-                    .frame(height: 110)
-                    .font(.system(size: 12))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(FastSortTheme.border)
-                    }
-                helperText("保存到 liveSession，开播时由本机 helper 用千牛 Cookie 解析当前直播间")
-            } else if addRoomType == "2" {
-                fieldLabel("小红书 Cookie")
-                TextEditor(text: $addRoomCookie)
-                    .frame(height: 110)
-                    .font(.system(size: 12))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(FastSortTheme.border)
-                    }
-                helperText("按弹幕捕手只保存 ark 工作台 Cookie；小红书本机弹幕 collector 待补齐")
-            } else if addRoomType == "3" {
-                fieldLabel("微信视频号直播间名称")
-                TextField("请输入直播间名称", text: $addRoomInput)
-                    .webTextInput()
-                fieldLabel("微信会话 JSON")
-                TextEditor(text: $addRoomCookie)
-                    .frame(height: 100)
-                    .font(.system(size: 12))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(FastSortTheme.border)
-                    }
-                fieldLabel("封面地址")
-                TextField("可选，直播间封面 URL", text: $addRoomCover)
-                    .webTextInput()
-                helperText("Web 端是扫码获取 session；原生页先接同一 addFsUserWXRoom 后台接口")
-            } else {
-                fieldLabel("快手直播间号")
-                TextField("请输入快手直播间号", text: $addRoomInput)
-                    .webTextInput()
-                fieldLabel("快手 Cookie")
-                TextEditor(text: $addRoomCookie)
-                    .frame(height: 110)
-                    .font(.system(size: 12))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(FastSortTheme.border)
-                    }
-                helperText("对应 Web 端 addUpdateFsUserKuaishouRoom 接口")
-            }
-        }
-        .padding(16)
-        .webCard(cornerRadius: 14)
-    }
-
-    private var addRoomSubmitDisabled: Bool {
-        let input = addRoomInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cookie = addRoomCookie.trimmingCharacters(in: .whitespacesAndNewlines)
-        switch addRoomType {
-        case "0":
-            return input.isEmpty
-        case "1":
-            return input.isEmpty || cookie.isEmpty
-        case "2":
-            return cookie.isEmpty
-        case "3", "4":
-            return input.isEmpty || cookie.isEmpty
-        default:
-            return true
-        }
-    }
-
     private var settingsDialog: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
@@ -713,51 +569,6 @@ struct LiveRoomsView: View {
         .background(FastSortTheme.background)
     }
 
-    private var taobaoLinkDialog: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("淘宝 roomId/链接兜底")
-                        .font(.system(size: 22, weight: .bold))
-                    Text(pendingTaobaoRoom?.displayName ?? "可选输入淘宝 roomId 或直播间分享链接")
-                        .font(.system(size: 13))
-                        .foregroundStyle(FastSortTheme.muted)
-                }
-                Spacer()
-                Button {
-                    closeTaobaoLinkDialog()
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(IconCircleButtonStyle())
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                fieldLabel("直播链接")
-                TextField("粘贴淘宝直播间分享链接", text: $taobaoLinkInput)
-                    .webTextInput()
-                helperText("进入淘宝直播前会用该链接连接本机 /tb-ws adapter，不再连接后台弹幕服务。")
-            }
-            .padding(16)
-            .webCard(cornerRadius: 14)
-
-            HStack {
-                Spacer()
-                Button("取消") {
-                    closeTaobaoLinkDialog()
-                }
-                .buttonStyle(AccentOutlineButtonStyle())
-                Button("进入直播间") {
-                    confirmTaobaoLinkDialog()
-                }
-                .buttonStyle(PrimaryButtonStyle())
-            }
-        }
-        .padding(24)
-        .frame(width: 560)
-        .background(FastSortTheme.background)
-    }
-
     private func infoRow(title: String, value: String) -> some View {
         HStack {
             Text(title)
@@ -777,7 +588,7 @@ struct LiveRoomsView: View {
             .foregroundStyle(FastSortTheme.text)
     }
 
-    private func helperText(_ text: String) -> some View {
+    private func hintText(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 12))
             .foregroundStyle(FastSortTheme.muted)
@@ -971,22 +782,6 @@ struct LiveRoomsView: View {
         Task { await loadRoomPrintConfig(roomId: room.id ?? "") }
     }
 
-    private func openAddRoomDialog() {
-        addRoomType = activeLiveType
-        addRoomInput = ""
-        addRoomCookie = ""
-        addRoomCover = ""
-        showAddRoomDialog = true
-    }
-
-    private func closeAddRoomDialog() {
-        showAddRoomDialog = false
-        addRoomInput = ""
-        addRoomCookie = ""
-        addRoomCover = ""
-        isAddingRoom = false
-    }
-
     private func showToast(_ message: String) {
         toastText = message
         Task {
@@ -1026,38 +821,6 @@ struct LiveRoomsView: View {
         } catch {
             rooms = []
             errorText = error.localizedDescription
-        }
-    }
-
-    private func submitAddRoom() async {
-        guard !addRoomSubmitDisabled else { return }
-        isAddingRoom = true
-        errorText = ""
-        defer { isAddingRoom = false }
-        let service = LiveRoomsService(apiClient: appState.makeAPIClient())
-        let input = addRoomInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cookie = addRoomCookie.trimmingCharacters(in: .whitespacesAndNewlines)
-        do {
-            switch addRoomType {
-            case "0":
-                try await service.addDouyinRoom(roomNumber: input)
-            case "1":
-                try await service.addTaobaoRoom(roomName: input, liveSession: cookie)
-            case "2":
-                try await service.addOrUpdateXiaohongshuRoom(cookies: cookie)
-            case "3":
-                try await service.addWeChatRoom(roomName: input, cookies: cookie, roomUrl: addRoomCover)
-            case "4":
-                try await service.addOrUpdateKuaishouRoom(roomNumber: input, cookies: cookie)
-            default:
-                return
-            }
-            closeAddRoomDialog()
-            showToast("添加成功")
-            await loadRooms(force: true)
-        } catch {
-            errorText = error.localizedDescription
-            showToast("添加直播间失败")
         }
     }
 
@@ -1112,26 +875,8 @@ struct LiveRoomsView: View {
                 return
             }
 
-            var targetRoom = room
-            let platform = platformKey(for: room)
-            if platform == "xiaohongshu" {
-                guard let preparedRoom = await prepareLocalXhsRoom(room) else {
-                    return
-                }
-                targetRoom = preparedRoom
-            } else if platform == "kuaishou" {
-                guard let preparedRoom = await prepareLocalKuaishouRoom(room) else {
-                    return
-                }
-                targetRoom = preparedRoom
-            } else if platform == "taobao" {
-                guard let preparedRoom = await prepareLocalTaobaoRoom(room) else {
-                    return
-                }
-                targetRoom = preparedRoom
-            } else if platform == "wechat" {
-                try await LocalDanmakuHelperManager.shared.ensureRunning(.wechat)
-            }
+            let preparedSession = try await NativeDanmakuSessionCoordinator().prepare(room: room)
+            let targetRoom = preparedSession.room
             comments = []
             pendingComments = []
             seenMessageIds = []
@@ -1140,10 +885,10 @@ struct LiveRoomsView: View {
                 .startLive(userId: appState.currentUserId, userRoomId: roomId, liveTitle: targetRoom.displayName)
             liveRecordId = result.id ?? ""
             sortBatchId = result.sortBatchId ?? ""
-            connectSocket(targetRoom)
+            connectNativeDanmaku(preparedSession)
         } catch {
             errorText = error.localizedDescription
-            showToast("开播失败")
+            showToast(error.localizedDescription)
         }
     }
 
@@ -1155,245 +900,6 @@ struct LiveRoomsView: View {
             return false
         }
         return true
-    }
-
-    private func prepareLocalXhsRoom(_ room: RoomListItem) async -> RoomListItem? {
-        let cookie = cookieHeader(from: room)
-        guard !cookie.isEmpty else {
-            showToast("小红书需要先保存 ark 工作台 Cookie")
-            return nil
-        }
-        errorText = "小红书不能再走旧登录态方案。后续应使用 ark 工作台 Cookie，并在客户端侧 adapter 使用这段登录态解析直播和拉取弹幕；迅拣需要补齐同类本机 adapter 后才能本地开播。"
-        showToast("小红书本机 collector 待补齐")
-        return nil
-    }
-
-    private func prepareLocalKuaishouRoom(_ room: RoomListItem) async -> RoomListItem? {
-        let roomId = (room.eid ?? room.roomNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let cookie = cookieHeader(from: room)
-        guard !cookie.isEmpty else {
-            showToast("快手本机弹幕需要房间 liveSession 返回 Cookie")
-            return nil
-        }
-        do {
-            try await LocalDanmakuHelperManager.shared.ensureRunning(.kuaishou)
-        } catch {
-            showToast("快手本机弹幕组件启动失败：\(error.localizedDescription)")
-            return nil
-        }
-        if roomId.isEmpty {
-            do {
-                let result = try await checkAndStartLocalLive(
-                    portKey: "kuaishou",
-                    defaultPort: 8301,
-                    sessionId: "ks-\(room.id ?? UUID().uuidString)",
-                    cookie: cookie,
-                    roomId: nil
-                )
-                guard let resolvedRoomId = result.roomId?.trimmingCharacters(in: .whitespacesAndNewlines), !resolvedRoomId.isEmpty else {
-                    showToast("快手当前账号未开播")
-                    return nil
-                }
-                let updated = RoomListItem(
-                    id: room.id,
-                    roomName: result.title ?? room.roomName,
-                    roomNumber: resolvedRoomId,
-                    roomUrl: result.cover ?? room.roomUrl,
-                    liveType: room.liveType,
-                    liveSession: room.liveSession,
-                    eid: resolvedRoomId,
-                    ksWsPath: result.wsPath ?? room.ksWsPath,
-                    wsPath: room.wsPath
-                )
-                replaceRoom(updated)
-                return updated
-            } catch {
-                showToast("快手本机弹幕组件解析失败：\(error.localizedDescription)")
-                return nil
-            }
-        }
-        let updated = RoomListItem(
-            id: room.id,
-            roomName: room.roomName,
-            roomNumber: room.roomNumber?.isEmpty == false ? room.roomNumber : roomId,
-            roomUrl: room.roomUrl,
-            liveType: room.liveType,
-            liveSession: room.liveSession,
-            eid: roomId,
-            ksWsPath: room.ksWsPath,
-            wsPath: room.wsPath
-        )
-        replaceRoom(updated)
-        return updated
-    }
-
-    private func replaceRoom(_ updated: RoomListItem) {
-        rooms = rooms.map { $0.id == updated.id ? updated : $0 }
-    }
-
-    private func prepareLocalTaobaoRoom(_ room: RoomListItem) async -> RoomListItem? {
-        let cookie = cookieHeader(from: room)
-        let storedLink = taobaoLink(for: room)
-        let explicitRoomId = taobaoExplicitRoomId(from: room.roomNumber ?? "")
-            ?? taobaoExplicitRoomId(from: storedLink)
-        let sourceURL = explicitRoomId == nil ? storedLink : ""
-        guard !cookie.isEmpty || !sourceURL.isEmpty || explicitRoomId != nil else {
-            showToast("淘宝本机弹幕需要房间 liveSession 返回千牛 Cookie")
-            return nil
-        }
-        do {
-            try await LocalDanmakuHelperManager.shared.ensureRunning(.taobao)
-            let result = try await checkAndStartLocalLive(
-                portKey: "taobao",
-                defaultPort: 8201,
-                sessionId: "tb-\(room.id ?? UUID().uuidString)",
-                cookie: cookie,
-                roomId: explicitRoomId,
-                sourceURL: sourceURL
-            )
-            guard let roomId = result.roomId?.trimmingCharacters(in: .whitespacesAndNewlines), !roomId.isEmpty else {
-                showToast(result.message ?? "淘宝当前账号未开播或未解析到 roomId")
-                return nil
-            }
-            let updated = RoomListItem(
-                id: room.id,
-                roomName: result.title ?? room.roomName,
-                roomNumber: roomId,
-                roomUrl: result.cover ?? room.roomUrl,
-                liveType: room.liveType,
-                liveSession: room.liveSession,
-                eid: room.eid,
-                ksWsPath: room.ksWsPath,
-                wsPath: result.wsPath ?? room.wsPath
-            )
-            replaceRoom(updated)
-            return updated
-        } catch {
-            showToast("淘宝本机弹幕组件解析失败：\(error.localizedDescription)")
-            return nil
-        }
-    }
-
-    private func taobaoLink(for room: RoomListItem) -> String {
-        let key = taobaoLinkStorageKey(for: room)
-        let stored = key.flatMap { UserDefaults.standard.string(forKey: $0) } ?? ""
-        let raw = stored.isEmpty ? (room.roomNumber ?? "") : stored
-        return extractHttpLink(raw)
-    }
-
-    private func taobaoExplicitRoomId(from value: String) -> String? {
-        let text = decodePercentRepeatedly(value)
-            .replacingOccurrences(of: "\\u0026", with: "&")
-            .replacingOccurrences(of: "\\/", with: "/")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return nil }
-        if let roomId = queryValue(in: text, name: "wh_cid") {
-            return roomId
-        }
-        if let roomId = queryValue(in: text, name: "roomId") ?? queryValue(in: text, name: "liveId") {
-            return roomId
-        }
-        if let roomId = firstRegexCapture(in: text, pattern: #"liveplatform/([A-Fa-f0-9\-]{16,})___"#) {
-            return roomId
-        }
-        if let roomId = firstRegexCapture(in: text, pattern: #"wh_cid=([^&"' <>\n]+)"#) {
-            return decodePercentRepeatedly(roomId)
-        }
-        if text.range(of: #"^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$"#, options: .regularExpression) != nil {
-            return text
-        }
-        if text.range(of: #"^[A-Za-z0-9_\-]{6,80}$"#, options: .regularExpression) != nil {
-            return text
-        }
-        return nil
-    }
-
-    private func openTaobaoLinkDialog(_ room: RoomListItem) {
-        pendingTaobaoRoom = room
-        let key = taobaoLinkStorageKey(for: room)
-        taobaoLinkInput = key.flatMap { UserDefaults.standard.string(forKey: $0) } ?? room.roomNumber ?? ""
-        showTaobaoLinkDialog = true
-    }
-
-    private func closeTaobaoLinkDialog() {
-        showTaobaoLinkDialog = false
-        pendingTaobaoRoom = nil
-        taobaoLinkInput = ""
-    }
-
-    private func confirmTaobaoLinkDialog() {
-        guard let room = pendingTaobaoRoom else {
-            closeTaobaoLinkDialog()
-            return
-        }
-        let link = extractHttpLink(taobaoLinkInput)
-        guard !link.isEmpty else {
-            showToast("无效链接，请重新输入")
-            return
-        }
-        if let key = taobaoLinkStorageKey(for: room) {
-            UserDefaults.standard.set(link, forKey: key)
-        }
-        closeTaobaoLinkDialog()
-        let updated = RoomListItem(
-            id: room.id,
-            roomName: room.roomName,
-            roomNumber: link,
-            roomUrl: room.roomUrl,
-            liveType: room.liveType,
-            liveSession: room.liveSession,
-            eid: room.eid,
-            ksWsPath: room.ksWsPath,
-            wsPath: room.wsPath
-        )
-        replaceRoom(updated)
-        Task { await startLive(room: updated) }
-    }
-
-    private func taobaoLinkStorageKey(for room: RoomListItem) -> String? {
-        guard let id = room.id, !id.isEmpty else { return nil }
-        return "\(id)-TB"
-    }
-
-    private func extractHttpLink(_ value: String) -> String {
-        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let range = text.range(of: #"https?://[^\s]+"#, options: .regularExpression) else {
-            return ""
-        }
-        return String(text[range])
-    }
-
-    private func queryValue(in text: String, name: String) -> String? {
-        if let url = URL(string: text),
-           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let value = components.queryItems?.first(where: { $0.name == name })?.value,
-           !value.isEmpty {
-            return decodePercentRepeatedly(value)
-        }
-        let escaped = NSRegularExpression.escapedPattern(for: name)
-        if let value = firstRegexCapture(in: text, pattern: "\(escaped)=([^&\"' <>\\n]+)") {
-            return decodePercentRepeatedly(value)
-        }
-        return nil
-    }
-
-    private func firstRegexCapture(in text: String, pattern: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let nsRange = NSRange(text.startIndex..<text.endIndex, in: text)
-        guard let match = regex.firstMatch(in: text, range: nsRange), match.numberOfRanges > 1,
-              let range = Range(match.range(at: 1), in: text) else {
-            return nil
-        }
-        return String(text[range])
-    }
-
-    private func decodePercentRepeatedly(_ value: String) -> String {
-        var result = value
-        for _ in 0..<3 {
-            guard let decoded = result.removingPercentEncoding, decoded != result else { break }
-            result = decoded
-        }
-        return result
     }
 
     private func finishLive() async {
@@ -1464,54 +970,40 @@ struct LiveRoomsView: View {
         }
     }
 
-    private func connectSocket(_ room: RoomListItem) {
+    private func connectNativeDanmaku(_ preparedSession: NativeDanmakuPreparedSession) {
         closeSocket(clearLiveState: false)
-        guard let request = socketRequest(for: room) else {
-            socketStatus = "error"
-            roomStatusText = "缺少连接信息"
-            showToast("缺少弹幕连接信息")
-            return
-        }
+        nativePreparedSession = preparedSession
         isManualSocketClose = false
         socketStatus = "connecting"
         roomStatusText = "连接中"
-        let session = DanmakuWebSocketSession()
-        socketSession = session
+        let coordinator = NativeDanmakuSessionCoordinator()
         socketLoopTask = Task {
             do {
-                try await session.run(
-                    request: request,
-                    onOpen: {},
-                    onMessage: { message in
-                        guard socketSession === session else { return }
-                        handleSocketMessage(message)
+                let connection = try await coordinator.connect(
+                    preparedSession: preparedSession,
+                    onEvent: { event in
+                        guard isCurrentNativeSession(preparedSession) else { return }
+                        handleNativeDanmakuEvent(event)
                     }
                 )
-            } catch {
-                guard socketSession === session else { return }
-                socketStatus = isManualSocketClose ? "idle" : "closed"
-                roomStatusText = isManualSocketClose ? "已断开" : "连接断开"
-                if !isManualSocketClose {
-                    scheduleReconnect()
+                guard isCurrentNativeSession(preparedSession) else {
+                    connection.cancel()
+                    return
                 }
-            }
-        }
-        heartbeatTask = Task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
-                await MainActor.run {
-                    guard socketSession === session else { return }
-                    session.sendPing()
-                }
-            }
-        }
-        Task {
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            await MainActor.run {
-                if socketSession === session && socketStatus == "connecting" {
+                nativeDanmakuConnection = connection
+                if socketStatus == "connecting" {
                     socketStatus = "open"
                     roomStatusText = "弹幕已连接"
                     reconnectCount = 0
+                }
+            } catch {
+                guard isCurrentNativeSession(preparedSession) else { return }
+                socketStatus = isManualSocketClose ? "idle" : "error"
+                roomStatusText = isManualSocketClose ? "已断开" : "连接失败"
+                errorText = error.localizedDescription
+                showToast(error.localizedDescription)
+                if !isManualSocketClose {
+                    scheduleReconnect()
                 }
             }
         }
@@ -1527,6 +1019,9 @@ struct LiveRoomsView: View {
         reconnectTask = nil
         socketSession?.cancel()
         socketSession = nil
+        nativeDanmakuConnection?.cancel()
+        nativeDanmakuConnection = nil
+        nativePreparedSession = nil
         reconnectCount = 0
         socketStatus = "idle"
         roomStatusText = "未连接"
@@ -1546,7 +1041,9 @@ struct LiveRoomsView: View {
             showToast("弹幕正在连接")
             return
         }
-        connectSocket(selectedRoom)
+        Task {
+            await prepareAndConnectNativeDanmaku(selectedRoom)
+        }
     }
 
     private func scheduleReconnect() {
@@ -1562,37 +1059,108 @@ struct LiveRoomsView: View {
         reconnectTask = Task {
             try? await Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
             await MainActor.run {
-                connectSocket(room)
+                guard selectedRoom?.id == room.id else { return }
+                refreshSocket()
             }
         }
     }
 
-    private func handleSocketMessage(_ message: URLSessionWebSocketTask.Message) {
-        guard let text = DanmakuSocketMessageParser.text(from: message), !text.isEmpty else { return }
-        if let status = DanmakuSocketMessageParser.status(fromText: text) {
-            handleSocketStatus(status)
-            return
+    private func prepareAndConnectNativeDanmaku(_ room: RoomListItem) async {
+        do {
+            let preparedSession = try await NativeDanmakuSessionCoordinator().prepare(room: room)
+            connectNativeDanmaku(preparedSession)
+        } catch {
+            socketStatus = "error"
+            roomStatusText = "连接失败"
+            errorText = error.localizedDescription
+            showToast(error.localizedDescription)
         }
-        guard
-            let data = text.data(using: .utf8),
-            let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return }
-        if let liveStatus = payload["liveStatus"] {
-            handleLiveStatusValue(liveStatus)
-            return
-        }
-        guard let comment = buildComment(from: payload) else { return }
-        if !comment.messageId.isEmpty {
-            guard !seenMessageIds.contains(comment.messageId) else { return }
-            seenMessageIds.insert(comment.messageId)
-            if seenMessageIds.count > 500 {
-                seenMessageIds.remove(seenMessageIds.first ?? "")
+    }
+
+    private func isCurrentNativeSession(_ preparedSession: NativeDanmakuPreparedSession) -> Bool {
+        nativePreparedSession?.request.platformKey == preparedSession.request.platformKey
+            && nativePreparedSession?.request.roomId == preparedSession.request.roomId
+            && nativePreparedSession?.request.displayName == preparedSession.request.displayName
+    }
+
+    private func handleNativeDanmakuEvent(_ event: NativeDanmakuEvent) {
+        switch event.event {
+        case .status:
+            handleNativeStatus(event.status)
+        case .chat:
+            guard let comment = buildComment(from: event) else { return }
+            if !comment.messageId.isEmpty {
+                guard !seenMessageIds.contains(comment.messageId) else { return }
+                seenMessageIds.insert(comment.messageId)
+                if seenMessageIds.count > 500 {
+                    seenMessageIds.remove(seenMessageIds.first ?? "")
+                }
             }
+            appendCommentForCurrentVisibility(comment)
+            if printMode == "auto" {
+                handleAutoPrint(comment)
+            }
+        case .error:
+            socketStatus = "error"
+            roomStatusText = event.content ?? "连接失败"
+            if let content = event.content {
+                showToast(content)
+            }
+        case .gift, .member, .like, .social, .control:
+            break
         }
-        appendCommentForCurrentVisibility(comment)
-        if printMode == "auto" {
-            handleAutoPrint(comment)
+    }
+
+    private func handleNativeStatus(_ status: NativeDanmakuStatus?) {
+        switch status {
+        case .connecting:
+            socketStatus = "connecting"
+            roomStatusText = "连接中"
+        case .living:
+            socketStatus = "open"
+            roomStatusText = "直播中"
+        case .stopped:
+            roomStatusText = "直播已关闭"
+            closeSocket(clearLiveState: true)
+        case .disconnected:
+            roomStatusText = "已断开"
+            closeSocket(clearLiveState: false)
+        case .loginExpired:
+            socketStatus = "error"
+            roomStatusText = "登录失效"
+            closeSocket(clearLiveState: false)
+        case .notStarted:
+            roomStatusText = "未开播"
+        case .error:
+            socketStatus = "error"
+            roomStatusText = "连接失败"
+        case .none:
+            break
         }
+    }
+
+    private func buildComment(from event: NativeDanmakuEvent) -> LiveDanmuComment? {
+        let payload = event.rawPayload
+        let content = (event.content ?? firstText(payload, keys: ["danmuContent", "content", "text"]))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { return nil }
+
+        let messageId = (event.messageId ?? firstText(payload, keys: ["msgId", "dyMsgId", "tbMsgId", "xhsMsgId", "wxMsgId", "ksMsgId"]))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackId = "\(Date().timeIntervalSince1970)-\(UUID().uuidString)"
+        return LiveDanmuComment(
+            id: messageId.isEmpty ? fallbackId : messageId,
+            messageId: messageId,
+            user: event.userName ?? firstText(payload, keys: ["danmuUserName", "nickname", "userName"], fallback: "用户"),
+            content: content,
+            orderNumber: firstText(payload, keys: ["orderNumber", "orderNo"]),
+            danmuUserId: event.userId ?? firstText(payload, keys: ["danmuUserId", "userId", "danmuUserID"]),
+            shortId: firstText(payload, keys: ["shortId", "short_id"]),
+            roomId: event.platformRoomId ?? event.roomId ?? firstText(payload, keys: ["dyRoomId", "tbRoomId", "xhsRoomId", "wxRoomId", "ksRoomId", "roomId"]),
+            fansStatus: firstText(payload, keys: ["fansStatus"], fallback: "0"),
+            blackLevel: Int(firstText(payload, keys: ["blackLevel"], fallback: "0")) ?? 0,
+            isMyBlack: isCurrentUserInCreatedUsers(payload["createdUsers"])
+        )
     }
 
     private func appendCommentForCurrentVisibility(_ comment: LiveDanmuComment) {
@@ -1607,75 +1175,6 @@ struct LiveRoomsView: View {
         guard !pendingComments.isEmpty else { return }
         comments = Array((comments + pendingComments).suffix(80))
         pendingComments = []
-    }
-
-    private func handleSocketStatus(_ status: DanmakuSocketTextStatus) {
-        switch status {
-        case .pong:
-            break
-        case .connecting:
-            roomStatusText = "连接中"
-        case .living:
-            socketStatus = "open"
-            roomStatusText = "直播中"
-        case .stopped:
-            roomStatusText = "直播已关闭"
-            closeSocket(clearLiveState: true)
-        case .disconnected:
-            roomStatusText = "已断开"
-            closeSocket(clearLiveState: false)
-        case .paused:
-            roomStatusText = "暂停"
-        case .ended:
-            roomStatusText = "已结束"
-            closeSocket(clearLiveState: true)
-        case .loginExpired:
-            socketStatus = "error"
-            roomStatusText = "登录失效"
-            closeSocket(clearLiveState: false)
-        case .notStarted:
-            roomStatusText = "未开播"
-        }
-    }
-
-    private func handleLiveStatusValue(_ value: Any) {
-        switch DanmakuSocketMessageParser.liveStatus(from: value) {
-        case .living:
-            roomStatusText = "直播中"
-        case .notStarted:
-            roomStatusText = "未开播"
-        case .paused:
-            roomStatusText = "暂停"
-        case .ended:
-            roomStatusText = "已结束"
-        case .loginExpired:
-            socketStatus = "error"
-            roomStatusText = "登录失效"
-        case .none, .pong, .connecting, .stopped, .disconnected:
-            break
-        }
-    }
-
-    private func buildComment(from payload: [String: Any]) -> LiveDanmuComment? {
-        let content = firstText(payload, keys: ["danmuContent", "content", "text"]).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty else { return nil }
-        let platform = selectedRoom.map(platformKey(for:)) ?? ""
-        let messageIdKeys = platform == "wechat"
-            ? ["wxMsgId"]
-            : ["ksMsgId", "msgId", "dyMsgId", "tbMsgId", "xhsMsgId", "wxMsgId"]
-        return LiveDanmuComment(
-            id: firstText(payload, keys: messageIdKeys).isEmpty ? "\(Date().timeIntervalSince1970)-\(UUID().uuidString)" : firstText(payload, keys: messageIdKeys),
-            messageId: firstText(payload, keys: messageIdKeys),
-            user: firstText(payload, keys: ["danmuUserName", "nickname", "userName"], fallback: "用户"),
-            content: content,
-            orderNumber: firstText(payload, keys: ["orderNumber", "orderNo"]),
-            danmuUserId: firstText(payload, keys: ["danmuUserId", "userId", "danmuUserID"]),
-            shortId: firstText(payload, keys: ["shortId", "short_id"]),
-            roomId: firstText(payload, keys: ["dyRoomId", "tbRoomId", "xhsRoomId", "wxRoomId", "ksRoomId", "roomId"]),
-            fansStatus: firstText(payload, keys: ["fansStatus"], fallback: "0"),
-            blackLevel: Int(firstText(payload, keys: ["blackLevel"], fallback: "0")) ?? 0,
-            isMyBlack: isCurrentUserInCreatedUsers(payload["createdUsers"])
-        )
     }
 
     private func firstText(_ payload: [String: Any], keys: [String], fallback: String = "") -> String {
@@ -1836,188 +1335,6 @@ struct LiveRoomsView: View {
     private func platformKey(for room: RoomListItem) -> String {
         DanmakuPlatformRegistry.clientPlatformKey(forLiveType: room.liveType?.value)
     }
-
-    private func socketRequest(for room: RoomListItem) -> URLRequest? {
-        guard let url = socketURL(for: room) else { return nil }
-        var request = URLRequest(url: url)
-        let platform = platformKey(for: room)
-        let cookie = cookieHeader(from: room)
-        if platform == "kuaishou", !cookie.isEmpty {
-            request.setValue(cookie, forHTTPHeaderField: "x-kuaishou-cookie")
-        }
-        return request
-    }
-
-    private func socketURL(for room: RoomListItem) -> URL? {
-        let platform = platformKey(for: room)
-        let roomNumber = (room.roomNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let encodedRoomNumber = Self.pathComponent(roomNumber)
-        let cookie = cookieHeader(from: room)
-        switch platform {
-        case "taobao":
-            guard !encodedRoomNumber.isEmpty else { return nil }
-            return localWebSocketURL(
-                portKey: "taobao",
-                defaultPort: 8201,
-                path: "/tb-ws/\(encodedRoomNumber)"
-            )
-        case "xiaohongshu":
-            return nil
-        case "wechat":
-            guard let session = DanmakuCookieSessionParser.wechatSession(fromLiveSession: room.liveSession) else { return nil }
-            return localWebSocketURL(
-                portKey: "wechat",
-                defaultPort: 8000,
-                path: "/wx-ws",
-                queryItems: [
-                    URLQueryItem(name: "sessionid", value: session.sessionid),
-                    URLQueryItem(name: "wxuin", value: session.wxuin)
-                ]
-            )
-        case "kuaishou":
-            if let wsPath = [room.ksWsPath, room.wsPath].compactMap({ $0 }).first(where: { !$0.isEmpty }) {
-                if wsPath.hasPrefix("ws://") || wsPath.hasPrefix("wss://") {
-                    return localWebSocketURL(fromConfiguredWebSocket: wsPath, portKey: "kuaishou", defaultPort: 8301)
-                }
-                return localWebSocketURL(
-                    portKey: "kuaishou",
-                    defaultPort: 8301,
-                    path: wsPath.hasPrefix("/") ? wsPath : "/\(wsPath)"
-                )
-            }
-            let roomId = Self.pathComponent(room.eid ?? room.roomNumber ?? "")
-            guard !roomId.isEmpty else { return nil }
-            return localWebSocketURL(
-                portKey: "kuaishou",
-                defaultPort: 8301,
-                path: "/ks-ws/\(roomId)"
-            )
-        case "tiktok":
-            guard !encodedRoomNumber.isEmpty else { return nil }
-            return localWebSocketURL(
-                portKey: "tiktok",
-                defaultPort: 8765,
-                path: "/ws/\(encodedRoomNumber)"
-            )
-        case "shopee":
-            guard !roomNumber.isEmpty else { return nil }
-            if roomNumber.allSatisfy(\.isNumber) {
-                return localWebSocketURL(
-                    portKey: "shopee",
-                    defaultPort: 8001,
-                    path: "/shopee/ws",
-                    queryItems: [URLQueryItem(name: "session_id", value: roomNumber)]
-                )
-            }
-            return localWebSocketURL(
-                portKey: "shopee",
-                defaultPort: 8001,
-                path: "/shopee/ws",
-                queryItems: [URLQueryItem(name: "share_url", value: roomNumber)]
-            )
-        default:
-            guard !encodedRoomNumber.isEmpty else { return nil }
-            let cookieItems = cookie.isEmpty
-                ? []
-                : [URLQueryItem(name: "cookie_b64", value: Data(cookie.utf8).base64EncodedString())]
-            return localWebSocketURL(
-                portKey: "douyin",
-                defaultPort: 8865,
-                path: "/ws/events/\(encodedRoomNumber)",
-                queryItems: cookieItems
-            )
-        }
-    }
-
-    private func localWebSocketURL(
-        portKey: String,
-        defaultPort: Int,
-        path: String,
-        queryItems: [URLQueryItem] = []
-    ) -> URL? {
-        DanmakuLocalConnectionBuilder.webSocketURL(
-            portKey: portKey,
-            defaultPort: defaultPort,
-            path: path,
-            queryItems: queryItems
-        )
-    }
-
-    private func localHTTPURL(
-        portKey: String,
-        defaultPort: Int,
-        path: String
-    ) -> URL? {
-        DanmakuLocalConnectionBuilder.httpURL(
-            portKey: portKey,
-            defaultPort: defaultPort,
-            path: path
-        )
-    }
-
-    private func checkAndStartLocalLive(
-        portKey: String,
-        defaultPort: Int,
-        sessionId: String,
-        cookie: String,
-        roomId: String?,
-        sourceURL: String? = nil
-    ) async throws -> LocalLivePrepareData {
-        guard let url = localHTTPURL(portKey: portKey, defaultPort: defaultPort, path: "/api/live/check_and_start") else {
-            throw LocalLivePrepareError("本机 helper URL 构造失败")
-        }
-        var payload: [String: Any] = [
-            "session_id": sessionId,
-            "auto_start": true,
-            "cookie": cookie
-        ]
-        if let roomId = roomId?.trimmingCharacters(in: .whitespacesAndNewlines), !roomId.isEmpty {
-            payload["room_id"] = roomId
-        }
-        if let sourceURL = sourceURL?.trimmingCharacters(in: .whitespacesAndNewlines), !sourceURL.isEmpty {
-            payload["url"] = sourceURL
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 15
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw LocalLivePrepareError("本机 helper HTTP \(http.statusCode)")
-        }
-        let decoded = try JSONDecoder().decode(LocalLivePrepareResponse.self, from: data)
-        guard decoded.success != false else {
-            throw LocalLivePrepareError(decoded.msg ?? decoded.message ?? "本机 helper 返回失败")
-        }
-        let fallbackMessage = decoded.msg ?? decoded.message
-        return decoded.data?.withFallbackMessage(fallbackMessage)
-            ?? LocalLivePrepareData(status: nil, roomId: nil, title: nil, cover: nil, wsPath: nil, message: fallbackMessage)
-    }
-
-    private func localWebSocketURL(
-        fromConfiguredWebSocket raw: String,
-        portKey: String,
-        defaultPort: Int
-    ) -> URL? {
-        DanmakuLocalConnectionBuilder.webSocketURL(
-            fromConfiguredWebSocket: raw,
-            portKey: portKey,
-            defaultPort: defaultPort
-        )
-    }
-
-    private func cookieHeader(from room: RoomListItem) -> String {
-        DanmakuCookieSessionParser.cookieHeader(fromLiveSession: room.liveSession)
-    }
-
-    private static func pathComponent(_ value: String) -> String {
-        value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? value
-    }
-
-    private static func queryValue(_ value: String) -> String {
-        value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
-    }
 }
 
 struct PlatformCatalog: Identifiable {
@@ -2055,49 +1372,6 @@ struct LiveDanmuComment: Identifiable, Equatable {
     var printed = false
     var printFailed = false
     var blackBgShow = false
-}
-
-struct LocalLivePrepareResponse: Decodable {
-    let code: Int?
-    let success: Bool?
-    let msg: String?
-    let message: String?
-    let data: LocalLivePrepareData?
-}
-
-struct LocalLivePrepareData: Decodable {
-    let status: Int?
-    let roomId: String?
-    let title: String?
-    let cover: String?
-    let wsPath: String?
-    let message: String?
-
-    func withFallbackMessage(_ fallback: String?) -> LocalLivePrepareData {
-        guard message == nil, let fallback else { return self }
-        return LocalLivePrepareData(status: status, roomId: roomId, title: title, cover: cover, wsPath: wsPath, message: fallback)
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case status
-        case roomId = "room_id"
-        case title
-        case cover
-        case wsPath = "ws_path"
-        case message
-    }
-}
-
-struct LocalLivePrepareError: LocalizedError {
-    let message: String
-
-    init(_ message: String) {
-        self.message = message
-    }
-
-    var errorDescription: String? {
-        message
-    }
 }
 
 struct DanmuMappingRule: Equatable {

@@ -24,9 +24,9 @@ enum DanmakuDirectAdapterKind: Equatable {
     var helpText: String {
         switch self {
         case .taobao:
-            return "淘宝通过本机 adapter 读取千牛 Cookie、解析直播间并连接 impaas 弹幕源，不经过迅拣后端转发弹幕。"
+            return "淘宝通过本机 adapter 读取千牛工作台登录态、解析直播间并连接 impaas 弹幕源，不经过迅拣后端转发弹幕。"
         case .xiaohongshu:
-            return "小红书按弹幕捕手链路采集 ark 工作台 Cookie；后续需要补齐本机 getRoomId 和弹幕拉取 adapter。"
+            return "小红书采集 ark 工作台登录态；后续需要补齐 native getRoomId 和弹幕拉取 adapter。"
         case .kuaishou:
             return "快手通过本机 adapter 解析 liveStreamId/token 后直连平台 WebSocket。"
         case .shopee:
@@ -39,14 +39,6 @@ enum DanmakuDirectAdapterKind: Equatable {
             return "视频号当前通过本机 adapter 从 Cookie 读取 sessionid/wxuin 并连接弹幕。"
         }
     }
-}
-
-struct DanmakuLocalBridgeConfig: Equatable {
-    let platformKey: String
-    let portKey: String
-    let defaultPort: Int
-    let helperKind: LocalDanmakuHelperKind?
-    let cookieHeaderName: String?
 }
 
 struct DanmakuPlatform: Identifiable, Equatable {
@@ -88,32 +80,25 @@ struct DanmakuPlatform: Identifiable, Equatable {
     }
 
     var requiresDanmuInput: Bool {
-        switch directDanmuAdapter {
-        case .taobao, .xiaohongshu, .wechat:
-            return false
-        case .kuaishou, .shopee, .douyin, .tiktok:
-            return true
-        case .none:
-            return true
-        }
+        false
     }
 
     var danmuInputPlaceholder: String {
         switch directDanmuAdapter {
         case .taobao:
-            return "可选：淘宝 roomId/直播链接；留空则用千牛 Cookie 解析当前直播"
+            return "无需输入：千牛工作台登录态会用于解析当前直播"
         case .xiaohongshu:
-            return "可选：小红书直播间参数；留空则后续由本机 adapter 通过 ark Cookie 解析"
+            return "无需输入：ark 工作台登录态会用于解析当前直播"
         case .kuaishou:
-            return "输入快手直播间号或 live.kuaishou.com/u/{id}"
+            return "无需输入：快手工作台登录态会用于解析当前直播"
         case .shopee:
-            return "输入 Shopee session_id、短链或分享链接"
+            return "无需输入：Shopee 工作台登录态会用于解析当前直播"
         case .douyin:
-            return "输入抖音 live_id 或 live.douyin.com 链接"
+            return "无需输入：抖音工作台登录态会用于解析当前直播"
         case .tiktok:
-            return "输入 TikTok unique_id"
+            return "无需输入：TikTok 工作台登录态会用于解析当前直播"
         case .wechat:
-            return "视频号从 Cookie 读取 sessionid/wxuin，可留空"
+            return "无需输入：视频号工作台登录态会用于解析当前直播"
         case .none:
             return "当前平台暂未支持弹幕展示"
         }
@@ -138,10 +123,6 @@ struct DanmakuPlatform: Identifiable, Equatable {
         default:
             return nil
         }
-    }
-
-    var localBridgeConfig: DanmakuLocalBridgeConfig? {
-        directDanmuAdapter.flatMap(DanmakuPlatformRegistry.localBridgeConfig)
     }
 
     private var collectDomains: [String] {
@@ -280,25 +261,6 @@ enum DanmakuPlatformRegistry {
             return "shopee"
         default:
             return "douyin"
-        }
-    }
-
-    static func localBridgeConfig(for adapter: DanmakuDirectAdapterKind) -> DanmakuLocalBridgeConfig? {
-        switch adapter {
-        case .taobao:
-            return DanmakuLocalBridgeConfig(platformKey: "taobao", portKey: "taobao", defaultPort: 8201, helperKind: .taobao, cookieHeaderName: nil)
-        case .xiaohongshu:
-            return DanmakuLocalBridgeConfig(platformKey: "xiaohongshu", portKey: "xiaohongshu", defaultPort: 8101, helperKind: nil, cookieHeaderName: nil)
-        case .kuaishou:
-            return DanmakuLocalBridgeConfig(platformKey: "kuaishou", portKey: "kuaishou", defaultPort: 8301, helperKind: .kuaishou, cookieHeaderName: "x-kuaishou-cookie")
-        case .shopee:
-            return DanmakuLocalBridgeConfig(platformKey: "shopee", portKey: "shopee", defaultPort: 8001, helperKind: nil, cookieHeaderName: nil)
-        case .douyin:
-            return DanmakuLocalBridgeConfig(platformKey: "douyin", portKey: "douyin", defaultPort: 8865, helperKind: nil, cookieHeaderName: nil)
-        case .tiktok:
-            return DanmakuLocalBridgeConfig(platformKey: "tiktok", portKey: "tiktok", defaultPort: 8765, helperKind: nil, cookieHeaderName: nil)
-        case .wechat:
-            return DanmakuLocalBridgeConfig(platformKey: "wechat", portKey: "wechat", defaultPort: 8000, helperKind: .wechat, cookieHeaderName: nil)
         }
     }
 }

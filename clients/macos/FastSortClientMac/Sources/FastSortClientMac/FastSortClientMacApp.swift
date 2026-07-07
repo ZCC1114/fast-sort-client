@@ -71,10 +71,6 @@ final class FastSortClientMacApp: NSObject, NSApplicationDelegate {
         true
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        LocalDanmakuHelperManager.shared.stopAll()
-    }
-
     private func showMainWindow() {
         if let window {
             if !window.isVisible || window.frame.width < 100 || window.frame.height < 100 {

@@ -28,3 +28,6 @@ obj/
 *.log
 .env
 .env.*
+
+# Local protocol captures and credentials. Never commit cookies, HAR files, or packet samples.
+local-captures/

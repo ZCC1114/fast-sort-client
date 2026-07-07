@@ -1225,9 +1225,9 @@ struct EntertainmentModeView: View {
     @State private var pendingEvents: [EntertainmentEventItem] = []
     @State private var giftStats: [String: EntertainmentGiftStat] = [:]
     @State private var seenEventIds = Set<String>()
-    @State private var socketSession: DanmakuWebSocketSession?
+    @State private var nativeDanmakuConnection: (any NativeDanmakuConnection)?
+    @State private var nativePreparedSession: NativeDanmakuPreparedSession?
     @State private var socketLoopTask: Task<Void, Never>?
-    @State private var heartbeatTask: Task<Void, Never>?
     @State private var message = ""
     @State private var hasLoaded = false
 
@@ -1620,15 +1620,16 @@ struct EntertainmentModeView: View {
     private func enterRoom(_ room: RoomListItem) async {
         guard let roomId = room.id else { return }
         do {
+            let preparedSession = try await NativeDanmakuSessionCoordinator().prepare(room: room)
             let result = try await LiveRoomsService(apiClient: appState.makeAPIClient())
                 .startLive(userId: appState.currentUserId, userRoomId: roomId, liveTitle: room.displayName)
             liveRecordId = result.id ?? ""
-            selectedRoom = room
+            selectedRoom = preparedSession.room
             events = []
             pendingEvents = []
             giftStats = [:]
             seenEventIds = []
-            connectEntertainmentSocket(room)
+            connectEntertainmentDanmaku(preparedSession)
         } catch {
             message = error.localizedDescription
         }
@@ -1641,49 +1642,35 @@ struct EntertainmentModeView: View {
         try? await LiveRoomsService(apiClient: appState.makeAPIClient()).finishLive(id: id)
     }
 
-    private func connectEntertainmentSocket(_ room: RoomListItem) {
+    private func connectEntertainmentDanmaku(_ preparedSession: NativeDanmakuPreparedSession) {
         closeEntertainmentSocket(clearRecord: false)
-        guard let url = entertainmentSocketURL(for: room) else {
-            socketStatus = "error"
-            roomStatusText = "信息不完整"
-            return
-        }
+        nativePreparedSession = preparedSession
         socketStatus = "connecting"
         roomStatusText = "连接中"
-        let session = DanmakuWebSocketSession()
-        socketSession = session
+        let coordinator = NativeDanmakuSessionCoordinator()
         socketLoopTask = Task {
             do {
-                try await session.run(
-                    request: URLRequest(url: url),
-                    onOpen: {},
-                    onMessage: { message in
-                        guard socketSession === session else { return }
-                        handleEntertainmentSocketMessage(message)
+                let connection = try await coordinator.connect(
+                    preparedSession: preparedSession,
+                    onEvent: { event in
+                        guard isCurrentEntertainmentSession(preparedSession) else { return }
+                        handleNativeEntertainmentEvent(event)
                     }
                 )
-            } catch {
-                guard socketSession === session else { return }
-                socketStatus = "error"
-                roomStatusText = "已断开"
-            }
-        }
-        heartbeatTask = Task {
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 30_000_000_000)
-                await MainActor.run {
-                    guard socketSession === session else { return }
-                    session.sendPing()
+                guard isCurrentEntertainmentSession(preparedSession) else {
+                    connection.cancel()
+                    return
                 }
-            }
-        }
-        Task {
-            try? await Task.sleep(nanoseconds: 800_000_000)
-            await MainActor.run {
-                if socketSession === session && socketStatus == "connecting" {
+                nativeDanmakuConnection = connection
+                if socketStatus == "connecting" {
                     socketStatus = "open"
                     roomStatusText = "直播中"
                 }
+            } catch {
+                guard isCurrentEntertainmentSession(preparedSession) else { return }
+                socketStatus = "error"
+                roomStatusText = "连接失败"
+                message = error.localizedDescription
             }
         }
     }
@@ -1691,10 +1678,9 @@ struct EntertainmentModeView: View {
     private func closeEntertainmentSocket(clearRecord: Bool) {
         socketLoopTask?.cancel()
         socketLoopTask = nil
-        heartbeatTask?.cancel()
-        heartbeatTask = nil
-        socketSession?.cancel()
-        socketSession = nil
+        nativeDanmakuConnection?.cancel()
+        nativeDanmakuConnection = nil
+        nativePreparedSession = nil
         socketStatus = "idle"
         roomStatusText = "未连接"
         if clearRecord {
@@ -1702,21 +1688,29 @@ struct EntertainmentModeView: View {
         }
     }
 
-    private func handleEntertainmentSocketMessage(_ message: URLSessionWebSocketTask.Message) {
-        guard let text = DanmakuSocketMessageParser.text(from: message), !text.isEmpty else { return }
-        if let status = DanmakuSocketMessageParser.status(fromText: text) {
-            handleEntertainmentSocketStatus(status)
-            return
+    private func isCurrentEntertainmentSession(_ preparedSession: NativeDanmakuPreparedSession) -> Bool {
+        nativePreparedSession?.request.platformKey == preparedSession.request.platformKey
+            && nativePreparedSession?.request.roomId == preparedSession.request.roomId
+            && nativePreparedSession?.request.displayName == preparedSession.request.displayName
+    }
+
+    private func handleNativeEntertainmentEvent(_ event: NativeDanmakuEvent) {
+        switch event.event {
+        case .status:
+            handleNativeEntertainmentStatus(event.status)
+        case .error:
+            socketStatus = "error"
+            roomStatusText = event.content ?? "连接失败"
+            message = event.content ?? roomStatusText
+        case .chat, .member, .like, .gift, .social:
+            guard let item = normalizeEntertainmentEvent(event) else { return }
+            appendEntertainmentItem(item)
+        case .control:
+            break
         }
-        guard
-            let data = text.data(using: .utf8),
-            let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return }
-        if let statusEvent = payload["event"] as? String, statusEvent == "status" {
-            roomStatusText = "\(payload["status"] ?? "-")"
-            return
-        }
-        guard let item = normalizeEntertainmentEvent(payload) else { return }
+    }
+
+    private func appendEntertainmentItem(_ item: EntertainmentEventItem) {
         guard !seenEventIds.contains(item.id) else { return }
         seenEventIds.insert(item.id)
         appendEntertainmentEventForCurrentVisibility(item)
@@ -1729,10 +1723,8 @@ struct EntertainmentModeView: View {
         }
     }
 
-    private func handleEntertainmentSocketStatus(_ status: DanmakuSocketTextStatus) {
+    private func handleNativeEntertainmentStatus(_ status: NativeDanmakuStatus?) {
         switch status {
-        case .pong:
-            break
         case .living:
             socketStatus = "open"
             roomStatusText = "直播中"
@@ -1744,13 +1736,16 @@ struct EntertainmentModeView: View {
         case .loginExpired:
             socketStatus = "error"
             roomStatusText = "登录失效"
-        case .stopped, .ended:
+        case .stopped:
             socketStatus = "closed"
             roomStatusText = "直播已结束"
-        case .paused:
-            roomStatusText = "暂停"
         case .notStarted:
             roomStatusText = "未开播"
+        case .error:
+            socketStatus = "error"
+            roomStatusText = "连接失败"
+        case .none:
+            break
         }
     }
 
@@ -1812,6 +1807,50 @@ struct EntertainmentModeView: View {
         )
     }
 
+    private func normalizeEntertainmentEvent(_ event: NativeDanmakuEvent) -> EntertainmentEventItem? {
+        let type = event.event.rawValue
+        let userName = event.userName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? event.userName!
+            : "游客"
+        let eventId = event.messageId?.isEmpty == false ? event.messageId! : event.eventId
+        let giftName = event.giftName
+            ?? "\(event.rawPayload["giftName"] ?? event.rawPayload["gift_name"] ?? "")"
+        let giftId = "\(event.rawPayload["giftId"] ?? event.rawPayload["gift_id"] ?? "")"
+        let giftCount = event.giftCount ?? Int("\(event.rawPayload["giftCount"] ?? event.rawPayload["repeatCount"] ?? event.rawPayload["comboCount"] ?? 1)") ?? 1
+        let giftDiamond = Int("\(event.rawPayload["diamondCount"] ?? event.rawPayload["diamond_count"] ?? 0)") ?? 0
+
+        let text: String
+        switch event.event {
+        case .chat:
+            text = event.content ?? ""
+        case .member:
+            text = event.content ?? "\(userName) 进入直播间"
+        case .like:
+            text = event.content ?? "\(userName) 点赞"
+        case .gift:
+            text = event.content ?? ""
+        case .social:
+            text = event.content ?? "\(userName) 互动"
+        case .status, .control, .error:
+            return nil
+        }
+
+        return EntertainmentEventItem(
+            id: eventId,
+            type: normalizeEntertainmentType(type),
+            typeLabel: entertainmentTypeLabel(type),
+            userName: userName,
+            userInitial: String(userName.prefix(1)),
+            time: formatEntertainmentTime(event.createdAt.timeIntervalSince1970),
+            text: text,
+            extra: event.platformRoomId ?? event.roomId ?? event.platform,
+            giftId: giftId,
+            giftName: giftName,
+            giftCount: max(1, giftCount),
+            giftDiamond: giftDiamond
+        )
+    }
+
     private func normalizeEntertainmentType(_ type: String) -> String {
         if ["chat", "member", "like", "gift"].contains(type) { return type }
         if ["social", "fansclub", "common_text", "reward_event", "interactive_event"].contains(type) { return "social" }
@@ -1849,23 +1888,6 @@ struct EntertainmentModeView: View {
         return formatter.string(from: Date(timeIntervalSince1970: seconds))
     }
 
-    private func entertainmentSocketURL(for room: RoomListItem) -> URL? {
-        guard let roomNumber = room.roomNumber, !roomNumber.isEmpty else { return nil }
-        let cookie = DanmakuCookieSessionParser.cookieHeader(fromLiveSession: room.liveSession)
-        let queryItems = cookie.isEmpty
-            ? []
-            : [URLQueryItem(name: "cookie_b64", value: Data(cookie.utf8).base64EncodedString())]
-        return DanmakuLocalConnectionBuilder.webSocketURL(
-            portKey: "douyin",
-            defaultPort: 8865,
-            path: "/ws/events/\(DanmakuLocalConnectionBuilder.pathComponent(roomNumber))",
-            queryItems: queryItems
-        )
-    }
-
-    private static func queryValue(_ value: String) -> String {
-        value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
-    }
 }
 
 private enum EntertainmentOutputTarget {

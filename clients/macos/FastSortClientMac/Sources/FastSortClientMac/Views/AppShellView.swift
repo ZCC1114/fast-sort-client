@@ -692,7 +692,9 @@ private struct CachedRoutePage: View {
                 navigate(nextRoute)
             }
         case .liveRooms:
-            LiveRoomsView()
+            LiveRoomsView { nextRoute in
+                navigate(nextRoute)
+            }
         case .entertainment:
             EntertainmentModeView()
         case .pick:

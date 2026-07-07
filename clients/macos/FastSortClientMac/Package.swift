@@ -11,7 +11,11 @@ let package = Package(
         .executable(name: "FastSortClientMac", targets: ["FastSortClientMac"])
     ],
     targets: [
-        .executableTarget(name: "FastSortClientMac")
+        .executableTarget(
+            name: "FastSortClientMac",
+            resources: [
+                .process("Resources")
+            ]
+        )
     ]
 )
-

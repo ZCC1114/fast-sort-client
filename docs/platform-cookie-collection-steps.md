@@ -147,5 +147,5 @@
 - 采集结果应保存为完整 Cookie header，正式房间接口的 `liveSession` 也应能返回这个格式。
 - 视频号必须保留 `sessionid`、`wxuin`。
 - 快手 native adapter 需要保留 `kwfv1` -> `Kww` header 的兼容逻辑。
-- 小红书最终只走 ark 工作台 Cookie native adapter，不回退到旧登录态方案。
+- 小红书最终以 ark 工作台 Cookie native adapter 为准，客户端内完成必要登录态补齐、直播解析和弹幕连接。
 - 对于跳到非平台白名单域名的导航，内嵌窗口要阻止并交给外部浏览器，避免授权窗口被第三方页面污染会话。

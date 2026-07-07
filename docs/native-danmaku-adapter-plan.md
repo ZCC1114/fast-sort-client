@@ -62,18 +62,31 @@ macOS 当前已经完成以下基础层：
 - `DanmakuCookieSessionParser`：从 `liveSession` 解析 raw Cookie、JSON Cookie 字段、cookie map、cookie item array、视频号 `sessionid/wxuin`。
 - `DanmakuSocketMessageParser`：统一解析 `pong`、`CONNECTING`、`LIVING`、`STOPPED` 等状态。
 - `DanmakuWebSocketSession`：统一 WebSocket 生命周期。
+- `NativeDanmakuEvent`、`NativeDanmakuConnectRequest`、`NativeDanmakuAdapter`、`NativeDanmakuConnection`、`NativeDanmakuAdapterFactory`、`NativeDanmakuSessionCoordinator`：native adapter 基础 schema 和调度入口。
+- `LiveRoomsView`：正式开播前已切到 `NativeDanmakuSessionCoordinator.prepare(room:)` 做 Cookie 和 adapter 预检；adapter 未实现时不会启动 helper，也不会先创建后台直播记录。
+- `LiveRoomsView`：已移除正式页内的 `LocalDanmakuHelperManager` 调用、`DanmakuLocalConnectionBuilder` URL 构造、淘宝 roomId/分享链接兜底弹窗和 `/tb-ws`、`/ks-ws`、`/wx-ws` helper 连接分支。
+- `LiveRoomsView`：“添加直播间”入口已跳转到授权测试页，正式直播间页不再展示手填 Cookie、抖音直播间号、快手直播间号等旧添加字段。
+- `DanmakuCookieTestView`：授权测试页连接弹幕统一走 native adapter，不再保留页面内淘宝/快手重复协议代码，也不再连接本地 helper。
+- `FeatureViews`：娱乐模式已切到 native adapter 生命周期，不再连接抖音 `8865` helper。
+- `DouyinNativeDanmakuAdapter`：已实现随包 `sign.js`、JavaScriptCore 签名、WSS、gzip/protobuf、ack/heartbeat、聊天/礼物/进场/点赞/互动/关播事件解析。
+- `TaobaoNativeDanmakuAdapter`：已实现千牛工作台 Cookie 解析当前直播 roomId，并轮询 impaas 弹幕消息。
+- `KuaishouNativeDanmakuAdapter`：已实现快手工作台 Cookie 解析 owner/liveStreamId/token，并直连平台 WebSocket/protobuf 弹幕。
+- `WechatNativeDanmakuAdapter`：已实现 `sessionid/wxuin` 初始化视频号助手接口、`join_live` 获取 `liveCookies`、`msg` polling 弹幕。
+- `XiaohongshuNativeDanmakuAdapter`：已实现 ark/客服工作台 Cookie 本机补齐直播登录态、living_room 解析和平台 WebSocket 文本弹幕。
+- macOS 已删除 `LocalDanmakuHelperManager`、`DanmakuLocalConnectionBuilder`、`DanmakuLocalLivePrepareModels`，正式源码不再包含 Python helper 启动和本地端口构造能力。
 
-macOS 当前仍存在的过渡实现：
+macOS 当前仍未实现的平台：
 
-- `LocalDanmakuHelperManager` 会启动 `taobao_live`、`kuaishou_live`、`wx_live`。
-- 正式直播页仍有平台分支连接 `127.0.0.1` helper。
-- 娱乐模式抖音仍连 `DouyinLiveWebFetcher-mainPython` 的 `8865` 端口。
+- TikTok、Shopee 仍是 `PendingNativeDanmakuAdapter`，待确认正式平台枚举和 Cookie 保存接口。
+- 未实现平台会明确提示 native adapter 未实现，不允许回退到 `/taobao_live`、`/kuaishou_live`、`/wx_live`、`/xhs_live`、`/DouyinLiveWebFetcher-mainPython`。
+- 抖音、小红书、视频号、淘宝、快手仍需真实开播账号做实播验证；协议参考目录只能作为迁移参考，不作为运行依赖。
 
 Windows 当前状态：
 
 - `clients/windows/FastSort.Client.Windows` 是 WPF + .NET 8 骨架。
 - 已有登录、API Client、Token 存储、主窗口和基础路由。
 - 还没有直播间页、授权测试页、平台 WebView Cookie 采集、native adapter 层。
+- 后端 `liveSession` 合同、正式 `liveType`、工作台登录地址、保存 Cookie 接口和协议抓包清单统一见 `docs/windows-native-adapter-handoff.md`；Windows 侧继续实现前先按该文档核对缺口。
 
 ## 共同架构
 
@@ -219,8 +232,8 @@ public interface INativeDanmakuAdapter
 
 移除目标：
 
-- 正式链路不再调用 `LocalDanmakuHelperManager.ensureRunning(...)`。
-- 正式链路不再调用 `DanmakuLocalConnectionBuilder` 构造 `127.0.0.1` helper URL。
+- macOS 正式源码已删除旧 helper 启动器和本地 URL 构造器。
+- Windows 不新增 helper 启动器和本地 URL 构造器。
 - `LiveRoomsView`、`FeatureViews`、`DanmakuCookieTestView` 不再出现平台协议解析代码。
 
 ## macOS 与 Windows 技术差异
@@ -547,18 +560,18 @@ Windows 验收：
 
 ### 小红书 native adapter
 
-优先级：P4，但需要先做协议调研 spike。
+优先级：P4，macOS 已完成兼容 adapter，仍需要继续做 ark 工作台直连接口调研。
 
 原因：
 
 - 当前正确方向是 ark 工作台 Cookie。
-- 旧登录态方案不能作为主方案。
-- 现有 helper 不能直接证明 ark Cookie 到弹幕链路完整可用。
+- macOS 当前实现会在客户端内用 ark/客服工作台 Cookie 补齐直播所需登录态并连接平台 WebSocket，不启动外部服务。
+- 后续仍要把当前直播解析和弹幕来源进一步收敛到 ark 工作台接口。
 
 参考边界：
 
-- 可以参考 `/Users/zcc/Documents/git-workspace-zcc/xhs_live` 的历史实现，但不能沿用旧登录态假设。
-- 不能回到 redlive/旧登录态主链路。
+- 可以参考 `/Users/zcc/Documents/git-workspace-zcc/xhs_live` 的历史实现，但只能作为协议迁移参考。
+- 正式运行路径必须在客户端 adapter 内完成 Cookie 补齐、直播解析和弹幕连接。
 
 技术步骤：
 
@@ -605,14 +618,15 @@ Windows 验收：
 
 ### 阶段 A：共用 native adapter 基础层
 
-状态：待开始。
+状态：macOS 基础完成，Windows 待执行。
 
 macOS 任务：
 
 - 新增 `NativeDanmakuEvent`、`NativeDanmakuConnectRequest`、`NativeDanmakuAdapter`、`NativeDanmakuConnection`。
 - 新增 `NativeDanmakuAdapterFactory` 和 `NativeDanmakuSessionCoordinator`。
-- 把 `LiveRoomsView` 和 `FeatureViews` 的平台连接入口改成调用 coordinator。
-- 暂时允许 adapter 内部调用旧 helper，但页面层不能再知道 helper。
+- 把 `LiveRoomsView` 的正式开播连接入口改成调用 coordinator。
+- `FeatureViews` 娱乐模式仍待迁移到 coordinator。
+- 不允许正式页 adapter 回退启动旧 helper；当前真实协议未实现的平台用 `PendingNativeDanmakuAdapter` 明确阻断。
 
 Windows 任务：
 
@@ -623,19 +637,21 @@ Windows 任务：
 
 验收：
 
-- 页面层只依赖 coordinator。
+- 正式直播页只依赖 coordinator；授权测试页和娱乐模式后续迁移。
 - 平台事件 schema 在 macOS/Windows 文档和代码中一致。
+- macOS 已通过 `swift build`。
 
 ### 阶段 B：抖音 native adapter
 
-状态：待开始。
+状态：macOS 基础 adapter 已完成，Windows 待实现，macOS 待实播账号验证。
 
 任务：
 
-- 迁移 `sign.js` 和 `douyin.proto`。
-- 实现抖音 room resolver、signature provider、WSS client、protobuf decoder、event mapper。
-- 正式直播页和娱乐模式切到抖音 native adapter。
-- 移除抖音正式链路对 `8865` 的依赖。
+- macOS 已迁移 `sign.js` 为随包资源，并通过 JavaScriptCore 执行 `get_sign(md5)`。
+- macOS 已实现抖音 room resolver、signature provider、WSS client、protobuf decoder、event mapper。
+- macOS 正式直播页和娱乐模式已切到抖音 native adapter。
+- macOS 已移除抖音正式链路对 `8865` 的依赖。
+- Windows 实现同等逻辑：WebView2/嵌入 JS 引擎执行随包 `sign.js`，不得启动 Node/Python。
 
 验收：
 
@@ -644,29 +660,30 @@ Windows 任务：
 
 ### 阶段 C：淘宝 native adapter
 
-状态：待开始。
+状态：macOS 基础 adapter 已完成，Windows 待实现，macOS 待实播账号验证。
 
 任务：
 
-- 把 macOS 授权测试页中的淘宝直连逻辑下沉到 adapter。
+- macOS 已把淘宝直连逻辑下沉到 `TaobaoNativeDanmakuAdapter`。
 - Windows 实现同等逻辑。
-- 正式直播页切到 `TaobaoNativeDanmakuAdapter`。
-- 移除 `taobao_live` 启动和 `8201` 连接。
+- macOS 正式直播页、授权测试页已切到 `TaobaoNativeDanmakuAdapter`。
+- macOS 已移除 `taobao_live` 启动和本地 helper 连接。
 
 验收：
 
 - 淘宝 Cookie 保存后，正式开播从 `liveSession` 取 Cookie 并收弹幕。
+- `swift build` 通过，macOS 正式源码 helper 静态扫描不命中。
 
 ### 阶段 D：快手 native adapter
 
-状态：待开始。
+状态：macOS 基础 adapter 已完成，Windows 待实现，macOS 待实播账号验证。
 
 任务：
 
-- 把快手 room/liveStreamId/token 解析下沉。
-- 把 enter room、heartbeat、二进制消息解析下沉。
+- macOS 已把快手 owner/liveStreamId/token 解析下沉到 `KuaishouNativeDanmakuAdapter`。
+- macOS 已把 enter room、heartbeat、二进制消息解析下沉到 adapter。
 - Windows 实现同等协议。
-- 移除 `kuaishou_live` 启动和 `8301` 连接。
+- macOS 已移除 `kuaishou_live` 启动和本地 helper 连接。
 
 验收：
 
@@ -674,14 +691,14 @@ Windows 任务：
 
 ### 阶段 E：视频号 native adapter
 
-状态：待开始。
+状态：macOS 基础 adapter 已完成，Windows 待实现，macOS 待实播账号验证。
 
 任务：
 
-- 从 `wx_live` 提取协议。
-- 实现 sessionid/wxuin 直连消息源。
+- macOS 已从 `wx_live` 提取 polling 协议并实现 `WechatNativeDanmakuAdapter`。
+- macOS 已实现 `sessionid/wxuin` 直连视频号助手消息源。
 - Windows 实现 WebView2 Cookie 采集和同等 adapter。
-- 移除 `wx_live` 启动和 `8000` 连接。
+- macOS 已移除 `wx_live` 启动和 `8000` 连接。
 
 验收：
 
@@ -689,13 +706,14 @@ Windows 任务：
 
 ### 阶段 F：小红书 ark native adapter
 
-状态：待开始。
+状态：macOS 基础 adapter 已完成，Windows 待实现，macOS 待实播账号验证和 ark 直连接口加固。
 
 任务：
 
-- 完成 ark Cookie 到直播信息和弹幕源的协议调研。
-- 实现 XHS native adapter。
-- 接入正式直播页。
+- macOS 已实现 XHS native adapter：ark/客服工作台 Cookie 本机补齐直播登录态、解析 userId/living_room、连接平台 WebSocket、解析 text 弹幕。
+- 后续继续完成 ark 工作台直连协议调研，减少对直播登录态补齐跳转的依赖。
+- Windows 实现同等 adapter，不启动 `xhs_live`。
+- macOS 已接入正式直播页。
 
 验收：
 
@@ -703,13 +721,13 @@ Windows 任务：
 
 ### 阶段 G：删除 helper 过渡层
 
-状态：待开始。
+状态：macOS 已完成，Windows 必须保持不新增。
 
 任务：
 
-- 删除或隔离 `LocalDanmakuHelperManager` 的正式链路调用。
-- 删除正式链路中的 `DanmakuLocalConnectionBuilder` 依赖。
-- 删除所有 `127.0.0.1` helper 端口说明和测试入口。
+- macOS 已删除 `LocalDanmakuHelperManager`、`DanmakuLocalConnectionBuilder`、`DanmakuLocalLivePrepareModels`。
+- macOS 授权测试页和娱乐模式已移除本地 helper 连接入口。
+- Windows 不实现 Python/venv/uvicorn/Node helper 启动和端口连接逻辑。
 - 打包时不包含 Python、venv、uvicorn、Node。
 
 验收：
