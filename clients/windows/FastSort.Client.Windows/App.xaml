@@ -1,0 +1,36 @@
+<Application x:Class="FastSort.Client.Windows.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:FastSort.Client.Windows.Converters"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
+        <converters:EnumEqualsToVisibilityConverter x:Key="EnumEqualsToVisibilityConverter" />
+
+        <Color x:Key="FastSortBackgroundColor">#FFFFFAF3</Color>
+        <Color x:Key="FastSortSurfaceColor">#FFFFFFFF</Color>
+        <Color x:Key="FastSortBorderColor">#FFEFE5D8</Color>
+        <Color x:Key="FastSortTextColor">#FF2F2A24</Color>
+        <Color x:Key="FastSortMutedColor">#FF8F8B86</Color>
+        <Color x:Key="FastSortAccentColor">#FFF18B00</Color>
+        <Color x:Key="FastSortAccentSoftColor">#FFFFF1DF</Color>
+
+        <SolidColorBrush x:Key="FastSortBackground" Color="{StaticResource FastSortBackgroundColor}" />
+        <SolidColorBrush x:Key="FastSortSurface" Color="{StaticResource FastSortSurfaceColor}" />
+        <SolidColorBrush x:Key="FastSortBorder" Color="{StaticResource FastSortBorderColor}" />
+        <SolidColorBrush x:Key="FastSortText" Color="{StaticResource FastSortTextColor}" />
+        <SolidColorBrush x:Key="FastSortMuted" Color="{StaticResource FastSortMutedColor}" />
+        <SolidColorBrush x:Key="FastSortAccent" Color="{StaticResource FastSortAccentColor}" />
+        <SolidColorBrush x:Key="FastSortAccentSoft" Color="{StaticResource FastSortAccentSoftColor}" />
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{StaticResource FastSortAccent}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </Application.Resources>
+</Application>

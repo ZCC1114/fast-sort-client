@@ -1,0 +1,29 @@
+{
+  "name": "fast-sort-native-theme",
+  "colors": {
+    "background": "#fffaf3",
+    "surface": "#ffffff",
+    "border": "#efe5d8",
+    "text": "#2f2a24",
+    "muted": "#8f8b86",
+    "accent": "#f18b00",
+    "accentDark": "#d67800",
+    "accentSoft": "#fff1df",
+    "danger": "#e74c3c",
+    "success": "#27ae60"
+  },
+  "radius": {
+    "large": 18,
+    "medium": 12,
+    "small": 8
+  },
+  "shadow": {
+    "card": "0 14 26 rgba(46, 34, 10, 0.08)"
+  },
+  "layout": {
+    "sidebarWidth": 98,
+    "contentPadding": 24,
+    "cardGap": 18
+  }
+}
+

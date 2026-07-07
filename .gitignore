@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+DerivedData/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# macOS app/package outputs
+clients/macos/FastSortClientMac/dist/
+*.app/
+*.dSYM/
+
+# Windows / .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.rsuser
+
+# IDE
+.idea/
+.vscode/
+
+# Logs and local env
+*.log
+.env
+.env.*
