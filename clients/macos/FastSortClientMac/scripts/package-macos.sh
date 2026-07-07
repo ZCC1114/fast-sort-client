@@ -6,21 +6,27 @@ BUNDLE_NAME="FastSortClientMac.app"
 BUNDLE_ID="cn.xunjian.fast-sort-client.mac"
 DISPLAY_NAME="迅拣"
 VERSION="0.1.0"
+BUILD_STAMP="$(date +%Y%m%d%H%M%S)"
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$PROJECT_DIR/dist"
 APP_DIR="$DIST_DIR/$BUNDLE_NAME"
 EXECUTABLE="$PROJECT_DIR/.build/release/$APP_NAME"
+RESOURCE_BUNDLE="$PROJECT_DIR/.build/release/${APP_NAME}_${APP_NAME}.bundle"
 PLIST="$APP_DIR/Contents/Info.plist"
-ZIP_PATH="$DIST_DIR/FastSortClientMac-macOS-test.zip"
+ZIP_PATH="$DIST_DIR/FastSortClientMac-macOS-test-$BUILD_STAMP.zip"
+LATEST_ZIP_PATH="$DIST_DIR/FastSortClientMac-macOS-test.zip"
 
 swift build -c release --package-path "$PROJECT_DIR"
 
-rm -rf "$APP_DIR" "$ZIP_PATH"
+rm -rf "$APP_DIR" "$ZIP_PATH" "$LATEST_ZIP_PATH"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
 cp "$EXECUTABLE" "$APP_DIR/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_DIR/Contents/MacOS/$APP_NAME"
+if [[ -d "$RESOURCE_BUNDLE" ]]; then
+    cp -R "$RESOURCE_BUNDLE" "$APP_DIR/Contents/Resources/"
+fi
 
 plutil -create xml1 "$PLIST"
 plutil -insert CFBundleDevelopmentRegion -string "zh_CN" "$PLIST"
@@ -31,7 +37,7 @@ plutil -insert CFBundleInfoDictionaryVersion -string "6.0" "$PLIST"
 plutil -insert CFBundleName -string "$DISPLAY_NAME" "$PLIST"
 plutil -insert CFBundlePackageType -string "APPL" "$PLIST"
 plutil -insert CFBundleShortVersionString -string "$VERSION" "$PLIST"
-plutil -insert CFBundleVersion -string "$(date +%Y%m%d%H%M)" "$PLIST"
+plutil -insert CFBundleVersion -string "$BUILD_STAMP" "$PLIST"
 plutil -insert LSMinimumSystemVersion -string "14.0" "$PLIST"
 plutil -insert NSHighResolutionCapable -bool true "$PLIST"
 plutil -insert NSQuitAlwaysKeepsWindows -bool false "$PLIST"
@@ -40,5 +46,6 @@ plutil -insert NSAppTransportSecurity -xml '<dict><key>NSAllowsArbitraryLoads</k
 
 codesign --force --deep --sign - "$APP_DIR"
 ditto -c -k --keepParent "$APP_DIR" "$ZIP_PATH"
+cp "$ZIP_PATH" "$LATEST_ZIP_PATH"
 
-printf 'App: %s\nZip: %s\n' "$APP_DIR" "$ZIP_PATH"
+printf 'App: %s\nZip: %s\nLatest: %s\n' "$APP_DIR" "$ZIP_PATH" "$LATEST_ZIP_PATH"

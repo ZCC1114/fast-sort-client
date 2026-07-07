@@ -304,7 +304,7 @@ final class DouyinSignatureProvider {
         if let context {
             return context
         }
-        guard let url = Bundle.module.url(forResource: "sign", withExtension: "js", subdirectory: "Danmaku/Douyin") else {
+        guard let url = signScriptURL() else {
             throw NativeDanmakuError("抖音签名资源缺失")
         }
         let script = try String(contentsOf: url, encoding: .utf8)
@@ -321,6 +321,24 @@ final class DouyinSignatureProvider {
         }
         self.context = context
         return context
+    }
+
+    private func signScriptURL() -> URL? {
+        let resourceBundleName = "FastSortClientMac_FastSortClientMac.bundle"
+        let packagedBundleURL = Bundle.main.resourceURL?.appendingPathComponent(resourceBundleName)
+        let packagedCandidates = [
+            packagedBundleURL?.appendingPathComponent("Danmaku/Douyin/sign.js"),
+            packagedBundleURL?.appendingPathComponent("sign.js"),
+            Bundle.main.url(forResource: "sign", withExtension: "js", subdirectory: "Danmaku/Douyin"),
+            Bundle.main.url(forResource: "sign", withExtension: "js")
+        ].compactMap { $0 }
+
+        if let url = packagedCandidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
+            return url
+        }
+
+        return Bundle.module.url(forResource: "sign", withExtension: "js", subdirectory: "Danmaku/Douyin")
+            ?? Bundle.module.url(forResource: "sign", withExtension: "js")
     }
 
     private func queryMap(from urlText: String) -> [String: String] {
