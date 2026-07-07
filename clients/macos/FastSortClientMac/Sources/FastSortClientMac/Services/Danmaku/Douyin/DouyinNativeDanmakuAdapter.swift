@@ -7,11 +7,31 @@ struct DouyinResolvedRoom {
     let cookieHeader: String
 }
 
+struct DouyinResolvedWorkbenchRoom {
+    let liveId: String?
+    let cookieHeader: String
+}
+
+enum DouyinResolvedDanmakuEndpoint {
+    case webcast(DouyinResolvedRoom)
+    case workbench(DouyinResolvedWorkbenchRoom)
+}
+
 struct DouyinNativeRoomInit {
     let liveId: String
     let roomId: String
     let wssURL: URL
     let headers: [String: String]
+}
+
+struct DouyinWorkbenchRoomInit {
+    let liveId: String?
+    let cookieHeader: String
+}
+
+enum DouyinNativePreparedInit {
+    case webcast(DouyinNativeRoomInit)
+    case workbench(DouyinWorkbenchRoomInit)
 }
 
 struct DouyinCookieJar {
@@ -60,7 +80,7 @@ final class DouyinRoomResolver: Sendable {
         "https://buyin.jinritemai.com/dashboard/live/control"
     ]
 
-    func resolveRoom(request: NativeDanmakuConnectRequest) async throws -> DouyinResolvedRoom {
+    func resolveRoom(request: NativeDanmakuConnectRequest) async throws -> DouyinResolvedDanmakuEndpoint {
         var cookieJar = DouyinCookieJar(cookieHeader: request.cookieHeader)
         if cookieJar.value("ttwid")?.isEmpty != false,
            let ttwid = try await fetchTTWid(cookieHeader: cookieJar.header(includeMsToken: false)) {
@@ -71,39 +91,42 @@ final class DouyinRoomResolver: Sendable {
         var shortRoomId: String?
         if let directRoomId = liveSessionFields.roomId {
             if isPublicWebcastRoomIdCandidate(directRoomId) {
-                return DouyinResolvedRoom(
-                    liveId: liveSessionFields.liveId ?? directRoomId,
-                    roomId: directRoomId,
-                    cookieHeader: cookieJar.header(includeMsToken: true)
+                return .webcast(
+                    DouyinResolvedRoom(
+                        liveId: liveSessionFields.liveId ?? directRoomId,
+                        roomId: directRoomId,
+                        cookieHeader: cookieJar.header(includeMsToken: true)
+                    )
                 )
             }
             shortRoomId = directRoomId
             if let resolved = try await resolveRoomFromLivePage(liveId: directRoomId, cookieJar: cookieJar) {
-                return resolved
+                return .webcast(resolved)
             }
         }
 
         if let liveId = requestLiveId(request, liveSessionLiveId: liveSessionFields.liveId),
            let resolved = try await resolveRoomFromLivePage(liveId: liveId, cookieJar: cookieJar) {
-            return resolved
+            return .webcast(resolved)
         }
 
         let workbenchAPIResult = try await resolveRoomFromWorkbenchAPI(cookieJar: cookieJar)
         if let resolved = workbenchAPIResult.resolved {
-            return resolved
+            return .webcast(resolved)
         }
 
         let workbenchResult = try await resolveRoomFromWorkbench(cookieJar: cookieJar)
         if let resolved = workbenchResult.resolved {
-            return resolved
+            return .webcast(resolved)
         }
 
         shortRoomId = workbenchAPIResult.shortRoomId ?? workbenchResult.shortRoomId ?? shortRoomId
-        if let shortRoomId {
-            throw NativeDanmakuError("抖音抖店中控返回 room_id=\(shortRoomId)，但它不是公开 Webcast WSS 需要的长 roomId。下一步需要接入抖店 frontier.snssdk.com 中控弹幕通道。")
-        }
-
-        throw NativeDanmakuAdapterError.notStarted("抖音")
+        return .workbench(
+            DouyinResolvedWorkbenchRoom(
+                liveId: shortRoomId ?? requestLiveId(request, liveSessionLiveId: liveSessionFields.liveId),
+                cookieHeader: cookieJar.header(includeMsToken: false)
+            )
+        )
     }
 
     private func requestLiveId(_ request: NativeDanmakuConnectRequest, liveSessionLiveId: String?) -> String? {
@@ -851,49 +874,298 @@ final class DouyinMessageMapper: Sendable {
     }
 }
 
+struct DouyinWorkbenchCommentPage {
+    let endpoint: URL
+    let comments: [[String: Any]]
+    let cursor: String
+    let internalExt: String
+    let nextFetchIntervalMs: Int
+}
+
+final class DouyinWorkbenchCommentClient: Sendable {
+    private let endpoints = [
+        URL(string: "https://fxg.jinritemai.com/api/anchor/comment/info")!,
+        URL(string: "https://buyin.jinritemai.com/api/anchor/comment/info")!
+    ]
+
+    func fetchCommentPage(
+        cookieHeader: String,
+        cursor: String,
+        internalExt: String,
+        preferredEndpoint: URL?
+    ) async throws -> DouyinWorkbenchCommentPage {
+        let candidates = ([preferredEndpoint].compactMap { $0 } + endpoints)
+            .reduce(into: [URL]()) { result, url in
+                if !result.contains(url) {
+                    result.append(url)
+                }
+            }
+        var lastError: Error?
+        for endpoint in candidates {
+            do {
+                return try await fetchCommentPage(
+                    endpoint: endpoint,
+                    cookieHeader: cookieHeader,
+                    cursor: cursor,
+                    internalExt: internalExt
+                )
+            } catch NativeDanmakuAdapterError.loginExpired(_) {
+                throw NativeDanmakuAdapterError.loginExpired("抖音")
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError ?? NativeDanmakuAdapterError.notStarted("抖音")
+    }
+
+    private func fetchCommentPage(
+        endpoint: URL,
+        cookieHeader: String,
+        cursor: String,
+        internalExt: String
+    ) async throws -> DouyinWorkbenchCommentPage {
+        var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false)
+        components?.queryItems = [
+            URLQueryItem(name: "comment_query_type", value: "1"),
+            URLQueryItem(name: "cursor", value: cursor),
+            URLQueryItem(name: "internal_ext", value: internalExt),
+            URLQueryItem(name: "similar_comment_enable", value: "false"),
+            URLQueryItem(name: "request_source", value: "3"),
+            URLQueryItem(name: "extra", value: "in_comment_opt_ab"),
+            URLQueryItem(name: "filter_bag_comment", value: "false"),
+            URLQueryItem(name: "comment_version_code", value: "1")
+        ]
+        guard let url = components?.url else {
+            throw NativeDanmakuError("抖音中控评论接口 URL 构造失败")
+        }
+
+        let origin = "\(endpoint.scheme ?? "https")://\(endpoint.host ?? "fxg.jinritemai.com")"
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json,text/plain,*/*", forHTTPHeaderField: "Accept")
+        request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+        request.setValue(origin, forHTTPHeaderField: "Origin")
+        request.setValue(referer(for: endpoint), forHTTPHeaderField: "Referer")
+        request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+        request.setValue("fxg|live", forHTTPHeaderField: "X-Ecom-Platform-Source")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse, [401, 403].contains(http.statusCode) {
+            throw NativeDanmakuAdapterError.loginExpired("抖音")
+        }
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            let text = String(data: data, encoding: .utf8) ?? ""
+            throw NativeDanmakuError("抖音中控评论接口返回非 JSON：\(String(text.prefix(120)))")
+        }
+
+        let code = NativeDanmakuHTTP.flexibleInt(object["code"]) ?? NativeDanmakuHTTP.flexibleInt(object["st"])
+        let message = NativeDanmakuHTTP.firstText(object, keys: ["msg", "message"])
+        if code == 20000007 || message.contains("登录") || message.localizedCaseInsensitiveContains("login") {
+            throw NativeDanmakuAdapterError.loginExpired("抖音")
+        }
+        if let code, code != 0, code != 200 {
+            throw NativeDanmakuError("抖音中控评论接口返回 \(code)：\(message.isEmpty ? "未知错误" : message)")
+        }
+
+        let dataObject = object["data"] as? [String: Any] ?? [:]
+        let comments = dataObject["comment_infos"] as? [[String: Any]] ?? []
+        let nextFetchInterval = NativeDanmakuHTTP.flexibleInt(dataObject["next_fetch_interval"]) ?? 2_000
+        return DouyinWorkbenchCommentPage(
+            endpoint: endpoint,
+            comments: comments,
+            cursor: NativeDanmakuHTTP.firstText(dataObject, keys: ["cursor"]),
+            internalExt: NativeDanmakuHTTP.firstText(dataObject, keys: ["internal_ext"]),
+            nextFetchIntervalMs: min(max(nextFetchInterval, 1_000), 10_000)
+        )
+    }
+
+    private func referer(for endpoint: URL) -> String {
+        let host = endpoint.host?.lowercased() ?? ""
+        if host.contains("buyin.jinritemai.com") {
+            return "https://buyin.jinritemai.com/dashboard/live/control"
+        }
+        return "https://fxg.jinritemai.com/ffa/content-tool/live/control"
+    }
+}
+
+final class DouyinWorkbenchCommentMapper: Sendable {
+    func decodeEvents(
+        comments: [[String: Any]],
+        requestRoomId: String?,
+        platformRoomId: String?
+    ) -> [NativeDanmakuEvent] {
+        comments.compactMap { comment in
+            let content = firstText(in: comment, keys: ["content", "comment_content", "text", "msg", "message"])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !content.isEmpty else { return nil }
+
+            let messageId = firstText(in: comment, keys: ["comment_id", "chat_id", "msg_id", "message_id", "id", "pre_id"])
+            let userName = firstText(in: comment, keys: ["nick_name", "nickname", "user_nickname", "user_name", "screen_name"])
+            let userId = firstText(in: comment, keys: ["uid", "user_id", "author_id", "sec_uid"])
+            let eventId = stableEventId(for: comment, explicitMessageId: messageId, userId: userId, content: content)
+
+            return NativeDanmakuEvent(
+                eventId: eventId,
+                platform: "douyin",
+                event: .chat,
+                roomId: requestRoomId,
+                platformRoomId: platformRoomId,
+                messageId: eventId,
+                userId: userId.isEmpty ? nil : userId,
+                userName: userName.isEmpty ? "抖音用户" : userName,
+                content: content,
+                rawPayload: comment
+            )
+        }
+    }
+
+    private func stableEventId(
+        for comment: [String: Any],
+        explicitMessageId: String,
+        userId: String,
+        content: String
+    ) -> String {
+        if !explicitMessageId.isEmpty {
+            return explicitMessageId
+        }
+        let createdAt = firstText(in: comment, keys: [
+            "create_time", "create_time_ms", "timestamp", "ts", "comment_time", "event_time"
+        ])
+        let fingerprint = [
+            "douyin-workbench",
+            userId,
+            content,
+            createdAt,
+            canonicalText(comment)
+        ].joined(separator: "|")
+        return "workbench-\(NativeDanmakuHTTP.sha1Hex(fingerprint))"
+    }
+
+    private func canonicalText(_ value: Any) -> String {
+        guard JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]),
+              let text = String(data: data, encoding: .utf8) else {
+            return "\(value)"
+        }
+        return text
+    }
+
+    private func firstText(in value: Any?, keys: Set<String>) -> String {
+        if let dictionary = value as? [String: Any] {
+            for (key, value) in dictionary {
+                let normalized = key.replacingOccurrences(of: "-", with: "_").lowercased()
+                if keys.contains(normalized), !(value is NSNull) {
+                    let text = "\(value)".trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty, text != "<null>" {
+                        return text
+                    }
+                }
+            }
+            for value in dictionary.values {
+                let text = firstText(in: value, keys: keys)
+                if !text.isEmpty {
+                    return text
+                }
+            }
+        }
+        if let array = value as? [Any] {
+            for item in array {
+                let text = firstText(in: item, keys: keys)
+                if !text.isEmpty {
+                    return text
+                }
+            }
+        }
+        return ""
+    }
+}
+
 @MainActor
 final class DouyinNativeDanmakuAdapter: NativeDanmakuAdapter {
     let platformKey = "douyin"
     let displayName = "抖音"
 
     private let signatureProvider = DouyinSignatureProvider()
-    private var preparedInitByRoomKey: [String: DouyinNativeRoomInit] = [:]
+    private var preparedInitByRoomKey: [String: DouyinNativePreparedInit] = [:]
 
     func prepare(_ request: NativeDanmakuConnectRequest) async throws -> NativeDanmakuConnectRequest {
-        let resolved = try await DouyinRoomResolver().resolveRoom(request: request)
-        let roomInit = try DouyinWSSBuilder.buildRoomInit(
-            resolvedRoom: resolved,
-            signatureProvider: signatureProvider
-        )
-        preparedInitByRoomKey[cacheKey(for: request, roomId: roomInit.roomId)] = roomInit
-        return NativeDanmakuConnectRequest(
-            platformKey: request.platformKey,
-            roomId: request.roomId,
-            roomNumber: roomInit.liveId,
-            eid: roomInit.roomId,
-            liveType: request.liveType,
-            liveSession: request.liveSession,
-            cookieHeader: resolved.cookieHeader,
-            displayName: request.displayName
-        )
+        let preparedInit = try await preparedInit(for: request)
+        switch preparedInit {
+        case .webcast(let roomInit):
+            preparedInitByRoomKey[cacheKey(for: request, roomId: roomInit.roomId)] = preparedInit
+            return NativeDanmakuConnectRequest(
+                platformKey: request.platformKey,
+                roomId: request.roomId,
+                roomNumber: roomInit.liveId,
+                eid: roomInit.roomId,
+                liveType: request.liveType,
+                liveSession: request.liveSession,
+                cookieHeader: roomInit.headers["Cookie"] ?? request.cookieHeader,
+                displayName: request.displayName
+            )
+        case .workbench(let roomInit):
+            preparedInitByRoomKey[cacheKey(for: request, roomId: roomInit.liveId)] = preparedInit
+            return NativeDanmakuConnectRequest(
+                platformKey: request.platformKey,
+                roomId: request.roomId,
+                roomNumber: roomInit.liveId ?? request.roomNumber,
+                eid: roomInit.liveId,
+                liveType: request.liveType,
+                liveSession: request.liveSession,
+                cookieHeader: roomInit.cookieHeader,
+                displayName: request.displayName
+            )
+        }
     }
 
     func connect(
         request: NativeDanmakuConnectRequest,
         onEvent: @escaping @MainActor (NativeDanmakuEvent) -> Void
     ) async throws -> NativeDanmakuConnection {
-        let roomInit: DouyinNativeRoomInit
+        let preparedInit: DouyinNativePreparedInit
         let key = cacheKey(for: request, roomId: request.eid)
         if let prepared = preparedInitByRoomKey.removeValue(forKey: key) {
-            roomInit = prepared
+            preparedInit = prepared
         } else {
-            let resolved = try await DouyinRoomResolver().resolveRoom(request: request)
-            roomInit = try DouyinWSSBuilder.buildRoomInit(
-                resolvedRoom: resolved,
-                signatureProvider: signatureProvider
-            )
+            preparedInit = try await self.preparedInit(for: request)
         }
 
+        switch preparedInit {
+        case .webcast(let roomInit):
+            return connectWebcast(request: request, roomInit: roomInit, onEvent: onEvent)
+        case .workbench(let roomInit):
+            return connectWorkbench(request: request, roomInit: roomInit, onEvent: onEvent)
+        }
+    }
+
+    private func preparedInit(for request: NativeDanmakuConnectRequest) async throws -> DouyinNativePreparedInit {
+        let resolved = try await DouyinRoomResolver().resolveRoom(request: request)
+        switch resolved {
+        case .webcast(let resolvedRoom):
+            let roomInit = try DouyinWSSBuilder.buildRoomInit(
+                resolvedRoom: resolvedRoom,
+                signatureProvider: signatureProvider
+            )
+            return .webcast(roomInit)
+        case .workbench(let resolvedRoom):
+            return .workbench(
+                DouyinWorkbenchRoomInit(
+                    liveId: resolvedRoom.liveId,
+                    cookieHeader: resolvedRoom.cookieHeader
+                )
+            )
+        }
+    }
+
+    private func connectWebcast(
+        request: NativeDanmakuConnectRequest,
+        roomInit: DouyinNativeRoomInit,
+        onEvent: @escaping @MainActor (NativeDanmakuEvent) -> Void
+    ) -> NativeDanmakuConnection {
         var urlRequest = URLRequest(url: roomInit.wssURL)
         urlRequest.timeoutInterval = 15
         for (key, value) in roomInit.headers {
@@ -965,6 +1237,102 @@ final class DouyinNativeDanmakuAdapter: NativeDanmakuAdapter {
             heartbeatTask?.cancel()
             task.cancel()
             session.cancel()
+        }
+    }
+
+    private func connectWorkbench(
+        request: NativeDanmakuConnectRequest,
+        roomInit: DouyinWorkbenchRoomInit,
+        onEvent: @escaping @MainActor (NativeDanmakuEvent) -> Void
+    ) -> NativeDanmakuConnection {
+        let client = DouyinWorkbenchCommentClient()
+        let mapper = DouyinWorkbenchCommentMapper()
+        let platformRoomId = roomInit.liveId ?? request.eid ?? request.roomNumber ?? "doudian-workbench"
+        let task = Task {
+            var cursor = ""
+            var internalExt = ""
+            var preferredEndpoint: URL?
+            var didOpen = false
+            var consecutiveFailures = 0
+            do {
+                onEvent(
+                    NativeDanmakuEvent(
+                        platform: platformKey,
+                        event: .status,
+                        status: .connecting,
+                        roomId: request.roomId,
+                        platformRoomId: platformRoomId
+                    )
+                )
+                while !Task.isCancelled {
+                    let page: DouyinWorkbenchCommentPage
+                    do {
+                        page = try await client.fetchCommentPage(
+                            cookieHeader: roomInit.cookieHeader,
+                            cursor: cursor,
+                            internalExt: internalExt,
+                            preferredEndpoint: preferredEndpoint
+                        )
+                        consecutiveFailures = 0
+                    } catch NativeDanmakuAdapterError.loginExpired(_) {
+                        throw NativeDanmakuAdapterError.loginExpired("抖音")
+                    } catch {
+                        consecutiveFailures += 1
+                        guard consecutiveFailures < 3 else { throw error }
+                        let backoffSeconds = UInt64(min(consecutiveFailures * 2, 6))
+                        try await Task.sleep(nanoseconds: backoffSeconds * 1_000_000_000)
+                        continue
+                    }
+                    preferredEndpoint = page.endpoint
+                    cursor = page.cursor
+                    internalExt = page.internalExt
+
+                    if !didOpen {
+                        didOpen = true
+                        onEvent(
+                            NativeDanmakuEvent(
+                                platform: platformKey,
+                                event: .status,
+                                status: .living,
+                                roomId: request.roomId,
+                                platformRoomId: platformRoomId
+                            )
+                        )
+                    }
+
+                    for event in mapper.decodeEvents(
+                        comments: page.comments,
+                        requestRoomId: request.roomId,
+                        platformRoomId: platformRoomId
+                    ) {
+                        onEvent(event)
+                    }
+
+                    try await Task.sleep(nanoseconds: UInt64(page.nextFetchIntervalMs) * 1_000_000)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                let status: NativeDanmakuStatus
+                if case NativeDanmakuAdapterError.loginExpired(_) = error {
+                    status = .loginExpired
+                } else {
+                    status = .error
+                }
+                onEvent(
+                    NativeDanmakuEvent(
+                        platform: platformKey,
+                        event: .error,
+                        status: status,
+                        roomId: request.roomId,
+                        platformRoomId: platformRoomId,
+                        content: "\(error.localizedDescription)（抖店中控评论接口）"
+                    )
+                )
+            }
+        }
+
+        return ClosureNativeDanmakuConnection(platformKey: platformKey) {
+            task.cancel()
         }
     }
 
