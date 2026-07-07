@@ -603,7 +603,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
                 statusText = "淘宝工作台登录态已保存到迅拣直播间 liveSession。开播时会由 native adapter 解析当前直播并直连弹幕。"
             } else {
                 try await service.addOrUpdateXiaohongshuRoom(cookies: cookieHeader)
-                statusText = "小红书 ark 工作台登录态已保存到迅拣直播间。后续需要补齐 native adapter 的直播解析和弹幕拉取链路。"
+                statusText = "小红书 ark 工作台登录态已保存到迅拣直播间。账号已开播时，native adapter 会解析当前直播并直连弹幕。"
             }
             statusLevel = .success
         } catch {

@@ -106,7 +106,7 @@ enum NativeDanmakuAdapterError: LocalizedError {
         case .loginExpired(let platform):
             return "\(platform) 登录态已失效，请重新扫码登录工作台"
         case .notStarted(let platform):
-            return "\(platform) 当前账号未开播，或未能从工作台 Cookie 解析到当前直播间"
+            return "\(platform) 当前账号未开播，或未能从工作台 Cookie 解析到当前直播间。请先确认该账号正在开播，再重新采集 Cookie 后连接"
         case .notImplemented(let platform):
             return "\(platform) native adapter 基础入口已接入，真实平台协议尚未实现"
         }
