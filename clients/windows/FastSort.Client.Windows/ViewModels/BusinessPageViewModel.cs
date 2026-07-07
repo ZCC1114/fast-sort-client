@@ -371,7 +371,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
 
     public int TotalPages => Math.Max(1, (int)Math.Ceiling(Total / (double)Math.Max(1, PageSize)));
 
-    public string PageText => $"{PageIndex} / {TotalPages} · {Total} total";
+    public string PageText => $"{PageIndex} / {TotalPages} · 共 {Total} 条";
 
     public BusinessRowViewModel? SelectedRow
     {
@@ -406,30 +406,30 @@ public sealed class BusinessPageViewModel : ViewModelBase
         switch (route)
         {
             case AppRoute.Entertainment:
-                Title = "Entertainment mode";
-                Subtitle = "Reads backend rooms, starts a live record, and consumes unified native adapter events.";
-                InputOneLabel = "Live title";
-                InputOne = "Windows entertainment";
-                PrimaryActionText = "Connect";
-                SecondaryActionText = "Stop";
+                Title = "娱乐模式";
+                Subtitle = "读取后端直播间，创建直播记录，并消费统一 native adapter 互动事件。";
+                InputOneLabel = "直播标题";
+                InputOne = "Windows 娱乐模式";
+                PrimaryActionText = "连接";
+                SecondaryActionText = "停止";
                 IsInputOneVisible = true;
                 IsPrimaryVisible = true;
                 IsSecondaryVisible = true;
                 break;
             case AppRoute.Pick:
-                Title = "Pick";
-                Subtitle = "Current/history sort batches, tag details, complete batch, and add blacklist.";
-                SearchLabel = "Tag search";
-                FilterLabel = "Batch tab current/history";
-                InputOneLabel = "Live type 0-4";
-                InputTwoLabel = "Black type";
-                InputThreeLabel = "Run amount";
+                Title = "理货端";
+                Subtitle = "查看当前/历史理货批次、标签详情、完成批次并添加黑名单。";
+                SearchLabel = "标签搜索";
+                FilterLabel = "批次 tab current/history";
+                InputOneLabel = "LiveType 0-4";
+                InputTwoLabel = "黑名单类型";
+                InputThreeLabel = "跑单金额";
                 FilterText = "current";
                 InputOne = "0";
                 InputTwo = "1";
                 InputThree = "0";
-                PrimaryActionText = "Load tags / add black";
-                SecondaryActionText = "Complete batch";
+                PrimaryActionText = "加载标签/加黑";
+                SecondaryActionText = "完成批次";
                 IsSearchVisible = true;
                 IsFilterVisible = true;
                 IsInputOneVisible = true;
@@ -439,17 +439,17 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 IsSecondaryVisible = true;
                 break;
             case AppRoute.DouyinRemark:
-                Title = "Order remark";
-                Subtitle = "Generate Douyin/XHS remark map from backend live tag rows. It does not start browser automation.";
-                SearchLabel = "Tag search";
-                FilterLabel = "Batch tab current/history";
-                InputOneLabel = "Live type 0 Douyin / 2 XHS";
-                InputTwoLabel = "Fields";
+                Title = "订单一键备注";
+                Subtitle = "根据后端直播标签生成抖音/小红书备注映射，不启动浏览器自动化。";
+                SearchLabel = "标签搜索";
+                FilterLabel = "批次 current/history";
+                InputOneLabel = "平台 0 抖音 / 2 小红书";
+                InputTwoLabel = "字段";
                 FilterText = "current";
                 InputOne = "0";
                 InputTwo = "orderName,orderNumber,orderIndex,orderCount,orderAmounts";
-                PrimaryActionText = "Load / export";
-                SecondaryActionText = "Open workbench";
+                PrimaryActionText = "加载/导出";
+                SecondaryActionText = "打开工作台";
                 IsSearchVisible = true;
                 IsFilterVisible = true;
                 IsInputOneVisible = true;
@@ -458,15 +458,15 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 IsSecondaryVisible = true;
                 break;
             case AppRoute.Blacklist:
-                Title = "Blacklist";
-                Subtitle = "Search, filter, inspect detail, and delete own blacklist detail rows.";
-                SearchLabel = "Order name";
-                FilterLabel = "Level";
-                InputOneLabel = "Live type";
-                InputTwoLabel = "Scope mine/global";
+                Title = "黑名单";
+                Subtitle = "搜索、筛选、查看详情，并删除属于自己的黑名单明细。";
+                SearchLabel = "订单名";
+                FilterLabel = "等级";
+                InputOneLabel = "平台类型";
+                InputTwoLabel = "范围 mine/global";
                 InputTwo = "mine";
-                PrimaryActionText = "Load detail";
-                SecondaryActionText = "Delete detail";
+                PrimaryActionText = "加载详情";
+                SecondaryActionText = "删除明细";
                 IsSearchVisible = true;
                 IsFilterVisible = true;
                 IsInputOneVisible = true;
@@ -475,60 +475,60 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 IsSecondaryVisible = true;
                 break;
             case AppRoute.VipOrder:
-                Title = "VIP orders";
-                Subtitle = "Backend payment order list with payment-status filtering and pagination.";
-                FilterLabel = "Status all/paid/pending/canceled/failed";
+                Title = "充值记录";
+                Subtitle = "查看后端支付订单列表，支持支付状态筛选和分页。";
+                FilterLabel = "状态 all/paid/pending/canceled/failed";
                 FilterText = "paid";
                 IsFilterVisible = true;
                 break;
             case AppRoute.Settings:
-                Title = "Settings";
-                Subtitle = "Rooms, templates, danmaku mappings, pick settings, and blacklist settings.";
-                PrimaryActionText = "Open printer test";
-                SecondaryActionText = "Room print config";
+                Title = "设置";
+                Subtitle = "查看直播间、标签模板、弹幕映射、理货设置和黑名单设置。";
+                PrimaryActionText = "打开打印测试";
+                SecondaryActionText = "房间打印配置";
                 IsPrimaryVisible = true;
                 IsSecondaryVisible = true;
                 break;
             case AppRoute.Profile:
-                Title = "Profile";
-                Subtitle = "Profile info plus nickname, password, phone, and account-cancel service calls.";
-                SearchLabel = "New phone";
-                FilterLabel = "Captcha";
-                InputOneLabel = "Nickname";
-                InputTwoLabel = "New password";
+                Title = "个人中心";
+                Subtitle = "维护个人资料、昵称、密码、手机号和账号注销。";
+                SearchLabel = "新手机号";
+                FilterLabel = "验证码";
+                InputOneLabel = "昵称";
+                InputTwoLabel = "新密码";
                 IsSearchVisible = true;
                 IsFilterVisible = true;
                 IsInputOneVisible = true;
                 IsInputTwoVisible = true;
-                PrimaryActionText = "Save nickname";
-                SecondaryActionText = "Save password";
-                TertiaryActionText = "Send/update phone";
-                DangerActionText = "Cancel account";
+                PrimaryActionText = "保存昵称";
+                SecondaryActionText = "保存密码";
+                TertiaryActionText = "发送/更新手机号";
+                DangerActionText = "注销账号";
                 IsPrimaryVisible = true;
                 IsSecondaryVisible = true;
                 IsTertiaryVisible = true;
                 IsDangerVisible = true;
                 break;
             case AppRoute.Payment:
-                Title = "Payment";
-                Subtitle = "VIP plans and Alipay PC payment page generation.";
-                PrimaryActionText = "Pay selected";
+                Title = "支付";
+                Subtitle = "选择会员套餐并生成支付宝 PC 支付页面。";
+                PrimaryActionText = "支付选中套餐";
                 IsPrimaryVisible = true;
                 break;
             case AppRoute.PrinterTest:
-                Title = "Printer test";
-                Subtitle = "Enumerate Windows printers, generate raw TSPL/CPCL/ESC/POS commands, and send RAW payloads.";
-                InputOneLabel = "Type";
-                InputTwoLabel = "Width mm";
-                InputThreeLabel = "Height mm";
-                TextAreaLabel = "Raw command";
+                Title = "打印测试";
+                Subtitle = "枚举 Windows 打印机，生成 TSPL/CPCL/ESC/POS 原始命令并发送 RAW 数据。";
+                InputOneLabel = "指令类型";
+                InputTwoLabel = "宽度 mm";
+                InputThreeLabel = "高度 mm";
+                TextAreaLabel = "原始指令";
                 InputOne = "TSPL";
                 InputTwo = "60";
                 InputThree = "40";
                 TextAreaText = BuildPrinterPreset("TSPL", "60", "40");
-                PrimaryActionText = "Generate preset";
-                SecondaryActionText = "Send raw";
-                TertiaryActionText = "Clear log";
+                PrimaryActionText = "生成预设";
+                SecondaryActionText = "发送 RAW";
+                TertiaryActionText = "清空日志";
                 IsInputOneVisible = true;
                 IsInputTwoVisible = true;
                 IsInputThreeVisible = true;
@@ -580,7 +580,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         }
 
         IsLoading = true;
-        StatusText = "Loading...";
+        StatusText = "加载中...";
         try
         {
             switch (Route)
@@ -651,7 +651,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 break;
             case AppRoute.PrinterTest:
                 TextAreaText = BuildPrinterPreset(InputOne, InputTwo, InputThree);
-                AppendPrinterLog($"Generated {InputOne} preset.");
+                AppendPrinterLog($"已生成 {InputOne} 预设。");
                 break;
         }
     }
@@ -693,7 +693,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 break;
             case AppRoute.PrinterTest:
                 Rows.Clear();
-                StatusText = "Printer log cleared.";
+                StatusText = "打印日志已清空。";
                 break;
         }
     }
@@ -732,30 +732,30 @@ public sealed class BusinessPageViewModel : ViewModelBase
             RoomName(room),
             PlatformLabel(room),
             RoomNumber(room),
-            HasLiveSession(room) ? "liveSession saved" : "missing liveSession",
+            HasLiveSession(room) ? "已保存 liveSession" : "缺少 liveSession",
             room.Id ?? "",
             "",
             RoomUrl(room),
             room)));
         Total = Rows.Count;
         ReplaceMetrics(
-            new("Rooms", Rows.Count.ToString(CultureInfo.InvariantCulture)),
-            new("Connected", _entertainmentConnection is null ? "No" : "Yes"),
-            new("Live record", string.IsNullOrWhiteSpace(_entertainmentLiveRecordId) ? "-" : _entertainmentLiveRecordId));
-        StatusText = "Select a backend room, then Connect. Events are inserted into this table.";
+            new("直播间", Rows.Count.ToString(CultureInfo.InvariantCulture)),
+            new("连接状态", _entertainmentConnection is null ? "未连接" : "已连接"),
+            new("直播记录", string.IsNullOrWhiteSpace(_entertainmentLiveRecordId) ? "-" : _entertainmentLiveRecordId));
+        StatusText = "选择一个后台直播间后点击连接，弹幕事件会写入当前表格。";
     }
 
     private async Task ConnectEntertainmentAsync()
     {
         if (SelectedRow?.Source is not RoomListItem room)
         {
-            StatusText = "Select a backend room first.";
+            StatusText = "请先选择一个后台直播间。";
             return;
         }
 
         if (_entertainmentConnection is not null)
         {
-            StatusText = "Entertainment adapter is already connected.";
+            StatusText = "娱乐模式 adapter 已连接。";
             return;
         }
 
@@ -777,7 +777,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 }
                 catch (Exception ex)
                 {
-                    StatusText = $"Live record start failed, continuing adapter only: {ex.Message}";
+                    StatusText = $"直播记录创建失败，将仅连接 adapter：{ex.Message}";
                 }
             }
 
@@ -785,16 +785,16 @@ public sealed class BusinessPageViewModel : ViewModelBase
             if (connection.Status is NativeDanmakuStatus.Error or NativeDanmakuStatus.NotStarted or NativeDanmakuStatus.LoginExpired)
             {
                 await connection.StopAsync();
-                StatusText = $"Native adapter returned {connection.Status}.";
+                StatusText = $"native adapter 返回 {connection.Status}。";
                 return;
             }
 
             _entertainmentConnection = connection;
             ReplaceMetrics(
-                new("Connected", "Yes"),
-                new("Adapter", connection.PlatformKey),
-                new("Live record", string.IsNullOrWhiteSpace(_entertainmentLiveRecordId) ? "-" : _entertainmentLiveRecordId));
-            StatusText = $"Native adapter connected: {connection.PlatformKey}.";
+                new("连接状态", "已连接"),
+                new("平台", connection.PlatformKey),
+                new("直播记录", string.IsNullOrWhiteSpace(_entertainmentLiveRecordId) ? "-" : _entertainmentLiveRecordId));
+            StatusText = $"native adapter 已连接：{connection.PlatformKey}。";
         }
         catch (Exception ex)
         {
@@ -824,7 +824,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             }
             catch (Exception ex)
             {
-                StatusText = $"Live record finish failed: {ex.Message}";
+                StatusText = $"直播记录结束失败：{ex.Message}";
             }
             finally
             {
@@ -832,8 +832,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
             }
         }
 
-        ReplaceMetrics(new BusinessMetricViewModel("Connected", "No"));
-        StatusText = "Entertainment adapter stopped.";
+        ReplaceMetrics(new BusinessMetricViewModel("连接状态", "未连接"));
+        StatusText = "娱乐模式 adapter 已断开。";
     }
 
     private Task AddNativeEventAsync(NativeDanmakuEvent nativeEvent)
@@ -870,8 +870,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
             : result.NotComplete is null ? [] : [result.NotComplete];
         ReplaceRows(batches.Select(batch => new BusinessRowViewModel(
             "batch",
-            batch.BatchName ?? "Unnamed batch",
-            $"Status {JsonValue(batch.SortStatus)}",
+            batch.BatchName ?? "未命名批次",
+            $"状态 {JsonValue(batch.SortStatus)}",
             PlatformName(NormalizeLiveType(InputOne)),
             batch.Id ?? "",
             batch.Id ?? "",
@@ -879,8 +879,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
             batch.CreatedTime ?? "",
             batch)));
         Total = useHistory ? result.HistoryCompletedPage?.TotalValue ?? Rows.Count : Rows.Count;
-        ReplaceMetrics(new("Tab", useHistory ? "History" : "Current"), new("Rows", Rows.Count.ToString(CultureInfo.InvariantCulture)));
-        StatusText = "Select a batch and run Load tags. Select a tag and run Load tags / add black to add it to blacklist.";
+        ReplaceMetrics(new("批次", useHistory ? "历史" : "当前"), new("行数", Rows.Count.ToString(CultureInfo.InvariantCulture)));
+        StatusText = "选择批次后加载标签；选择标签后可加入黑名单。";
     }
 
     private async Task RunPickPrimaryAsync()
@@ -897,7 +897,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             return;
         }
 
-        StatusText = "Select a batch or tag row first.";
+        StatusText = "请先选择批次或标签行。";
     }
 
     private async Task LoadPickTagsAsync(SortBatchItem batch)
@@ -915,20 +915,20 @@ public sealed class BusinessPageViewModel : ViewModelBase
             var result = await _pickService.GetLiveTagsAsync(PageIndex, PageSize, userId, batch.Id, SearchText.Trim());
             ReplaceRows((result.List ?? []).Select(tag => new BusinessRowViewModel(
                 "tag",
-                tag.OrderName ?? "Unnamed buyer",
-                $"No. {tag.OrderNumber} · index {tag.OrderIndex}",
-                $"Qty {tag.OrderCount}",
-                IsTruthy(tag.IsBackList) ? "blacklisted" : "",
+                tag.OrderName ?? "未命名买家",
+                $"单号 {tag.OrderNumber} · 序号 {tag.OrderIndex}",
+                $"数量 {tag.OrderCount}",
+                IsTruthy(tag.IsBackList) ? "已加黑" : "",
                 tag.TagId ?? tag.Id ?? "",
                 tag.OrderAmounts ?? "",
                 tag.CreatedTime ?? "",
                 tag)));
             Total = result.TotalValue;
             ReplaceMetrics(
-                new("Batch", batch.BatchName ?? "-"),
-                new("Tags", Total.ToString(CultureInfo.InvariantCulture)),
-                new("Live type", PlatformName(NormalizeLiveType(InputOne))));
-            StatusText = "Tags loaded. Select a tag to add blacklist, or run Complete batch on the selected batch.";
+                new("批次", batch.BatchName ?? "-"),
+                new("标签", Total.ToString(CultureInfo.InvariantCulture)),
+                new("平台", PlatformName(NormalizeLiveType(InputOne))));
+            StatusText = "标签已加载。选择标签可加入黑名单，选择批次可完成批次。";
         }
         finally
         {
@@ -942,7 +942,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var tagId = tag.TagId ?? tag.Id;
         if (userId is null || string.IsNullOrWhiteSpace(tagId))
         {
-            StatusText = "Missing tag id.";
+            StatusText = "缺少标签 ID。";
             return;
         }
 
@@ -951,9 +951,9 @@ public sealed class BusinessPageViewModel : ViewModelBase
             NormalizeLiveType(InputOne),
             tagId,
             string.IsNullOrWhiteSpace(InputTwo) ? "1" : InputTwo.Trim(),
-            "Added from Windows Pick page",
+            "Windows 理货页添加",
             string.IsNullOrWhiteSpace(InputThree) ? "0" : InputThree.Trim());
-        StatusText = "Tag added to blacklist.";
+        StatusText = "标签已加入黑名单。";
         if (_selectedPickBatch is not null)
         {
             await LoadPickTagsAsync(_selectedPickBatch);
@@ -965,13 +965,13 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var batch = SelectedRow?.Source as SortBatchItem ?? _selectedPickBatch;
         if (batch is null || string.IsNullOrWhiteSpace(batch.Id))
         {
-            StatusText = "Select a batch first.";
+            StatusText = "请先选择一个批次。";
             return;
         }
 
         await _pickService.CompleteSortBatchAsync(batch.Id, isRefreshIndexNumber: true);
         _selectedPickBatch = null;
-        StatusText = "Batch completed.";
+        StatusText = "批次已完成。";
         await LoadPickBatchesAsync();
     }
 
@@ -990,8 +990,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
             : result.NotComplete is null ? [] : [result.NotComplete];
         ReplaceRows(batches.Select(batch => new BusinessRowViewModel(
             "batch",
-            batch.BatchName ?? "Unnamed batch",
-            $"Status {JsonValue(batch.SortStatus)}",
+            batch.BatchName ?? "未命名批次",
+            $"状态 {JsonValue(batch.SortStatus)}",
             PlatformName(NormalizeRemarkLiveType()),
             batch.Id ?? "",
             batch.Id ?? "",
@@ -999,8 +999,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
             batch.CreatedTime ?? "",
             batch)));
         Total = useHistory ? result.HistoryCompletedPage?.TotalValue ?? Rows.Count : Rows.Count;
-        ReplaceMetrics(new("Platform", PlatformName(NormalizeRemarkLiveType())), new("Rows", Rows.Count.ToString(CultureInfo.InvariantCulture)));
-        StatusText = "Select a batch and run Load / export. Run again after tags load to export a remark map.";
+        ReplaceMetrics(new("平台", PlatformName(NormalizeRemarkLiveType())), new("行数", Rows.Count.ToString(CultureInfo.InvariantCulture)));
+        StatusText = "选择批次后加载/导出；标签加载完成后再次点击会导出备注映射。";
     }
 
     private async Task RunRemarkPrimaryAsync()
@@ -1014,7 +1014,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var tags = Rows.Select(row => row.Source).OfType<LiveTagItem>().ToList();
         if (tags.Count == 0)
         {
-            StatusText = "Load a batch's tags before exporting remarks.";
+            StatusText = "请先加载批次标签，再导出备注。";
             return;
         }
 
@@ -1037,7 +1037,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             var tags = result.List ?? [];
             ReplaceRows(tags.Select(tag => new BusinessRowViewModel(
                 "tag",
-                tag.OrderName ?? "Unnamed buyer",
+                tag.OrderName ?? "未命名买家",
                 GeneratedRemark(tag),
                 tag.RemarkBuyerId ?? tag.ShortId ?? tag.OrderNameId ?? "",
                 "",
@@ -1046,8 +1046,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 tag.UpdatedTime ?? tag.CreatedTime ?? "",
                 tag)));
             Total = result.TotalValue;
-            ReplaceMetrics(new("Batch", batch.BatchName ?? "-"), new("Remark rows", tags.Count.ToString(CultureInfo.InvariantCulture)));
-            StatusText = "Remark preview loaded. Run Load / export again to write the JSON payload and open the workbench.";
+            ReplaceMetrics(new("批次", batch.BatchName ?? "-"), new("备注行数", tags.Count.ToString(CultureInfo.InvariantCulture)));
+            StatusText = "备注预览已加载。再次点击加载/导出会写入 JSON 并打开工作台。";
         }
         finally
         {
@@ -1084,7 +1084,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         File.WriteAllText(path, JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
         Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{path}\"", UseShellExecute = true });
         OpenRemarkWorkbench();
-        StatusText = $"Exported {entries.Count} remark rows: {path}";
+        StatusText = $"已导出 {entries.Count} 条备注：{path}";
     }
 
     private void OpenRemarkWorkbench()
@@ -1116,22 +1116,22 @@ public sealed class BusinessPageViewModel : ViewModelBase
             "blacklist",
             item.OrderName ?? "-",
             $"{PlatformName(JsonValue(item.LiveType))} · {BlackTypeLabel(JsonValue(item.BlackType))}",
-            $"Level {item.BlackLevel ?? 0}",
-            $"Skip {item.SkipBillCount ?? 0}",
+            $"等级 {item.BlackLevel ?? 0}",
+            $"跳过 {item.SkipBillCount ?? 0}",
             item.Id ?? "",
             item.SkipBillAmount ?? "",
             item.UpdatedTime ?? item.CreatedTime ?? "",
             item)));
         Total = result.TotalValue;
-        ReplaceMetrics(new("Total", Total.ToString(CultureInfo.InvariantCulture)), new("Scope", userId is null ? "Global" : "Mine"));
-        StatusText = "Select a blacklist row and run Load detail.";
+        ReplaceMetrics(new("总数", Total.ToString(CultureInfo.InvariantCulture)), new("范围", userId is null ? "全局" : "我的"));
+        StatusText = "选择黑名单行后点击加载详情。";
     }
 
     private async Task LoadBlacklistDetailAsync()
     {
         if (SelectedRow?.Source is not BlacklistItem item || string.IsNullOrWhiteSpace(item.Id))
         {
-            StatusText = "Select a blacklist row first.";
+            StatusText = "请先选择黑名单行。";
             return;
         }
 
@@ -1143,8 +1143,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 "blacklist",
                 detailItem.OrderName ?? "-",
                 $"{PlatformName(JsonValue(detailItem.LiveType))} · {BlackTypeLabel(JsonValue(detailItem.BlackType))}",
-                $"Level {detailItem.BlackLevel ?? 0}",
-                $"Details {details.Count}",
+                $"等级 {detailItem.BlackLevel ?? 0}",
+                $"明细 {details.Count}",
                 detailItem.Id ?? "",
                 detailItem.SkipBillAmount ?? "",
                 detailItem.UpdatedTime ?? detailItem.CreatedTime ?? "",
@@ -1163,22 +1163,22 @@ public sealed class BusinessPageViewModel : ViewModelBase
         ReplaceRows(rows);
         Total = rows.Count;
         ReplaceMetrics(
-            new("Level", $"LV{detailItem.BlackLevel ?? 0}"),
-            new("Skip count", (detailItem.SkipBillCount ?? 0).ToString(CultureInfo.InvariantCulture)),
-            new("Detail rows", details.Count.ToString(CultureInfo.InvariantCulture)));
-        StatusText = "Select a black-detail row and run Delete detail if it belongs to your account.";
+            new("等级", $"LV{detailItem.BlackLevel ?? 0}"),
+            new("跳过次数", (detailItem.SkipBillCount ?? 0).ToString(CultureInfo.InvariantCulture)),
+            new("明细行数", details.Count.ToString(CultureInfo.InvariantCulture)));
+        StatusText = "选择属于当前账号的黑名单明细后可删除。";
     }
 
     private async Task DeleteSelectedBlacklistDetailAsync()
     {
         if (SelectedRow?.Source is not BlacklistDetailItem detail || string.IsNullOrWhiteSpace(detail.Id))
         {
-            StatusText = "Select a black-detail row first.";
+            StatusText = "请先选择黑名单明细行。";
             return;
         }
 
         await _blacklistService.DeleteBlackDetailAsync(detail.Id);
-        StatusText = "Blacklist detail deleted.";
+        StatusText = "黑名单明细已删除。";
         await LoadBlacklistAsync();
     }
 
@@ -1194,7 +1194,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         ReplaceRows((result.List ?? []).Select(order => new BusinessRowViewModel(
             "vip-order",
             order.VipInfoName ?? "VIP",
-            $"Duration {order.VipInfoDuration ?? "-"} · {order.VipAddType ?? "-"}",
+            $"时长 {order.VipInfoDuration ?? "-"} · {order.VipAddType ?? "-"}",
             $"{order.VipStartTime ?? "-"} -> {order.VipEndTime ?? "-"}",
             PaymentStatusLabel(order.PaymentStatus),
             order.Id ?? "",
@@ -1202,8 +1202,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
             order.CreatedTime ?? "",
             order)));
         Total = result.TotalValue;
-        ReplaceMetrics(new("Orders", Total.ToString(CultureInfo.InvariantCulture)), new("Status", FilterText));
-        StatusText = "VIP payment orders loaded.";
+        ReplaceMetrics(new("订单数", Total.ToString(CultureInfo.InvariantCulture)), new("状态", FilterText));
+        StatusText = "会员支付订单已加载。";
     }
 
     private async Task LoadSettingsAsync()
@@ -1223,7 +1223,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
                 RoomName(room),
                 PlatformLabel(room),
                 RoomNumber(room),
-                HasLiveSession(room) ? "liveSession saved" : "missing liveSession",
+                HasLiveSession(room) ? "已保存 liveSession" : "缺少 liveSession",
                 room.Id ?? "",
                 "",
                 RoomUrl(room),
@@ -1234,7 +1234,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             var page = await _settingsService.GetTagTemplatesAsync(userId);
             return (page.List ?? []).Select(item => new BusinessRowViewModel(
                 "tag-template",
-                item.TagTemplateName ?? "Unnamed tag template",
+                item.TagTemplateName ?? "未命名标签模板",
                 item.TemplateLayout ?? "",
                 "",
                 "",
@@ -1248,7 +1248,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             var templates = await _settingsService.GetDanmuTemplatesAsync();
             return templates.Select(item => new BusinessRowViewModel(
                 "danmu-template",
-                item.DanmuTemplateName ?? "Unnamed danmaku template",
+                item.DanmuTemplateName ?? "未命名弹幕模板",
                 item.Id ?? "",
                 "",
                 "",
@@ -1262,7 +1262,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
             var page = await _settingsService.GetDanmuMappingsAsync(userId);
             return (page.List ?? []).Select(item => new BusinessRowViewModel(
                 "danmu-mapping",
-                item.DanmuMappingName ?? "Unnamed mapping",
+                item.DanmuMappingName ?? "未命名映射",
                 item.DanmuMappingElement ?? "",
                 "",
                 "",
@@ -1278,10 +1278,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
             [
                 new BusinessRowViewModel(
                     "sort-setting",
-                    "Pick setting",
-                    $"Shelf range {setting.ShelfNumberRange ?? "-"}",
-                    "Refresh index",
-                    setting.IsRefreshIndexNumber == 1 ? "Yes" : "No",
+                    "理货设置",
+                    $"货架范围 {setting.ShelfNumberRange ?? "-"}",
+                    "刷新序号",
+                    setting.IsRefreshIndexNumber == 1 ? "是" : "否",
                     setting.Id ?? "",
                     "",
                     "",
@@ -1295,9 +1295,9 @@ public sealed class BusinessPageViewModel : ViewModelBase
             [
                 new BusinessRowViewModel(
                     "black-setting",
-                    "Blacklist setting",
-                    $"Print flag {setting.IsPrintFlag ?? 0}",
-                    "Level",
+                    "黑名单设置",
+                    $"打印标记 {setting.IsPrintFlag ?? 0}",
+                    "等级",
                     $"LV{setting.BlackLevel ?? 1}",
                     setting.Id ?? "",
                     "",
@@ -1309,10 +1309,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
         ReplaceRows(rows);
         Total = rows.Count;
         ReplaceMetrics(
-            new("Rows", rows.Count.ToString(CultureInfo.InvariantCulture)),
-            new("Rooms", rows.Count(row => row.Kind == "settings-room").ToString(CultureInfo.InvariantCulture)),
-            new("Templates", rows.Count(row => row.Kind.Contains("template", StringComparison.Ordinal)).ToString(CultureInfo.InvariantCulture)));
-        StatusText = "Settings loaded. Select a room and run Room print config to inspect print template data.";
+            new("行数", rows.Count.ToString(CultureInfo.InvariantCulture)),
+            new("直播间", rows.Count(row => row.Kind == "settings-room").ToString(CultureInfo.InvariantCulture)),
+            new("模板", rows.Count(row => row.Kind.Contains("template", StringComparison.Ordinal)).ToString(CultureInfo.InvariantCulture)));
+        StatusText = "设置数据已加载。选择直播间后可查看房间打印配置。";
     }
 
     private async Task AppendSettingsRowsAsync(
@@ -1334,14 +1334,14 @@ public sealed class BusinessPageViewModel : ViewModelBase
     {
         if (SelectedRow?.Source is not RoomListItem room || string.IsNullOrWhiteSpace(room.Id))
         {
-            StatusText = "Select a settings room row first.";
+            StatusText = "请先选择设置页中的直播间行。";
             return;
         }
 
         var config = await _liveRoomsService.GetUserRoomPostageAsync(room.Id);
         var rows = new List<BusinessRowViewModel>
         {
-            new("print-config", "Template layout", config.TemplateLayout ?? "-", "", "", room.Id, "", "", config)
+            new("print-config", "模板布局", config.TemplateLayout ?? "-", "", "", room.Id, "", "", config)
         };
         rows.AddRange((config.DanmuMappingVos ?? []).Select(mapping => new BusinessRowViewModel(
             "print-mapping",
@@ -1355,12 +1355,12 @@ public sealed class BusinessPageViewModel : ViewModelBase
             mapping)));
         if (config.TemplateJsonVos is { } rules)
         {
-            rows.Add(new BusinessRowViewModel("print-rules-json", "Template rules JSON", rules.GetRawText(), "", "", room.Id, "", "", rules));
+            rows.Add(new BusinessRowViewModel("print-rules-json", "模板规则 JSON", rules.GetRawText(), "", "", room.Id, "", "", rules));
         }
 
         ReplaceRows(rows);
         Total = rows.Count;
-        StatusText = $"Loaded print config for {RoomName(room)}.";
+        StatusText = $"已加载 {RoomName(room)} 的打印配置。";
     }
 
     private async Task LoadProfileAsync()
@@ -1370,9 +1370,9 @@ public sealed class BusinessPageViewModel : ViewModelBase
         SearchText = profile.User?.Phone ?? "";
         var rows = new List<BusinessRowViewModel>
         {
-            new("profile", "Display name", profile.User?.DisplayName ?? "-", "Nickname", profile.User?.Nickname ?? "-", profile.User?.Id ?? "", "", "", profile),
-            new("profile", "Phone", profile.User?.Phone ?? profile.User?.Username ?? "-", "Username", profile.User?.Username ?? "-", profile.User?.Id ?? "", "", "", profile),
-            new("profile", "VIP", VipStatus(profile.Vip), "End", profile.Vip?.VipEndTime ?? profile.Vip?.FreeVipEndTime ?? "-", profile.User?.Id ?? "", "", "", profile)
+            new("profile", "显示名称", profile.User?.DisplayName ?? "-", "昵称", profile.User?.Nickname ?? "-", profile.User?.Id ?? "", "", "", profile),
+            new("profile", "手机号", profile.User?.Phone ?? profile.User?.Username ?? "-", "账号", profile.User?.Username ?? "-", profile.User?.Id ?? "", "", "", profile),
+            new("profile", "VIP", VipStatus(profile.Vip), "到期", profile.Vip?.VipEndTime ?? profile.Vip?.FreeVipEndTime ?? "-", profile.User?.Id ?? "", "", "", profile)
         };
         rows.AddRange((profile.Rooms ?? []).Select(room => new BusinessRowViewModel(
             "profile-room",
@@ -1386,8 +1386,8 @@ public sealed class BusinessPageViewModel : ViewModelBase
             room)));
         ReplaceRows(rows);
         Total = rows.Count;
-        ReplaceMetrics(new("User", profile.User?.Id ?? "-"), new("VIP", VipStatus(profile.Vip)), new("Rooms", (profile.Rooms?.Count ?? 0).ToString(CultureInfo.InvariantCulture)));
-        StatusText = "Profile loaded. Phone update: fill New phone, then Send/update phone with empty Captcha to send code; fill Captcha and click again to save.";
+        ReplaceMetrics(new("用户", profile.User?.Id ?? "-"), new("VIP", VipStatus(profile.Vip)), new("直播间", (profile.Rooms?.Count ?? 0).ToString(CultureInfo.InvariantCulture)));
+        StatusText = "个人资料已加载。更新手机号时先填写新手机号并发送验证码，再填写验证码后提交。";
     }
 
     private async Task SaveNicknameAsync()
@@ -1395,12 +1395,12 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var userId = RequireUserId();
         if (userId is null || string.IsNullOrWhiteSpace(InputOne))
         {
-            StatusText = "Nickname is required.";
+            StatusText = "昵称不能为空。";
             return;
         }
 
         await _profileService.UpdateNicknameAsync(userId, InputOne.Trim());
-        StatusText = "Nickname saved.";
+        StatusText = "昵称已保存。";
         await LoadProfileAsync();
     }
 
@@ -1415,13 +1415,13 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var password = InputTwo.Trim();
         if (password.Length is < 6 or > 20 || password.Any(ch => ch > 127))
         {
-            StatusText = "Password must be 6-20 ASCII characters.";
+            StatusText = "密码必须是 6-20 位 ASCII 字符。";
             return;
         }
 
         await _profileService.UpdatePasswordAsync(userId, password);
         InputTwo = "";
-        StatusText = "Password saved. Please log in again if the backend invalidates the current token.";
+        StatusText = "密码已保存。如后端刷新登录态，请重新登录。";
     }
 
     private async Task SendOrUpdatePhoneAsync()
@@ -1429,20 +1429,20 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var userId = RequireUserId();
         if (userId is null || string.IsNullOrWhiteSpace(SearchText))
         {
-            StatusText = "New phone is required.";
+            StatusText = "新手机号不能为空。";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(FilterText))
         {
             await _profileService.GenerateCaptchaAsync(SearchText.Trim(), "2");
-            StatusText = "Phone update captcha sent. Fill Captcha and click Send/update phone again.";
+            StatusText = "手机号验证码已发送。填写验证码后再次点击发送/更新手机号。";
             return;
         }
 
         await _profileService.UpdatePhoneAsync(userId, SearchText.Trim(), FilterText.Trim());
         FilterText = "";
-        StatusText = "Phone updated. Please log in again if required.";
+        StatusText = "手机号已更新。如后端要求，请重新登录。";
     }
 
     private async Task SendOrCancelAccountAsync()
@@ -1450,20 +1450,20 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var phone = SearchText.Trim();
         if (string.IsNullOrWhiteSpace(phone))
         {
-            StatusText = "Fill the current phone in New phone before account cancel.";
+            StatusText = "注销账号前请在新手机号输入框填写当前手机号。";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(FilterText))
         {
             await _profileService.GenerateCaptchaAsync(phone, "3");
-            StatusText = "Account-cancel captcha sent. Fill Captcha and click Cancel account again.";
+            StatusText = "账号注销验证码已发送。填写验证码后再次点击注销账号。";
             return;
         }
 
         await _profileService.AccountCancelAsync(phone, FilterText.Trim());
         FilterText = "";
-        StatusText = "Account cancel request submitted. Log out and verify the account state.";
+        StatusText = "账号注销请求已提交。请退出登录后确认账号状态。";
     }
 
     private async Task LoadPaymentPlansAsync()
@@ -1472,23 +1472,23 @@ public sealed class BusinessPageViewModel : ViewModelBase
         ReplaceRows(plans.Select(plan => new BusinessRowViewModel(
             "vip-plan",
             plan.VipName ?? "VIP",
-            $"Duration {plan.Duration ?? 0} month(s)",
-            $"Discount {plan.Discount ?? "-"}",
+            $"时长 {plan.Duration ?? 0} 个月",
+            $"折扣 {plan.Discount ?? "-"}",
             "",
             plan.Id ?? "",
             plan.DiscountedPrice ?? plan.Price ?? "",
             "",
             plan)));
         Total = Rows.Count;
-        ReplaceMetrics(new BusinessMetricViewModel("Plans", Rows.Count.ToString(CultureInfo.InvariantCulture)));
-        StatusText = "Select a plan and run Pay selected. The returned Alipay HTML is opened from a temp file.";
+        ReplaceMetrics(new BusinessMetricViewModel("套餐", Rows.Count.ToString(CultureInfo.InvariantCulture)));
+        StatusText = "选择套餐后点击支付，返回的支付宝 HTML 会从临时文件打开。";
     }
 
     private async Task PaySelectedPlanAsync()
     {
         if (SelectedRow?.Source is not VipInfoItem plan || string.IsNullOrWhiteSpace(plan.Id))
         {
-            StatusText = "Select a VIP plan first.";
+            StatusText = "请先选择一个会员套餐。";
             return;
         }
 
@@ -1504,16 +1504,16 @@ public sealed class BusinessPageViewModel : ViewModelBase
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
         }
 
-        StatusText = "Payment page opened.";
+        StatusText = "支付页面已打开。";
     }
 
     private Task LoadPrintersAsync()
     {
         var printers = _printerService.GetPrinterNames();
-        ReplaceRows(printers.Select(name => new BusinessRowViewModel("printer", name, "Windows print queue", "", "", name, "", "", name)));
+        ReplaceRows(printers.Select(name => new BusinessRowViewModel("printer", name, "Windows 打印队列", "", "", name, "", "", name)));
         Total = Rows.Count;
-        ReplaceMetrics(new("Printers", Rows.Count.ToString(CultureInfo.InvariantCulture)), new("Type", InputOne));
-        StatusText = Rows.Count == 0 ? "No Windows printers found." : "Select a printer and send a RAW command.";
+        ReplaceMetrics(new("打印机", Rows.Count.ToString(CultureInfo.InvariantCulture)), new("类型", InputOne));
+        StatusText = Rows.Count == 0 ? "未找到 Windows 打印机。" : "选择打印机后可发送 RAW 指令。";
         return Task.CompletedTask;
     }
 
@@ -1521,14 +1521,14 @@ public sealed class BusinessPageViewModel : ViewModelBase
     {
         if (SelectedRow?.Source is not string printerName || string.IsNullOrWhiteSpace(printerName))
         {
-            StatusText = "Select a printer first.";
+            StatusText = "请先选择打印机。";
             return Task.CompletedTask;
         }
 
         var payload = RawPrinterService.EncodeCommand(InputOne, TextAreaText);
         _printerService.SendRaw(printerName, payload);
-        AppendPrinterLog($"Sent {payload.Length} bytes to {printerName}.");
-        StatusText = $"Sent {payload.Length} bytes to {printerName}.";
+        AppendPrinterLog($"已向 {printerName} 发送 {payload.Length} 字节。");
+        StatusText = $"已向 {printerName} 发送 {payload.Length} 字节。";
         return Task.CompletedTask;
     }
 
@@ -1543,7 +1543,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
         var userId = _userIdProvider();
         if (string.IsNullOrWhiteSpace(userId))
         {
-            StatusText = "Current user id is missing. Please log in again.";
+            StatusText = "缺少当前用户 ID，请重新登录。";
             return null;
         }
 
@@ -1663,10 +1663,10 @@ public sealed class BusinessPageViewModel : ViewModelBase
     {
         return value switch
         {
-            0 => "Pending",
-            1 => "Paid",
-            2 => "Canceled",
-            3 => "Failed",
+            0 => "待支付",
+            1 => "已支付",
+            2 => "已取消",
+            3 => "失败",
             _ => "-"
         };
     }
@@ -1675,24 +1675,24 @@ public sealed class BusinessPageViewModel : ViewModelBase
     {
         if (vip?.VipFlag == 1)
         {
-            return $"Paid VIP until {vip.VipEndTime ?? "-"}";
+            return $"付费会员至 {vip.VipEndTime ?? "-"}";
         }
 
         if (vip?.FreeVipFlag == 1)
         {
-            return $"Free VIP until {vip.FreeVipEndTime ?? "-"}";
+            return $"免费会员至 {vip.FreeVipEndTime ?? "-"}";
         }
 
-        return "Not VIP";
+        return "未开通 VIP";
     }
 
     private static string BlackTypeLabel(string value)
     {
         return value switch
         {
-            "1" => "Runaway",
-            "2" => "Malicious",
-            "3" => "Malicious",
+            "1" => "跑单",
+            "2" => "恶意",
+            "3" => "恶意",
             _ => string.IsNullOrWhiteSpace(value) ? "-" : value
         };
     }
@@ -1706,11 +1706,11 @@ public sealed class BusinessPageViewModel : ViewModelBase
     {
         return DanmakuPlatformRegistry.PlatformKeyForLiveType(liveType) switch
         {
-            "douyin" => "Douyin",
-            "taobao" => "Taobao",
-            "xiaohongshu" => "Xiaohongshu",
-            "wechat" => "WeChat Channels",
-            "kuaishou" => "Kuaishou",
+            "douyin" => "抖音",
+            "taobao" => "淘宝",
+            "xiaohongshu" => "小红书",
+            "wechat" => "视频号",
+            "kuaishou" => "快手",
             "tiktok" => "TikTok",
             "shopee" => "Shopee",
             _ => liveType
@@ -1719,7 +1719,7 @@ public sealed class BusinessPageViewModel : ViewModelBase
 
     private static string RoomName(RoomListItem room)
     {
-        return FirstNonEmpty(room.RoomName, room.Name, room.Title, room.RoomNumber, room.RoomNo, room.RoomId, room.Id, "Live room");
+        return FirstNonEmpty(room.RoomName, room.Name, room.Title, room.RoomNumber, room.RoomNo, room.RoomId, room.Id, "直播间");
     }
 
     private static string RoomNumber(RoomListItem room)

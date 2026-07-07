@@ -2,162 +2,276 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-             MinHeight="560">
+             MinHeight="680">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <Border Grid.Row="0"
-                Background="{StaticResource FastSortSurface}"
-                BorderBrush="{StaticResource FastSortBorder}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="14"
-                Margin="0,0,0,12">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="210" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <ComboBox ItemsSource="{Binding Platforms}"
-                          SelectedItem="{Binding SelectedPlatform}"
-                          DisplayMemberPath="Name"
-                          Height="34"
-                          VerticalAlignment="Center" />
-                <TextBox Grid.Column="1"
-                         Text="{Binding LoginUrlText, Mode=OneWay}"
-                         IsReadOnly="True"
-                         Height="34"
-                         Margin="10,0"
-                         VerticalContentAlignment="Center" />
-                <Button Grid.Column="2"
-                        Content="Open"
-                        Command="{Binding OpenSelectedPlatformCommand}"
-                        Style="{StaticResource PrimaryButton}"
-                        MinWidth="72"
-                        Margin="0,0,8,0" />
-                <Button Grid.Column="3"
-                        Content="Collect"
-                        Click="CollectButton_Click"
-                        MinWidth="72"
-                        Margin="0,0,8,0" />
-                <Button Grid.Column="4"
-                        Content="Save Entry"
-                        Command="{Binding SaveCookieCommand}"
-                        MinWidth="88"
-                        Margin="0,0,8,0" />
-                <Button Grid.Column="5"
-                        Content="Connect"
-                        Command="{Binding RunNativePreflightCommand}"
-                        MinWidth="72"
-                        Margin="0,0,8,0" />
-                <Button Grid.Column="6"
-                        Content="Stop"
-                        Command="{Binding StopNativeConnectionCommand}"
-                        MinWidth="72" />
-            </Grid>
-        </Border>
-
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*" />
-                <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="1.05*" />
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0"
-                    Background="{StaticResource FastSortSurface}"
-                    BorderBrush="{StaticResource FastSortBorder}"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                <wv2:WebView2 x:Name="AuthWebView"
-                              NavigationStarting="AuthWebView_NavigationStarting"
-                              NavigationCompleted="AuthWebView_NavigationCompleted" />
-            </Border>
-
-            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+        <Border Grid.Column="0"
+                Style="{StaticResource CardBorder}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <Border Background="{StaticResource FastSortSurface}"
-                            BorderBrush="{StaticResource FastSortBorder}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16"
-                            Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Current URL"
-                                       Foreground="{StaticResource FastSortMuted}"
-                                       FontSize="12" />
-                            <TextBlock Text="{Binding CurrentUrl}"
-                                       TextWrapping="Wrap"
-                                       Foreground="{StaticResource FastSortText}"
-                                       Margin="0,4,0,12" />
-                            <TextBlock Text="{Binding HitStatusText}"
-                                       Foreground="{StaticResource FastSortAccent}"
-                                       FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding CollectionResultText}"
-                                       Foreground="{StaticResource FastSortMuted}"
-                                       TextWrapping="Wrap"
-                                       Margin="0,8,0,0" />
-                            <TextBlock Text="{Binding SaveResultText}"
-                                       Foreground="{StaticResource FastSortMuted}"
-                                       TextWrapping="Wrap"
-                                       Margin="0,8,0,0" />
-                        </StackPanel>
-                    </Border>
+                    <TextBlock Text="平台授权测试"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortText}" />
+                    <TextBlock Text="按迅拣平台配置打开工作台登录页，登录后从当前 WebView2 会话采集平台 Cookie。"
+                               FontSize="12"
+                               Foreground="{StaticResource FastSortMuted}"
+                               TextWrapping="Wrap"
+                               Margin="0,6,0,16" />
 
-                    <Border Background="{StaticResource FastSortSurface}"
-                            BorderBrush="{StaticResource FastSortBorder}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16"
-                            Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Masked Cookie"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FastSortText}"
-                                       Margin="0,0,0,8" />
-                            <TextBox Text="{Binding MaskedCookieHeader, Mode=OneWay}"
-                                     IsReadOnly="True"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     MinHeight="110"
-                                     VerticalScrollBarVisibility="Auto" />
-                        </StackPanel>
-                    </Border>
+                    <ListBox ItemsSource="{Binding Platforms}"
+                             SelectedItem="{Binding SelectedPlatform}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             Margin="0,0,0,14">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,0,0,8" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="ItemBorder"
+                                                    Background="{StaticResource FastSortBackground}"
+                                                    CornerRadius="8"
+                                                    Padding="12"
+                                                    BorderBrush="{StaticResource FastSortBackground}"
+                                                    BorderThickness="1">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource FastSortAccentSoft}" />
+                                                    <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#FFD1E4FF" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel>
+                                    <TextBlock Text="{Binding Key}"
+                                               DockPanel.Dock="Right"
+                                               Foreground="{StaticResource FastSortMuted}"
+                                               FontSize="11"
+                                               VerticalAlignment="Center" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="{StaticResource FastSortText}"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Id, StringFormat=ID {0}}"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   FontSize="11"
+                                                   Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
-                    <Border Background="{StaticResource FastSortSurface}"
-                            BorderBrush="{StaticResource FastSortBorder}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="16">
-                        <StackPanel>
-                            <TextBlock Text="Native Adapter Events"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource FastSortText}"
-                                       Margin="0,0,0,8" />
-                            <ListView ItemsSource="{Binding Events}"
-                                      MinHeight="150">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="Time" DisplayMemberBinding="{Binding Time}" Width="64" />
-                                        <GridViewColumn Header="Platform" DisplayMemberBinding="{Binding Platform}" Width="90" />
-                                        <GridViewColumn Header="Status" DisplayMemberBinding="{Binding Status}" Width="86" />
-                                        <GridViewColumn Header="Content" DisplayMemberBinding="{Binding Content}" Width="230" />
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-                        </StackPanel>
-                    </Border>
+                    <Separator Margin="0,0,0,14" />
+
+                    <TextBlock Text="当前配置"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortText}" />
+                    <TextBlock Text="登录地址"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortMuted}"
+                               Margin="0,10,0,2" />
+                    <TextBlock Text="{Binding LoginUrlText}"
+                               FontSize="11"
+                               FontFamily="Consolas"
+                               Foreground="{StaticResource FastSortText}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="Cookie 域"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortMuted}"
+                               Margin="0,10,0,2" />
+                    <TextBlock Text="{Binding SelectedPlatform.CookieDomain}"
+                               FontSize="11"
+                               FontFamily="Consolas"
+                               Foreground="{StaticResource FastSortText}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="成功页匹配"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortMuted}"
+                               Margin="0,10,0,2" />
+                    <TextBlock Text="{Binding SelectedPlatform.PageHandlerMatch}"
+                               FontSize="11"
+                               FontFamily="Consolas"
+                               Foreground="{StaticResource FastSortText}"
+                               TextWrapping="Wrap" />
+
+                    <WrapPanel Margin="0,16,0,0">
+                        <Button Content="打开登录页"
+                                Command="{Binding OpenSelectedPlatformCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                Margin="0,0,8,8" />
+                        <Button Content="立即采集 Cookie"
+                                Click="CollectButton_Click"
+                                Margin="0,0,8,8" />
+                    </WrapPanel>
+
+                    <Separator Margin="0,8,0,14" />
+
+                    <TextBlock Text="弹幕连接"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource FastSortText}" />
+                    <TextBlock Text="无需输入：工作台登录态会用于解析当前直播并连接 native adapter。"
+                               FontSize="12"
+                               Foreground="{StaticResource FastSortMuted}"
+                               TextWrapping="Wrap"
+                               Margin="0,6,0,10" />
+                    <WrapPanel>
+                        <Button Content="连接弹幕"
+                                Command="{Binding RunNativePreflightCommand}"
+                                Style="{StaticResource PrimaryButton}"
+                                Margin="0,0,8,8" />
+                        <Button Content="断开弹幕"
+                                Command="{Binding StopNativeConnectionCommand}"
+                                Margin="0,0,8,8" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding SaveResultText}"
+                               Foreground="{StaticResource FastSortMuted}"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="0,8,0,0" />
                 </StackPanel>
             </ScrollViewer>
+        </Border>
+
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="340" />
+                <RowDefinition Height="14" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="14" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0"
+                    Style="{StaticResource CardBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock Text="平台登录窗口"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortText}" />
+                        <TextBlock Text="{Binding HitStatusText}"
+                                   DockPanel.Dock="Right"
+                                   Foreground="{StaticResource FastSortSuccess}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold" />
+                    </DockPanel>
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding CurrentUrl}"
+                               Foreground="{StaticResource FastSortMuted}"
+                               FontSize="11"
+                               FontFamily="Consolas"
+                               TextWrapping="Wrap"
+                               Margin="0,26,0,8" />
+                    <Border Grid.Row="1"
+                            BorderBrush="{StaticResource FastSortBorder}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            ClipToBounds="True">
+                        <wv2:WebView2 x:Name="AuthWebView"
+                                      NavigationStarting="AuthWebView_NavigationStarting"
+                                      NavigationCompleted="AuthWebView_NavigationCompleted" />
+                    </Border>
+                    <TextBlock Grid.Row="2"
+                               Text="{Binding CollectionResultText}"
+                               Foreground="{StaticResource FastSortMuted}"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="0,10,0,0" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2"
+                    Style="{StaticResource CardBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Margin="0,0,0,10">
+                        <TextBlock Text="Cookie 采集结果"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortText}" />
+                        <TextBlock Text="{Binding CollectionResultText}"
+                                   DockPanel.Dock="Right"
+                                   Foreground="{StaticResource FastSortMuted}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBox Grid.Row="1"
+                             Text="{Binding MaskedCookieHeader, Mode=OneWay}"
+                             IsReadOnly="True"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             MinHeight="92"
+                             MaxHeight="120"
+                             VerticalScrollBarVisibility="Auto" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="4"
+                    Style="{StaticResource CardBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="弹幕展示"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource FastSortText}" />
+                            <TextBlock Text="native adapter 收到的状态和弹幕会显示在这里。"
+                                       Foreground="{StaticResource FastSortMuted}"
+                                       FontSize="12"
+                                       Margin="0,2,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                    <ListView Grid.Row="1"
+                              ItemsSource="{Binding Events}"
+                              BorderThickness="0"
+                              Background="Transparent">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="时间" DisplayMemberBinding="{Binding Time}" Width="74" />
+                                <GridViewColumn Header="平台" DisplayMemberBinding="{Binding Platform}" Width="100" />
+                                <GridViewColumn Header="事件" DisplayMemberBinding="{Binding Event}" Width="90" />
+                                <GridViewColumn Header="状态" DisplayMemberBinding="{Binding Status}" Width="90" />
+                                <GridViewColumn Header="内容" DisplayMemberBinding="{Binding Content}" Width="420" />
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </UserControl>

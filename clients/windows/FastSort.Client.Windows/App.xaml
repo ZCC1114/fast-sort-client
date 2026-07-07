@@ -7,29 +7,130 @@
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
         <converters:EnumEqualsToVisibilityConverter x:Key="EnumEqualsToVisibilityConverter" />
 
-        <Color x:Key="FastSortBackgroundColor">#FFFFFAF3</Color>
+        <Color x:Key="FastSortBackgroundColor">#FFF5F5F7</Color>
+        <Color x:Key="FastSortGroupedBackgroundColor">#FFF5F5F7</Color>
+        <Color x:Key="FastSortSidebarColor">#FFF9F9FB</Color>
         <Color x:Key="FastSortSurfaceColor">#FFFFFFFF</Color>
-        <Color x:Key="FastSortBorderColor">#FFEFE5D8</Color>
-        <Color x:Key="FastSortTextColor">#FF2F2A24</Color>
-        <Color x:Key="FastSortMutedColor">#FF8F8B86</Color>
-        <Color x:Key="FastSortAccentColor">#FFF18B00</Color>
-        <Color x:Key="FastSortAccentSoftColor">#FFFFF1DF</Color>
+        <Color x:Key="FastSortBorderColor">#B8D2D2D7</Color>
+        <Color x:Key="FastSortTextColor">#FF1D1D1F</Color>
+        <Color x:Key="FastSortMutedColor">#FF6E6E73</Color>
+        <Color x:Key="FastSortAccentColor">#FF007AFF</Color>
+        <Color x:Key="FastSortAccentDarkColor">#FF0066D6</Color>
+        <Color x:Key="FastSortAccentSoftColor">#FFE8F2FF</Color>
+        <Color x:Key="FastSortDangerColor">#FFFF3B30</Color>
+        <Color x:Key="FastSortSuccessColor">#FF34C759</Color>
 
         <SolidColorBrush x:Key="FastSortBackground" Color="{StaticResource FastSortBackgroundColor}" />
+        <SolidColorBrush x:Key="FastSortGroupedBackground" Color="{StaticResource FastSortGroupedBackgroundColor}" />
+        <SolidColorBrush x:Key="FastSortSidebar" Color="{StaticResource FastSortSidebarColor}" />
         <SolidColorBrush x:Key="FastSortSurface" Color="{StaticResource FastSortSurfaceColor}" />
         <SolidColorBrush x:Key="FastSortBorder" Color="{StaticResource FastSortBorderColor}" />
         <SolidColorBrush x:Key="FastSortText" Color="{StaticResource FastSortTextColor}" />
         <SolidColorBrush x:Key="FastSortMuted" Color="{StaticResource FastSortMutedColor}" />
         <SolidColorBrush x:Key="FastSortAccent" Color="{StaticResource FastSortAccentColor}" />
+        <SolidColorBrush x:Key="FastSortAccentDark" Color="{StaticResource FastSortAccentDarkColor}" />
         <SolidColorBrush x:Key="FastSortAccentSoft" Color="{StaticResource FastSortAccentSoftColor}" />
+        <SolidColorBrush x:Key="FastSortDanger" Color="{StaticResource FastSortDangerColor}" />
+        <SolidColorBrush x:Key="FastSortSuccess" Color="{StaticResource FastSortSuccessColor}" />
 
-        <Style x:Key="PrimaryButton" TargetType="Button">
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="Foreground" Value="{StaticResource FastSortText}" />
+            <Setter Property="Background" Value="#FFFAFAFA" />
+            <Setter Property="BorderBrush" Value="{StaticResource FastSortBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="Foreground" Value="{StaticResource FastSortText}" />
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="Foreground" Value="{StaticResource FastSortText}" />
+            <Setter Property="Background" Value="#00FFFFFF" />
+            <Setter Property="BorderBrush" Value="{StaticResource FastSortBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource FastSortAccentSoft}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" Value="0.72" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Background" Value="{StaticResource FastSortAccent}" />
+            <Setter Property="BorderBrush" Value="{StaticResource FastSortAccent}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="14,8" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style x:Key="VipButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource FastSortAccent}" />
+            <Setter Property="MinWidth" Value="108" />
+        </Style>
+
+        <Style x:Key="TopbarTextButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Foreground" Value="{StaticResource FastSortAccent}" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#FFD1E4FF" />
+            <Setter Property="Padding" Value="16,7" />
+            <Setter Property="MinWidth" Value="82" />
+        </Style>
+
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource FastSortSurface}" />
+            <Setter Property="BorderBrush" Value="{StaticResource FastSortBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="16" />
+        </Style>
+
+        <Style x:Key="PanelBorder" TargetType="Border" BasedOn="{StaticResource CardBorder}">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style x:Key="SidebarRouteButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="#00FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="Height" Value="34" />
         </Style>
     </Application.Resources>
 </Application>

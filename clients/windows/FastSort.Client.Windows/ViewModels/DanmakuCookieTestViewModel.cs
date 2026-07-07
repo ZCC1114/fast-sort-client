@@ -7,7 +7,7 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
 {
     private readonly NativeDanmakuSessionCoordinator _coordinator;
     private INativeDanmakuConnection? _activeConnection;
-    private string _saveResultText = "Save entry is reserved. Formal rooms persist Cookie to backend liveSession.";
+    private string _saveResultText = "直播授权测试页仅做本机 Cookie 采集和弹幕连接；正式保存请使用直播端页面。";
 
     public DanmakuCookieTestViewModel(NativeDanmakuSessionCoordinator coordinator)
     {
@@ -39,7 +39,7 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
 
     private Task SaveCookieAsync()
     {
-        SaveResultText = "This test page does not bind a room. Use the Rooms page to save backend liveSession.";
+        SaveResultText = "测试页不绑定后端房间，请在直播端页面保存 liveSession。";
         return Task.CompletedTask;
     }
 
@@ -61,17 +61,17 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
             CookieHeader,
             SelectedPlatform.Name);
 
-        SaveResultText = $"Connecting native adapter: {SelectedPlatform.AdapterKey}";
+        SaveResultText = $"正在连接 native adapter：{SelectedPlatform.AdapterKey}";
         var connection = await _coordinator.ConnectAsync(request, AddEventAsync);
         if (connection.Status is NativeDanmakuStatus.Error or NativeDanmakuStatus.NotStarted or NativeDanmakuStatus.LoginExpired)
         {
             await connection.StopAsync();
-            SaveResultText = $"Native adapter returned {connection.Status}.";
+            SaveResultText = $"native adapter 返回 {connection.Status}。";
             return;
         }
 
         _activeConnection = connection;
-        SaveResultText = $"Native adapter connected: {connection.PlatformKey}.";
+        SaveResultText = $"native adapter 已连接：{connection.PlatformKey}。";
         RaiseConnectionCommandStates();
     }
 
@@ -86,8 +86,8 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
         _activeConnection = null;
         RaiseConnectionCommandStates();
         await connection.StopAsync();
-        await AddEventAsync(NativeDanmakuEvent.StatusEvent(connection.PlatformKey, NativeDanmakuStatus.Stopped, "Stopped by user."));
-        SaveResultText = $"Native adapter stopped: {connection.PlatformKey}.";
+        await AddEventAsync(NativeDanmakuEvent.StatusEvent(connection.PlatformKey, NativeDanmakuStatus.Stopped, "用户手动停止。"));
+        SaveResultText = $"native adapter 已停止：{connection.PlatformKey}。";
     }
 
     private Task AddEventAsync(NativeDanmakuEvent nativeEvent)

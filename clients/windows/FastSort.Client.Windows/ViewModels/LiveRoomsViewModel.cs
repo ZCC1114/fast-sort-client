@@ -14,7 +14,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
     private INativeDanmakuConnection? _activeConnection;
     private bool _isLoading;
     private string _remark = "";
-    private string _statusText = "Select a platform, open its workbench, then authorize and collect Cookie.";
+    private string _statusText = "选择平台并打开工作台登录页，授权后采集 Cookie 并保存到后端直播间。";
     private LiveRoomRowViewModel? _selectedRoom;
 
     public LiveRoomsViewModel(
@@ -89,7 +89,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         var userId = _userIdProvider();
         if (string.IsNullOrWhiteSpace(userId))
         {
-            StatusText = "Current user id is missing. Restore login before querying rooms.";
+            StatusText = "当前用户 ID 缺失，请重新登录后再查询直播间。";
             return;
         }
 
@@ -103,7 +103,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
                 Rooms.Add(row);
             }
 
-            StatusText = $"Loaded {Rooms.Count} backend rooms. Formal connect uses only backend room liveSession.";
+            StatusText = $"已加载 {Rooms.Count} 个后端直播间。正式连接只使用后端房间 liveSession。";
         }
         catch (Exception ex)
         {
@@ -137,12 +137,12 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         {
             var name = string.IsNullOrWhiteSpace(Remark) ? SelectedPlatform.Name : Remark.Trim();
             await _liveRoomsService.AddAuthorizedRoomAsync(SelectedPlatform, name, CookieHeader);
-            StatusText = "Authorized Cookie saved to backend room liveSession.";
+            StatusText = "授权 Cookie 已保存到后端直播间 liveSession。";
             await LoadRoomsAsync(force: true);
         }
         catch (Exception ex)
         {
-            StatusText = $"{ex.Message}. TODO: backend must confirm liveSession fields for this platform.";
+            StatusText = $"{ex.Message}。请确认后端已支持该平台 liveSession 保存字段。";
         }
         finally
         {
@@ -165,12 +165,12 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
             if (connection.Status is NativeDanmakuStatus.Error or NativeDanmakuStatus.NotStarted or NativeDanmakuStatus.LoginExpired)
             {
                 await connection.StopAsync();
-                StatusText = $"Native adapter returned {connection.Status}: {connection.PlatformKey}.";
+                StatusText = $"native adapter 返回 {connection.Status}: {connection.PlatformKey}。";
                 return;
             }
 
             _activeConnection = connection;
-            StatusText = $"Native adapter connected: {connection.PlatformKey}.";
+            StatusText = $"native adapter 已连接：{connection.PlatformKey}。";
         }
         catch (Exception ex)
         {
@@ -194,8 +194,8 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         _activeConnection = null;
         RaiseCommandStates();
         await connection.StopAsync();
-        await AddEventAsync(NativeDanmakuEvent.StatusEvent(connection.PlatformKey, NativeDanmakuStatus.Stopped, "Stopped by user."));
-        StatusText = $"Native adapter stopped: {connection.PlatformKey}.";
+        await AddEventAsync(NativeDanmakuEvent.StatusEvent(connection.PlatformKey, NativeDanmakuStatus.Stopped, "用户手动停止。"));
+        StatusText = $"native adapter 已停止：{connection.PlatformKey}。";
     }
 
     private Task AddEventAsync(NativeDanmakuEvent nativeEvent)
@@ -224,7 +224,7 @@ public sealed record LiveRoomRowViewModel(
     {
         var name = !string.IsNullOrWhiteSpace(item.RoomName)
             ? item.RoomName
-            : !string.IsNullOrWhiteSpace(item.RoomNumber) ? item.RoomNumber : "Live room";
+            : !string.IsNullOrWhiteSpace(item.RoomNumber) ? item.RoomNumber : "直播间";
         var platform = PlatformLabel(item.LiveType, item.PlatformKey);
         var metaParts = new[] { item.RoomNumber, item.Eid, item.Id }
             .Where(value => !string.IsNullOrWhiteSpace(value));
@@ -233,7 +233,7 @@ public sealed record LiveRoomRowViewModel(
             name,
             platform,
             string.Join(" / ", metaParts),
-            string.IsNullOrWhiteSpace(liveSession) ? "No liveSession" : "liveSession saved",
+            string.IsNullOrWhiteSpace(liveSession) ? "缺少 liveSession" : "已保存 liveSession",
             item);
     }
 

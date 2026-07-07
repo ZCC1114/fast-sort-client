@@ -14,7 +14,7 @@ public sealed class MainViewModel : ViewModelBase
     private string _token = "";
     private string _profileName = "";
     private string _currentUserId = "";
-    private string _vipStatusText = "Not VIP";
+    private string _vipStatusText = "未开通 VIP";
     private AppRoute _selectedRoute = AppRoute.Dashboard;
     private bool _isRestoring;
 
@@ -41,19 +41,20 @@ public sealed class MainViewModel : ViewModelBase
         Login = new LoginViewModel(SendLoginCaptchaAsync, LoginWithSmsAsync, LoginWithAccountAsync);
         Routes =
         [
-            new(AppRoute.Dashboard, "Home"),
-            new(AppRoute.LiveRooms, "Live"),
-            new(AppRoute.DanmakuCookieTest, "Auth Test"),
-            new(AppRoute.Entertainment, "Entertainment"),
-            new(AppRoute.Pick, "Pick"),
-            new(AppRoute.DouyinRemark, "Remark"),
-            new(AppRoute.Blacklist, "Blacklist"),
-            new(AppRoute.VipOrder, "VIP Orders"),
-            new(AppRoute.Settings, "Settings")
+            new(AppRoute.Dashboard, "首页", "首"),
+            new(AppRoute.LiveRooms, "直播端", "直"),
+            new(AppRoute.Entertainment, "娱乐模式", "娱"),
+            new(AppRoute.Pick, "理货端", "理"),
+            new(AppRoute.DouyinRemark, "订单一键备注", "注"),
+            new(AppRoute.Blacklist, "黑名单", "黑"),
+            new(AppRoute.VipOrder, "充值记录", "充"),
+            new(AppRoute.DanmakuCookieTest, "直播授权测试", "授"),
+            new(AppRoute.Settings, "设置", "设")
         ];
         SelectRouteCommand = new RelayCommand<RouteItemViewModel>(SelectRoute);
         LogoutCommand = new AsyncRelayCommand(LogoutAsync);
         OpenManualCommand = new RelayCommand<object>(_ => OpenManual());
+        UpdateRouteSelection();
     }
 
     public LoginViewModel Login { get; }
@@ -70,11 +71,11 @@ public sealed class MainViewModel : ViewModelBase
 
     public RouteItemViewModel SettingsRoute => Routes[^1];
 
-    public RouteItemViewModel ProfileRoute { get; } = new(AppRoute.Profile, "Profile");
+    public RouteItemViewModel ProfileRoute { get; } = new(AppRoute.Profile, "个人中心", "个");
 
-    public RouteItemViewModel PaymentRoute { get; } = new(AppRoute.Payment, "Payment");
+    public RouteItemViewModel PaymentRoute { get; } = new(AppRoute.Payment, "支付", "付");
 
-    public RouteItemViewModel PrinterTestRoute { get; } = new(AppRoute.PrinterTest, "Printer Test");
+    public RouteItemViewModel PrinterTestRoute { get; } = new(AppRoute.PrinterTest, "打印测试", "印");
 
     public RelayCommand<RouteItemViewModel> SelectRouteCommand { get; }
 
@@ -128,8 +129,10 @@ public sealed class MainViewModel : ViewModelBase
             if (SetProperty(ref _selectedRoute, value))
             {
                 OnPropertyChanged(nameof(SelectedRouteTitle));
+                OnPropertyChanged(nameof(SelectedRouteSubtitle));
                 OnPropertyChanged(nameof(IsDashboardSelected));
                 OnPropertyChanged(nameof(IsBusinessPageSelected));
+                UpdateRouteSelection();
             }
         }
     }
@@ -141,6 +144,8 @@ public sealed class MainViewModel : ViewModelBase
         and not AppRoute.DanmakuCookieTest;
 
     public string SelectedRouteTitle => GetRouteTitle(SelectedRoute);
+
+    public string SelectedRouteSubtitle => GetRouteSubtitle(SelectedRoute);
 
     public async Task RestoreSessionAsync()
     {
@@ -266,7 +271,7 @@ public sealed class MainViewModel : ViewModelBase
 
     private void ApplyProfile(ProfileResponse profile)
     {
-        ProfileName = profile.User?.DisplayName ?? "FastSort user";
+        ProfileName = profile.User?.DisplayName ?? "迅拣用户";
         CurrentUserId = profile.User?.Id ?? "";
         VipStatusText = BuildVipStatusText(profile.Vip);
     }
@@ -277,7 +282,7 @@ public sealed class MainViewModel : ViewModelBase
         Token = "";
         ProfileName = "";
         CurrentUserId = "";
-        VipStatusText = "Not VIP";
+        VipStatusText = "未开通 VIP";
         SelectedRoute = AppRoute.Dashboard;
     }
 
@@ -291,22 +296,22 @@ public sealed class MainViewModel : ViewModelBase
     {
         if (vip is null)
         {
-            return "Not VIP";
+            return "未开通 VIP";
         }
 
         if (vip.VipFlag == 1)
         {
             var days = RemainingDays(vip.VipEndTime) ?? vip.VipRemainingDays;
-            return $"VIP {days?.ToString() ?? "-"}d";
+            return $"会员剩余{days?.ToString() ?? "-"}天";
         }
 
         if (vip.FreeVipFlag == 1)
         {
             var days = RemainingDays(vip.FreeVipEndTime) ?? vip.FreeVipRemainingDays;
-            return $"Free VIP {days?.ToString() ?? "-"}d";
+            return $"免费会员剩余{days?.ToString() ?? "-"}天";
         }
 
-        return "Not VIP";
+        return "未开通 VIP";
     }
 
     private static int? RemainingDays(string? endTime)
@@ -337,19 +342,51 @@ public sealed class MainViewModel : ViewModelBase
     {
         return route switch
         {
-            AppRoute.Dashboard => "Home",
-            AppRoute.LiveRooms => "Live",
-            AppRoute.DanmakuCookieTest => "Auth Test",
-            AppRoute.Entertainment => "Entertainment",
-            AppRoute.Pick => "Pick",
-            AppRoute.DouyinRemark => "Remark",
-            AppRoute.Blacklist => "Blacklist",
-            AppRoute.VipOrder => "VIP Orders",
-            AppRoute.Settings => "Settings",
-            AppRoute.Profile => "Profile",
-            AppRoute.Payment => "Payment",
-            AppRoute.PrinterTest => "Printer Test",
-            _ => "Home"
+            AppRoute.Dashboard => "首页",
+            AppRoute.LiveRooms => "直播端",
+            AppRoute.DanmakuCookieTest => "直播授权测试",
+            AppRoute.Entertainment => "娱乐模式",
+            AppRoute.Pick => "理货端",
+            AppRoute.DouyinRemark => "订单一键备注",
+            AppRoute.Blacklist => "黑名单",
+            AppRoute.VipOrder => "充值记录",
+            AppRoute.Settings => "设置",
+            AppRoute.Profile => "个人中心",
+            AppRoute.Payment => "支付",
+            AppRoute.PrinterTest => "打印测试",
+            _ => "首页"
         };
+    }
+
+    private static string GetRouteSubtitle(AppRoute route)
+    {
+        return route switch
+        {
+            AppRoute.Dashboard => "经营数据、直播间、批次和黑名单概览",
+            AppRoute.LiveRooms => "管理直播间、弹幕连接和标签打印",
+            AppRoute.Entertainment => "直播互动事件、礼物和播报控制",
+            AppRoute.Pick => "查看批次标签、分页检索和黑名单处理",
+            AppRoute.DouyinRemark => "生成商家后台备注映射并执行批次",
+            AppRoute.Blacklist => "查看我的/全局黑名单和行为详情",
+            AppRoute.VipOrder => "查看会员充值订单",
+            AppRoute.DanmakuCookieTest => "测试平台登录页、授权状态匹配和 Cookie 采集",
+            AppRoute.Settings => "配置直播间、模板、理货和黑名单规则",
+            AppRoute.Profile => "维护账号资料、安全设置和注销流程",
+            AppRoute.Payment => "选择会员套餐并打开支付",
+            AppRoute.PrinterTest => "枚举系统打印机并发送测试指令",
+            _ => ""
+        };
+    }
+
+    private void UpdateRouteSelection()
+    {
+        foreach (var route in Routes)
+        {
+            route.IsSelected = route.Route == SelectedRoute;
+        }
+
+        ProfileRoute.IsSelected = ProfileRoute.Route == SelectedRoute;
+        PaymentRoute.IsSelected = PaymentRoute.Route == SelectedRoute;
+        PrinterTestRoute.IsSelected = PrinterTestRoute.Route == SelectedRoute;
     }
 }

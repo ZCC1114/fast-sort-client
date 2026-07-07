@@ -10,17 +10,21 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                Background="{StaticResource FastSortSurface}"
-                BorderBrush="{StaticResource FastSortBorder}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="14"
+                Style="{StaticResource CardBorder}"
                 Margin="0,0,0,12">
-            <StackPanel>
-                <DockPanel Margin="0,0,0,12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="{Binding Title}"
-                                   FontSize="18"
+                                   FontSize="20"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource FastSortText}" />
                         <TextBlock Text="{Binding Subtitle}"
@@ -28,13 +32,15 @@
                                    TextWrapping="Wrap"
                                    Margin="0,4,0,0" />
                     </StackPanel>
-                    <Button Content="Refresh"
+                    <Button Content="刷新"
                             Command="{Binding RefreshCommand}"
                             DockPanel.Dock="Right"
                             MinWidth="76" />
                 </DockPanel>
 
-                <ItemsControl ItemsSource="{Binding Metrics}" Margin="0,0,0,12">
+                <ItemsControl Grid.Row="1"
+                              ItemsSource="{Binding Metrics}"
+                              Margin="0,0,0,12">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel />
@@ -45,13 +51,13 @@
                             <Border Background="{StaticResource FastSortBackground}"
                                     BorderBrush="{StaticResource FastSortBorder}"
                                     BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="10"
-                                    MinWidth="130"
+                                    CornerRadius="8"
+                                    Padding="12"
+                                    MinWidth="140"
                                     Margin="0,0,8,8">
                                 <StackPanel>
                                     <TextBlock Text="{Binding Value}"
-                                               FontSize="18"
+                                               FontSize="20"
                                                FontWeight="SemiBold"
                                                Foreground="{StaticResource FastSortText}" />
                                     <TextBlock Text="{Binding Title}"
@@ -63,7 +69,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <WrapPanel Margin="0,0,0,10">
+                <WrapPanel Grid.Row="2" Margin="0,0,0,10">
                     <StackPanel Width="180"
                                 Margin="0,0,10,8"
                                 Visibility="{Binding IsSearchVisible, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -121,6 +127,7 @@
                 </WrapPanel>
 
                 <StackPanel Visibility="{Binding IsTextAreaVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Grid.Row="3"
                             Margin="0,0,0,10">
                     <TextBlock Text="{Binding TextAreaLabel}"
                                Foreground="{StaticResource FastSortMuted}"
@@ -136,7 +143,7 @@
                              Margin="0,4,0,0" />
                 </StackPanel>
 
-                <DockPanel>
+                <DockPanel Grid.Row="4">
                     <TextBlock Text="{Binding StatusText}"
                                Foreground="{StaticResource FastSortMuted}"
                                TextWrapping="Wrap"
@@ -167,14 +174,11 @@
                                 Visibility="{Binding IsDangerVisible, Converter={StaticResource BoolToVisibilityConverter}}" />
                     </StackPanel>
                 </DockPanel>
-            </StackPanel>
+            </Grid>
         </Border>
 
         <Border Grid.Row="1"
-                Background="{StaticResource FastSortSurface}"
-                BorderBrush="{StaticResource FastSortBorder}"
-                BorderThickness="1"
-                CornerRadius="8"
+                Style="{StaticResource CardBorder}"
                 Padding="8">
             <DataGrid ItemsSource="{Binding Rows}"
                       SelectedItem="{Binding SelectedRow}"
@@ -186,14 +190,14 @@
                       CanUserDeleteRows="False"
                       SelectionMode="Single">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" Width="110" />
-                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="180" />
-                    <DataGridTextColumn Header="Detail" Binding="{Binding Detail}" Width="*" />
-                    <DataGridTextColumn Header="Meta" Binding="{Binding Meta}" Width="150" />
-                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130" />
-                    <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="170" />
-                    <DataGridTextColumn Header="Amount" Binding="{Binding Amount}" Width="90" />
-                    <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="150" />
+                    <DataGridTextColumn Header="类型" Binding="{Binding Kind}" Width="110" />
+                    <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="190" />
+                    <DataGridTextColumn Header="详情" Binding="{Binding Detail}" Width="*" />
+                    <DataGridTextColumn Header="信息" Binding="{Binding Meta}" Width="160" />
+                    <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="130" />
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="170" />
+                    <DataGridTextColumn Header="金额" Binding="{Binding Amount}" Width="90" />
+                    <DataGridTextColumn Header="时间" Binding="{Binding Time}" Width="150" />
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
@@ -203,7 +207,7 @@
                        Foreground="{StaticResource FastSortMuted}"
                        VerticalAlignment="Center" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <TextBlock Text="Page size"
+                <TextBlock Text="每页"
                            Foreground="{StaticResource FastSortMuted}"
                            VerticalAlignment="Center"
                            Margin="0,0,8,0" />
@@ -212,11 +216,11 @@
                          Height="30"
                          Margin="0,0,8,0"
                          VerticalContentAlignment="Center" />
-                <Button Content="Previous"
+                <Button Content="上一页"
                         Command="{Binding PreviousPageCommand}"
                         MinWidth="76"
                         Margin="0,0,8,0" />
-                <Button Content="Next"
+                <Button Content="下一页"
                         Command="{Binding NextPageCommand}"
                         MinWidth="76" />
             </StackPanel>
