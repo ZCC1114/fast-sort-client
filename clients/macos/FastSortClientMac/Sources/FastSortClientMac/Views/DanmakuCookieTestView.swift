@@ -70,6 +70,13 @@ struct DanmakuCookieTestView: View {
             .buttonStyle(AccentOutlineButtonStyle())
             .disabled(viewModel.isCollecting)
 
+            if viewModel.canCopyWorkbenchDiagnostics {
+                Button("复制抖音捕获诊断") {
+                    viewModel.copyWorkbenchDiagnostics()
+                }
+                .buttonStyle(AccentOutlineButtonStyle())
+            }
+
             if viewModel.selectedPlatform.key == "xhs" {
                 Button("打开小红书直播助手") {
                     viewModel.loadXiaohongshuLiveAssistant()
@@ -415,6 +422,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     @Published var danmuStatusText = "尚未连接弹幕。"
     @Published var danmuStatusLevel = DanmakuStatusLevel.info
     @Published var danmuMessages: [DanmakuTestMessage] = []
+    @Published var workbenchCaptureCount = 0
 
     let websiteDataStore = DanmakuWebAuthSessionStore.shared.websiteDataStore
     private weak var webView: WKWebView?
@@ -520,6 +528,10 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         return selectedPlatform.directDanmuAdapter?.helpText ?? "本测试使用采集到的 Cookie 在客户端直连平台弹幕源，不经过迅拣后端。"
     }
 
+    var canCopyWorkbenchDiagnostics: Bool {
+        selectedPlatform.directDanmuAdapter == .douyin && workbenchCaptureCount > 0
+    }
+
     func handleNavigation(url: URL) {
         let urlString = url.absoluteString
         currentURLText = urlString
@@ -558,6 +570,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         if capturedWorkbenchPayloads.count > 80 {
             capturedWorkbenchPayloads.removeFirst(capturedWorkbenchPayloads.count - 80)
         }
+        workbenchCaptureCount = capturedWorkbenchPayloads.count
 
         guard let candidate = douyinRoomInputCandidate(from: text) else { return }
         if capturedDouyinRoomInput != candidate {
@@ -565,6 +578,14 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             statusLevel = .success
         }
         capturedDouyinRoomInput = candidate
+    }
+
+    func copyWorkbenchDiagnostics() {
+        guard canCopyWorkbenchDiagnostics else { return }
+        let diagnostics = buildWorkbenchDiagnostics()
+        copyToPasteboard(diagnostics)
+        statusText = "已复制抖音捕获诊断，内容已脱敏。请把诊断文本发给我用于补齐字段解析。"
+        statusLevel = .success
     }
 
     func collectCookies(trigger: String) {
@@ -811,12 +832,17 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             .replacingOccurrences(of: "\\/", with: "/")
             .replacingOccurrences(of: "\\u0026", with: "&")
 
+        if let jsonCandidate = douyinRoomInputCandidateFromJSON(decoded) {
+            return jsonCandidate
+        }
+
         let roomKeys = [
             "room_id", "roomId", "webcast_room_id", "webcastRoomId",
             "room_id_str", "roomIdStr", "webcast_room_id_str", "webcastRoomIdStr",
             "live_room_id", "liveRoomId", "live_room_id_str", "liveRoomIdStr",
             "current_room_id", "currentRoomId", "ecom_live_room_id", "ecomLiveRoomId",
-            "im_room_id", "imRoomId", "roomID", "RoomId"
+            "im_room_id", "imRoomId", "roomID", "RoomId", "roomid", "roomidstr",
+            "webcastRoomID", "webcast_roomid", "liveRoomID", "live_roomid"
         ]
         for key in roomKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
@@ -831,7 +857,8 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         let roomPatterns = [
             #"["'](?:\#(roomKeyPattern))["']\s*[:=]\s*["']?(\d{5,30})"#,
             #"\\?["'](?:\#(roomKeyPattern))\\?["']\s*[:=]\s*\\?["']?(\d{5,30})"#,
-            #"(?:(?:\#(roomKeyPattern))=)([0-9]{5,30})"#
+            #"(?:(?:\#(roomKeyPattern))=)([0-9]{5,30})"#,
+            #"(?i)(?:room|webcast|live)[A-Za-z0-9_\-]{0,48}(?:id|ID|Id)["']?\s*[:=]\s*["']?(\d{5,30})"#
         ]
         for pattern in roomPatterns {
             if let value = firstDouyinRegexValue(in: decoded, pattern: pattern),
@@ -850,7 +877,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         let liveKeys = [
             "live_id", "liveId", "live_id_str", "liveIdStr",
             "webcastLiveId", "webcast_live_id", "anchorLiveId", "anchor_live_id",
-            "douyinId"
+            "douyinId", "authorLiveId", "author_live_id"
         ]
         for key in liveKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
@@ -864,7 +891,8 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             .joined(separator: "|")
         let livePatterns = [
             #"["'](?:\#(liveKeyPattern))["']\s*[:=]\s*["']?([A-Za-z0-9_\-]{4,80})"#,
-            #"\\?["'](?:\#(liveKeyPattern))\\?["']\s*[:=]\s*\\?["']?([A-Za-z0-9_\-]{4,80})"#
+            #"\\?["'](?:\#(liveKeyPattern))\\?["']\s*[:=]\s*\\?["']?([A-Za-z0-9_\-]{4,80})"#,
+            #"(?i)(?:live|webcast|anchor|douyin)[A-Za-z0-9_\-]{0,48}(?:id|ID|Id)["']?\s*[:=]\s*["']?([A-Za-z0-9_\-]{4,80})"#
         ]
         for pattern in livePatterns {
             if let value = firstDouyinRegexValue(in: decoded, pattern: pattern),
@@ -874,6 +902,116 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         }
 
         return nil
+    }
+
+    private func douyinRoomInputCandidateFromJSON(_ text: String) -> String? {
+        for jsonText in possibleJSONTexts(from: text) {
+            guard let data = jsonText.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) else { continue }
+            if let roomId = douyinJSONCandidate(in: object, path: [], mode: .room) {
+                return roomId
+            }
+            if let liveId = douyinJSONCandidate(in: object, path: [], mode: .live) {
+                return liveId
+            }
+        }
+        return nil
+    }
+
+    private enum DouyinJSONCandidateMode {
+        case room
+        case live
+    }
+
+    private func douyinJSONCandidate(in value: Any, path: [String], mode: DouyinJSONCandidateMode) -> String? {
+        if let dictionary = value as? [String: Any] {
+            for (key, item) in dictionary {
+                let normalizedKey = normalizeDouyinFieldKey(key)
+                let fullPath = path + [normalizedKey]
+                guard let text = douyinJSONStringValue(item) else { continue }
+                switch mode {
+                case .room:
+                    if douyinKeyLooksLikeRoomId(normalizedKey, path: fullPath), isDouyinRoomIdCandidate(text) {
+                        return text
+                    }
+                case .live:
+                    if douyinKeyLooksLikeLiveId(normalizedKey, path: fullPath), isDouyinLiveIdCandidate(text) {
+                        return text
+                    }
+                }
+            }
+            for (key, item) in dictionary {
+                if let candidate = douyinJSONCandidate(in: item, path: path + [normalizeDouyinFieldKey(key)], mode: mode) {
+                    return candidate
+                }
+            }
+        } else if let array = value as? [Any] {
+            for item in array {
+                if let candidate = douyinJSONCandidate(in: item, path: path, mode: mode) {
+                    return candidate
+                }
+            }
+        }
+        return nil
+    }
+
+    private func possibleJSONTexts(from text: String) -> [String] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var outputs: [String] = []
+        if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
+            outputs.append(trimmed)
+        }
+        if let start = trimmed.firstIndex(of: "{"), let end = trimmed.lastIndex(of: "}"), start < end {
+            outputs.append(String(trimmed[start...end]))
+        }
+        if let start = trimmed.firstIndex(of: "["), let end = trimmed.lastIndex(of: "]"), start < end {
+            outputs.append(String(trimmed[start...end]))
+        }
+        return Array(Set(outputs))
+    }
+
+    private func normalizeDouyinFieldKey(_ key: String) -> String {
+        key
+            .replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: "-", with: "")
+            .lowercased()
+    }
+
+    private func douyinJSONStringValue(_ value: Any) -> String? {
+        if let string = value as? String {
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        if let number = value as? NSNumber {
+            return number.stringValue
+        }
+        return nil
+    }
+
+    private func douyinKeyLooksLikeRoomId(_ key: String, path: [String]) -> Bool {
+        let pathText = path.joined(separator: ".")
+        let exact = Set([
+            "roomid", "roomidstr", "webcastroomid", "webcastroomidstr",
+            "liveroomid", "liveroomidstr", "currentroomid", "ecomliveroomid", "imroomid"
+        ])
+        if exact.contains(key) { return true }
+        if key == "id", path.dropLast().contains(where: { $0.contains("room") || $0.contains("webcast") }) {
+            return true
+        }
+        return pathText.contains("room") && key.contains("id")
+    }
+
+    private func douyinKeyLooksLikeLiveId(_ key: String, path: [String]) -> Bool {
+        let pathText = path.joined(separator: ".")
+        let exact = Set([
+            "liveid", "liveidstr", "webcastliveid", "webcastliveidstr",
+            "anchorliveid", "authorliveid", "douyinid"
+        ])
+        if exact.contains(key) { return true }
+        if key == "id", path.dropLast().contains(where: { $0.contains("live") || $0.contains("anchor") }) {
+            return true
+        }
+        return (pathText.contains("live") || pathText.contains("anchor") || pathText.contains("webcast")) && key.contains("id")
     }
 
     private func firstDouyinRegexValue(in text: String, pattern: String) -> String? {
@@ -902,6 +1040,73 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         capturedWorkbenchPayloads = []
         capturedWorkbenchPayloadSignatures = []
         capturedDouyinRoomInput = nil
+        workbenchCaptureCount = 0
+    }
+
+    private func buildWorkbenchDiagnostics() -> String {
+        let joinedPayloads = capturedWorkbenchPayloads.joined(separator: "\n")
+        let candidate = capturedDouyinRoomInput ?? douyinRoomInputCandidate(from: joinedPayloads)
+        let sections = capturedWorkbenchPayloads.enumerated().map { index, payload in
+            let masked = maskSensitiveWorkbenchText(payload)
+            return """
+            ## capture \(index + 1)
+            \(workbenchDiagnosticSnippet(from: masked))
+            """
+        }
+        return """
+        # Douyin Workbench Capture Diagnostic
+        generated_at: \(ISO8601DateFormatter().string(from: Date()))
+        captured_count: \(capturedWorkbenchPayloads.count)
+        parsed_candidate: \(candidate ?? "nil")
+
+        \(sections.joined(separator: "\n\n"))
+        """
+    }
+
+    private func maskSensitiveWorkbenchText(_ text: String) -> String {
+        var output = text
+        let replacements = [
+            (#"(?i)(["']?[A-Za-z0-9_\-]*(?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*["']?\s*[:=]\s*["']?)([^"',&\s}\]]{4,})"#, "$1***"),
+            (#"(?i)((?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*=)[^&\s"']+"#, "$1***"),
+            (#"([A-Za-z0-9_\-=]{96,})"#, "***long-value***")
+        ]
+        for (pattern, template) in replacements {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            let range = NSRange(output.startIndex..<output.endIndex, in: output)
+            output = regex.stringByReplacingMatches(in: output, range: range, withTemplate: template)
+        }
+        return output
+    }
+
+    private func workbenchDiagnosticSnippet(from text: String) -> String {
+        let keywords = #"(?i)(room|webcast|live|anchor|douyin|comment|message|chat|control|直播|中控|互动)"#
+        guard let regex = try? NSRegularExpression(pattern: keywords) else {
+            return String(text.prefix(1600))
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        let matches = regex.matches(in: text, range: range)
+        guard !matches.isEmpty else {
+            return String(text.prefix(1600))
+        }
+
+        var snippets: [String] = []
+        var usedRanges: [Range<String.Index>] = []
+        for match in matches.prefix(8) {
+            guard let matchRange = Range(match.range, in: text) else { continue }
+            let lower = text.index(matchRange.lowerBound, offsetBy: -360, limitedBy: text.startIndex) ?? text.startIndex
+            let upper = text.index(matchRange.upperBound, offsetBy: 520, limitedBy: text.endIndex) ?? text.endIndex
+            let snippetRange = lower..<upper
+            if usedRanges.contains(where: { rangesOverlap($0, snippetRange) }) {
+                continue
+            }
+            usedRanges.append(snippetRange)
+            snippets.append(String(text[snippetRange]))
+        }
+        return snippets.joined(separator: "\n---\n")
+    }
+
+    private func rangesOverlap(_ left: Range<String.Index>, _ right: Range<String.Index>) -> Bool {
+        left.lowerBound < right.upperBound && right.lowerBound < left.upperBound
     }
 
     private func handleNativeDanmuEvent(_ event: NativeDanmakuEvent, adapter: DanmakuDirectAdapterKind) {
