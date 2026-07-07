@@ -52,6 +52,13 @@ final class DouyinRoomResolver: Sendable {
         URL(string: "https://fxg.jinritemai.com/ffa/mshop/homepage/index")!,
         URL(string: "https://buyin.jinritemai.com/dashboard")!
     ]
+    private let workbenchAPIURLs = [
+        URL(string: "https://buyin.jinritemai.com/api/livepc/playinfo")!
+    ]
+    private let workbenchAPIReferers = [
+        "https://fxg.jinritemai.com/ffa/content-tool/live/control",
+        "https://buyin.jinritemai.com/dashboard/live/control"
+    ]
 
     func resolveRoom(request: NativeDanmakuConnectRequest) async throws -> DouyinResolvedRoom {
         var cookieJar = DouyinCookieJar(cookieHeader: request.cookieHeader)
@@ -71,6 +78,10 @@ final class DouyinRoomResolver: Sendable {
 
         if let liveId = requestLiveId(request, liveSessionLiveId: liveSessionFields.liveId),
            let resolved = try await resolveRoomFromLivePage(liveId: liveId, cookieJar: cookieJar) {
+            return resolved
+        }
+
+        if let resolved = try await resolveRoomFromWorkbenchAPI(cookieJar: cookieJar) {
             return resolved
         }
 
@@ -129,6 +140,51 @@ final class DouyinRoomResolver: Sendable {
             return DouyinResolvedRoom(liveId: liveId, roomId: liveId, cookieHeader: cookieJar.header(includeMsToken: true))
         }
         return nil
+    }
+
+    private func resolveRoomFromWorkbenchAPI(cookieJar: DouyinCookieJar) async throws -> DouyinResolvedRoom? {
+        var redirectedToLogin = false
+        for url in workbenchAPIURLs {
+            for referer in workbenchAPIReferers {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 12
+                request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
+                request.setValue("application/json,text/plain,*/*", forHTTPHeaderField: "Accept")
+                request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+                request.setValue(origin(fromReferer: referer), forHTTPHeaderField: "Origin")
+                request.setValue(referer, forHTTPHeaderField: "Referer")
+                request.setValue("XMLHttpRequest", forHTTPHeaderField: "X-Requested-With")
+                request.setValue("fxg|live", forHTTPHeaderField: "X-Ecom-Platform-Source")
+                request.setValue(cookieJar.header(includeMsToken: false), forHTTPHeaderField: "Cookie")
+
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, [401, 403].contains(http.statusCode) {
+                    throw NativeDanmakuAdapterError.loginExpired("抖音")
+                }
+                if isLoginRedirect(response.url) {
+                    redirectedToLogin = true
+                    continue
+                }
+
+                let text = String(data: data, encoding: .utf8) ?? ""
+                if let roomId = douyinRoomId(from: text) {
+                    return DouyinResolvedRoom(liveId: roomId, roomId: roomId, cookieHeader: cookieJar.header(includeMsToken: true))
+                }
+            }
+        }
+        if redirectedToLogin {
+            throw NativeDanmakuAdapterError.loginExpired("抖音")
+        }
+        return nil
+    }
+
+    private func origin(fromReferer referer: String) -> String {
+        guard let url = URL(string: referer),
+              let scheme = url.scheme,
+              let host = url.host else {
+            return "https://fxg.jinritemai.com"
+        }
+        return "\(scheme)://\(host)"
     }
 
     private func resolveRoomFromWorkbench(cookieJar: DouyinCookieJar) async throws -> DouyinResolvedRoom? {

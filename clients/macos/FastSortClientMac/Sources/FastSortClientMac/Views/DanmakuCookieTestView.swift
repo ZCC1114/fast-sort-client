@@ -574,7 +574,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         }
         workbenchCaptureCount = capturedWorkbenchPayloads.count
 
-        guard let candidate = douyinRoomInputCandidate(from: text) else { return }
+        guard let candidate = douyinWorkbenchRoomInputCandidate(from: text) else { return }
         if capturedDouyinRoomInput != candidate {
             statusText = "已从抖店中控接口响应捕获到直播标识：\(candidate)。现在可以点击“连接弹幕”。"
             statusLevel = .success
@@ -762,7 +762,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             return capturedDouyinRoomInput
         }
 
-        if let capturedCandidate = douyinRoomInputCandidate(from: capturedWorkbenchPayloads.joined(separator: "\n")) {
+        if let capturedCandidate = douyinWorkbenchRoomInputCandidate(from: capturedWorkbenchPayloads.joined(separator: "\n")) {
             capturedDouyinRoomInput = capturedCandidate
             appendDanmuMessage(.system("已从已捕获的抖店中控接口响应解析到直播标识：\(capturedCandidate)"))
             return capturedCandidate
@@ -839,7 +839,53 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
         let rawValue = try? await webView.evaluateJavaScript(script)
         let text = (rawValue as? String) ?? rawValue.map { "\($0)" } ?? ""
-        return douyinRoomInputCandidate(from: text)
+        return douyinWorkbenchRoomInputCandidate(from: text)
+    }
+
+    private func douyinWorkbenchRoomInputCandidate(from text: String) -> String? {
+        let decoded = NativeDanmakuHTTP.decodeRepeatedly(text)
+            .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+
+        for jsonText in possibleJSONTexts(from: decoded) {
+            guard let data = jsonText.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data) else { continue }
+            if let roomId = douyinJSONCandidate(in: object, path: [], mode: .room) {
+                return roomId
+            }
+        }
+
+        let roomKeys = [
+            "room_id", "roomId", "webcast_room_id", "webcastRoomId",
+            "room_id_str", "roomIdStr", "webcast_room_id_str", "webcastRoomIdStr",
+            "live_room_id", "liveRoomId", "live_room_id_str", "liveRoomIdStr",
+            "current_room_id", "currentRoomId", "ecom_live_room_id", "ecomLiveRoomId",
+            "im_room_id", "imRoomId", "roomID", "RoomId", "roomid", "roomidstr",
+            "webcastRoomID", "webcast_roomid", "liveRoomID", "live_roomid"
+        ]
+        for key in roomKeys {
+            if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
+               isDouyinRoomIdCandidate(value) {
+                return value
+            }
+        }
+
+        let roomKeyPattern = roomKeys
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
+        let roomPatterns = [
+            #"["'](?:\#(roomKeyPattern))["']\s*[:=]\s*["']?(\d{5,30})"#,
+            #"\\?["'](?:\#(roomKeyPattern))\\?["']\s*[:=]\s*\\?["']?(\d{5,30})"#,
+            #"(?:(?:\#(roomKeyPattern))=)([0-9]{5,30})"#,
+            #"(?i)(?:room|webcast|live)[A-Za-z0-9_\-]{0,48}(?:id|ID|Id)["']?\s*[:=]\s*["']?(\d{5,30})"#
+        ]
+        for pattern in roomPatterns {
+            if let value = firstDouyinRegexValue(in: decoded, pattern: pattern),
+               isDouyinRoomIdCandidate(value) {
+                return value
+            }
+        }
+        return nil
     }
 
     private func douyinRoomInputCandidate(from text: String) -> String? {
