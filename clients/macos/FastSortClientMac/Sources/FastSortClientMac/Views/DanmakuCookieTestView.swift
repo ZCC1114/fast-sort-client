@@ -662,7 +662,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             guard let nativeAdapter = NativeDanmakuAdapterFactory().adapter(for: platformKey) else {
                 throw NativeDanmakuAdapterError.unsupportedPlatform(adapter.displayName)
             }
-            let input = liveRoomInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            let input = await nativeRoomInput(adapter: adapter)
             let request = NativeDanmakuConnectRequest(
                 platformKey: platformKey,
                 roomId: nil,
@@ -688,6 +688,141 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             appendDanmuMessage(.system("\(adapter.displayName) native adapter 连接失败：\(error.localizedDescription)"))
             cleanupDanmuTasks()
         }
+    }
+
+    private func nativeRoomInput(adapter: DanmakuDirectAdapterKind) async -> String {
+        let input = liveRoomInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard input.isEmpty, adapter == .douyin else { return input }
+
+        guard let candidate = await douyinRoomInputFromCurrentWebView() else {
+            appendDanmuMessage(.system("未能从当前抖店中控页面解析到 room_id/live_id，将继续用 Cookie 请求工作台兜底；如仍失败，需要补充中控接口 HAR。"))
+            return ""
+        }
+
+        appendDanmuMessage(.system("已从当前抖店中控页面解析到直播标识：\(candidate)"))
+        return candidate
+    }
+
+    private func douyinRoomInputFromCurrentWebView() async -> String? {
+        guard let webView else { return nil }
+        let script = """
+        (() => {
+          const text = value => {
+            if (value === undefined || value === null) return "";
+            if (typeof value === "string") return value;
+            if (typeof value === "number" || typeof value === "boolean") return String(value);
+            try { return JSON.stringify(value); } catch (_) { return ""; }
+          };
+          const storageDump = store => {
+            const output = {};
+            if (!store) return output;
+            for (let i = 0; i < Math.min(store.length, 200); i += 1) {
+              const key = store.key(i);
+              if (!key) continue;
+              const value = store.getItem(key) || "";
+              if (/room|live|webcast|anchor|douyin|aweme/i.test(key + value)) {
+                output[key] = value.slice(0, 8000);
+              }
+            }
+            return output;
+          };
+          const windowHints = {};
+          for (const key of Object.keys(window).slice(0, 1200)) {
+            if (!/room|live|webcast|anchor|douyin|aweme/i.test(key)) continue;
+            try {
+              const value = text(window[key]).slice(0, 8000);
+              if (value) windowHints[key] = value;
+            } catch (_) {}
+          }
+          const frames = Array.from(document.querySelectorAll("iframe")).slice(0, 20).map(frame => {
+            const item = { src: frame.src || "" };
+            try {
+              item.href = frame.contentWindow && frame.contentWindow.location ? frame.contentWindow.location.href : "";
+              item.html = frame.contentDocument && frame.contentDocument.documentElement ? frame.contentDocument.documentElement.outerHTML.slice(0, 120000) : "";
+              item.text = frame.contentDocument && frame.contentDocument.body ? frame.contentDocument.body.innerText.slice(0, 40000) : "";
+            } catch (_) {}
+            return item;
+          });
+          const scripts = Array.from(document.scripts)
+            .map(script => script.src || script.textContent || "")
+            .filter(value => /room|live|webcast|anchor|douyin|aweme/i.test(value))
+            .join("\\n")
+            .slice(0, 120000);
+          return JSON.stringify({
+            href: location.href,
+            title: document.title,
+            bodyText: document.body ? document.body.innerText.slice(0, 80000) : "",
+            html: document.documentElement ? document.documentElement.outerHTML.slice(0, 240000) : "",
+            localStorage: storageDump(window.localStorage),
+            sessionStorage: storageDump(window.sessionStorage),
+            windowHints,
+            frames,
+            scripts
+          });
+        })();
+        """
+
+        let rawValue = try? await webView.evaluateJavaScript(script)
+        let text = (rawValue as? String) ?? rawValue.map { "\($0)" } ?? ""
+        return douyinRoomInputCandidate(from: text)
+    }
+
+    private func douyinRoomInputCandidate(from text: String) -> String? {
+        let decoded = NativeDanmakuHTTP.decodeRepeatedly(text)
+            .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+
+        for key in [
+            "room_id", "roomId", "webcast_room_id", "webcastRoomId",
+            "live_room_id", "liveRoomId", "roomID", "RoomId"
+        ] {
+            if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
+               isDouyinRoomIdCandidate(value) {
+                return value
+            }
+        }
+
+        let roomPatterns = [
+            ##"["'](?:roomId|room_id|webcastRoomId|webcast_room_id|liveRoomId|live_room_id|roomID|RoomId)["']\s*[:=]\s*["']?(\d{5,30})"##,
+            ##"(?:roomId|room_id|webcastRoomId|webcast_room_id|liveRoomId|live_room_id|roomID|RoomId)\\?["']?\s*[:=]\s*\\?["']?(\d{5,30})"##,
+            ##"(?:room_id|roomId|webcast_room_id|webcastRoomId)=([0-9]{5,30})"##
+        ]
+        for pattern in roomPatterns {
+            if let value = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: pattern),
+               isDouyinRoomIdCandidate(value) {
+                return value
+            }
+        }
+
+        if let livePageId = NativeDanmakuHTTP.firstRegexMatch(
+            in: decoded,
+            pattern: #"live\.douyin\.com/([A-Za-z0-9_\-]{4,80})"#
+        ) {
+            return livePageId
+        }
+
+        for key in ["live_id", "liveId", "webcastLiveId", "anchorLiveId", "douyinId"] {
+            if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
+               isDouyinLiveIdCandidate(value) {
+                return value
+            }
+        }
+
+        let livePattern = ##"["'](?:liveId|live_id|webcastLiveId|anchorLiveId|douyinId)["']\s*[:=]\s*["']?([A-Za-z0-9_\-]{4,80})"##
+        if let value = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: livePattern),
+           isDouyinLiveIdCandidate(value) {
+            return value
+        }
+
+        return nil
+    }
+
+    private func isDouyinRoomIdCandidate(_ value: String) -> Bool {
+        value.range(of: #"^\d{5,30}$"#, options: .regularExpression) != nil
+    }
+
+    private func isDouyinLiveIdCandidate(_ value: String) -> Bool {
+        value.range(of: #"^[A-Za-z0-9_\-]{4,80}$"#, options: .regularExpression) != nil
     }
 
     private func handleNativeDanmuEvent(_ event: NativeDanmakuEvent, adapter: DanmakuDirectAdapterKind) {
