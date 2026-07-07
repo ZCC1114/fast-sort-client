@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Net.Http;
 
 namespace FastSort.Client.Windows.Core.Api;
 
@@ -123,5 +124,5 @@ public sealed class ApiException : Exception
         Code = code;
     }
 
-    public new int? Code { get; }
+    public int? Code { get; }
 }

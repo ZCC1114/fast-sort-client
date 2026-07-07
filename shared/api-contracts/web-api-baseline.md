@@ -72,7 +72,14 @@
 ## Rooms Contract Notes
 
 - `addUserRoomTb` request body now accepts `roomName`, optional `roomNumber`, and `liveSession`.
-- `queryRoomsByUserId` room items must include `liveSession` for Taobao/XHS/KS/WX local helper danmu connection.
+- `queryRoomsByUserId` room items must include `liveSession` for Taobao/XHS/KS/WX native adapter danmu connection.
+- Windows native adapter flow now sends platform Cookie as `liveSession` from the client after WebView2 login.
+- Confirmed/used wrappers:
+  - `addFsUserTBRoom`: sends `roomName`, optional empty `roomNumber`, and `liveSession`.
+  - `addFsUserWXRoom`: sends `roomName`, `cookies`, `liveSession`, and empty `roomUrl`.
+  - `addUpdateFsUserXhsRoom`: sends `cookies`, `liveSession`, optional display `roomName`, and empty `id`.
+  - `addUpdateFsUserKuaishouRoom`: sends `cookies`, `liveSession`, optional display `roomName`, and empty `roomNumber/eid`.
+- Backend TODO: confirm whether XHS/KS accept empty technical room identifiers when `liveSession` is present, and add/confirm equivalent `liveSession` save contracts for `fxg`, `fxg_kol`, TikTok, and Shopee.
 | template | getDanmuMappingPage | `/app/fsDanmuMapping/getFsDanmuMappingPage` |
 | template | addDanmuMapping | `/app/fsDanmuMapping/addFsDanmuMapping` |
 | template | updateDanmuMapping | `/app/fsDanmuMapping/updateFsDanmuMapping` |

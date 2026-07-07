@@ -34,9 +34,16 @@ public sealed class TrendSeries
 public sealed class RoomListItem
 {
     public string? Id { get; set; }
+    public string? UserId { get; set; }
     public string? RoomName { get; set; }
     public string? RoomNumber { get; set; }
     public string? RoomUrl { get; set; }
+    public string? Eid { get; set; }
+    public string? LiveSession { get; set; }
+    public string? Cookies { get; set; }
+    public string? Cookie { get; set; }
+    public string? Session { get; set; }
+    public string? PlatformKey { get; set; }
     public JsonElement? LiveType { get; set; }
 }
 

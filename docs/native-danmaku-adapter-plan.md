@@ -85,8 +85,84 @@ Windows 当前状态：
 
 - `clients/windows/FastSort.Client.Windows` 是 WPF + .NET 8 骨架。
 - 已有登录、API Client、Token 存储、主窗口和基础路由。
-- 还没有直播间页、授权测试页、平台 WebView Cookie 采集、native adapter 层。
 - 后端 `liveSession` 合同、正式 `liveType`、工作台登录地址、保存 Cookie 接口和协议抓包清单统一见 `docs/windows-native-adapter-handoff.md`；Windows 侧继续实现前先按该文档核对缺口。
+- 已补齐 WebView2 授权测试页、直播间页、平台 Cookie 采集、`Core/Danmaku` 基础层和 native adapter 会话协调层。
+- 当前平台 adapter 均为明确命名的 native adapter placeholder：会解析/校验 `liveSession` Cookie 并输出统一事件状态，但平台协议连接、签名、protobuf/二进制消息解析仍待补齐。
+- Windows build 已在 2026-07-07 通过：`dotnet build clients/windows/FastSort.Client.Windows/FastSort.Client.Windows.csproj`。
+
+## Windows 进度记录
+
+更新时间：2026-07-07。
+
+### 阶段 1：Windows 基础设施
+
+状态：已完成。
+
+- 已确认原始 Windows 工程 build 失败点：`ApiClient.cs` 缺少 `System.Net.Http` 命名空间。
+- 已引入 `Microsoft.Web.WebView2 1.0.4022.49`。
+- 已新增 `Core/Danmaku` 目录。
+- 已实现 `DanmakuPlatformRegistry.cs`，平台登录地址、`cookieDomain`、`contentScriptMatch`、`pageHandlerMatch`、`cookieUrls`、`allowedDomains` 按 `docs/platform-cookie-collection-steps.md` 配置。
+- 已实现 `DanmakuCookieSessionParser.cs`，支持 raw Cookie、JSON 字段、cookie map、cookie item array，并支持视频号 `sessionid/wxuin` 解析。
+- 已实现 `NativeDanmakuModels.cs`、`INativeDanmakuAdapter.cs`、`NativeDanmakuAdapterFactory.cs`、`NativeDanmakuSessionCoordinator.cs`。
+- `dotnet build clients/windows/FastSort.Client.Windows/FastSort.Client.Windows.csproj` 通过。
+
+### 阶段 2：WebView2 Cookie 授权页
+
+状态：已完成。
+
+- 已新增 `直播授权测试` 路由、`DanmakuCookieTestView.xaml` 和 `DanmakuCookieTestViewModel.cs`。
+- 用户选择平台后通过 WebView2 打开对应后台工作台登录页。
+- 当前 URL 命中成功页规则后延迟 2.5 秒自动采集 Cookie；也保留手动“采集”按钮用于调试。
+- Cookie 读取使用 `CoreWebView2.CookieManager.GetCookiesAsync(...)`。
+- Cookie 过滤、命中判断、脱敏展示位于 `Core/Danmaku/Cookie` 服务和 ViewModel 中，XAML code-behind 只负责 WebView2 导航和读取。
+- UI 展示脱敏 Cookie、当前 URL、命中状态、采集结果和 native adapter 统一事件。
+- 保存到后台 `liveSession` 的正式入口保留在直播间页服务；授权测试页不直接绑定房间。
+- `dotnet build` 通过。
+
+### 阶段 3：直播间添加流程
+
+状态：基础完成。
+
+- 已新增 `LiveRoomsView.xaml` 和 `LiveRoomsViewModel.cs`。
+- 添加直播间时 UI 只要求选择平台和可选备注，不提供 Cookie、抖音号、roomId、unique_id、session_id、短链或分享链接输入框。
+- 平台工作台登录成功后采集 Cookie，并通过 `LiveRoomsService` 封装后台保存入口。
+- 正式房间列表从后台 `queryRoomsByUserId` 读取；native 预检只使用后台房间数据，不依赖授权测试页临时状态。
+- 已封装现有接口：淘宝 `addFsUserTBRoom`、视频号 `addFsUserWXRoom`、小红书 `addUpdateFsUserXhsRoom`、快手 `addUpdateFsUserKuaishouRoom`。
+- 后端待确认：抖音 `fxg/fxg_kol`、TikTok、Shopee 尚无明确新增房间时保存 `liveSession` 的 Windows contract；小红书/快手现有接口是否允许 `roomNumber/eid` 为空并只依赖 `liveSession` 也需确认。
+- `dotnet build` 通过。
+
+### 阶段 4：native adapter 会话协调层
+
+状态：已完成基础层。
+
+- `NativeDanmakuSessionCoordinator` 已从后台房间 `liveSession` 解析 Cookie。
+- 已根据 `liveType`/`platformKey` 选择 adapter。
+- 已统一输出 `NativeDanmakuEvent`。
+- 已统一状态：`connecting`、`living`、`stopped`、`disconnected`、`loginExpired`、`notStarted`、`error`。
+- 页面只消费统一事件，不直接处理平台协议。
+- 未新增任何外部 Python helper 启动逻辑。
+- `dotnet build` 通过。
+
+### 阶段 5：按平台实现 native adapter
+
+状态：placeholder 已接入，协议实现待补齐。
+
+- 视频号 `ec`：已解析 `sessionid/wxuin` 并输出统一状态；工作台直播状态接口和消息源协议仍需真实账号抓包确认。
+- 快手 `ks`：已保留 `kwfv1 -> Kww` header 预检；`liveStreamId`、token、WebSocket 地址和 protobuf payload 解析仍待实现。
+- 淘宝 `tb`：已接入 native placeholder；千牛 Cookie 解析当前直播 `roomId` 与 impaas/polling 弹幕接口仍待实现。
+- 小红书 `xhs`：已按 ark 工作台 Cookie 接入 native placeholder；ark 直播接口、弹幕源、csrf/token/签名字段仍需真实账号抓包确认。
+- 抖音 `fxg/fxg_kol`：已接入 native placeholder；仓库内没有可迁移的 `sign.js` 或 `douyin.proto`，签名、WSS、protobuf 解码和自动直播间解析待补齐。
+- TikTok/Shopee：仅保留注册表、Cookie 采集和 adapter stub；正式页接入等待后端 `liveType` 和业务范围确认。
+
+### 阶段 6：清理旧 helper 链路
+
+状态：Windows 已完成基础清理。
+
+- Windows 项目未新增外部 Python helper 启动链路。
+- 所有临时平台实现明确命名为 native adapter placeholder。
+- 新增页面文案和输入项不引导用户手动输入 Cookie、抖音号、roomId、分享链接等。
+- 静态扫描中命中的 `Process.Start` 仅用于打开外部浏览器或用户手册，不是 helper 启动。
+- `dotnet build` 通过。
 
 ## 共同架构
 

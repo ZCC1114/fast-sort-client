@@ -1,8 +1,10 @@
 using FastSort.Client.Windows.Core.Api;
 using FastSort.Client.Windows.Core.Api.Dto;
+using FastSort.Client.Windows.Core.Danmaku;
 using FastSort.Client.Windows.Core.Security;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Net.Http;
 
 namespace FastSort.Client.Windows.ViewModels;
 
@@ -20,13 +22,17 @@ public sealed class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         var apiClient = new ApiClient(new HttpClient(), () => Token);
+        var danmakuCoordinator = new NativeDanmakuSessionCoordinator(NativeDanmakuAdapterFactory.CreateDefault());
         _authService = new AuthService(apiClient);
         Dashboard = new DashboardViewModel(new DashboardService(apiClient), () => CurrentUserId);
+        DanmakuCookieTest = new DanmakuCookieTestViewModel(danmakuCoordinator);
+        LiveRooms = new LiveRoomsViewModel(new LiveRoomsService(apiClient), danmakuCoordinator, () => CurrentUserId);
         Login = new LoginViewModel(SendLoginCaptchaAsync, LoginWithSmsAsync, LoginWithAccountAsync);
         Routes =
         [
             new(AppRoute.Dashboard, "首页"),
             new(AppRoute.LiveRooms, "直播端"),
+            new(AppRoute.DanmakuCookieTest, "直播授权测试"),
             new(AppRoute.Entertainment, "娱乐模式"),
             new(AppRoute.Pick, "理货端"),
             new(AppRoute.DouyinRemark, "订单一键备注"),
@@ -43,6 +49,10 @@ public sealed class MainViewModel : ViewModelBase
     public LoginViewModel Login { get; }
 
     public DashboardViewModel Dashboard { get; }
+
+    public LiveRoomsViewModel LiveRooms { get; }
+
+    public DanmakuCookieTestViewModel DanmakuCookieTest { get; }
 
     public IReadOnlyList<RouteItemViewModel> Routes { get; }
 
@@ -109,12 +119,15 @@ public sealed class MainViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(SelectedRouteTitle));
                 OnPropertyChanged(nameof(IsDashboardSelected));
+                OnPropertyChanged(nameof(IsFeatureModulesSelected));
                 ApplyFeatureModules();
             }
         }
     }
 
     public bool IsDashboardSelected => SelectedRoute == AppRoute.Dashboard;
+
+    public bool IsFeatureModulesSelected => SelectedRoute is not AppRoute.Dashboard and not AppRoute.LiveRooms and not AppRoute.DanmakuCookieTest;
 
     public string SelectedRouteTitle
     {
@@ -213,6 +226,10 @@ public sealed class MainViewModel : ViewModelBase
             {
                 _ = Dashboard.LoadAsync();
             }
+            else if (route.Route == AppRoute.LiveRooms)
+            {
+                _ = LiveRooms.LoadRoomsAsync();
+            }
         }
     }
 
@@ -291,6 +308,7 @@ public sealed class MainViewModel : ViewModelBase
         {
             AppRoute.Dashboard => "首页",
             AppRoute.LiveRooms => "直播端",
+            AppRoute.DanmakuCookieTest => "直播授权测试",
             AppRoute.Entertainment => "娱乐模式",
             AppRoute.Pick => "理货端",
             AppRoute.DouyinRemark => "订单一键备注",
@@ -318,11 +336,9 @@ public sealed class MainViewModel : ViewModelBase
         return route switch
         {
             AppRoute.LiveRooms =>
-            [
-                new("房间列表", "平台标签、搜索、房间计数、头像、播放/停止"),
-                new("直播状态", "开始/结束直播、房间状态、模板校验、VIP 校验"),
-                new("弹幕与打印", "WebSocket、弹幕行状态、手动打印、自动打印队列、悬浮设置")
-            ],
+                [],
+            AppRoute.DanmakuCookieTest =>
+                [],
             AppRoute.Entertainment =>
             [
                 new("娱乐房间", "抖音房间筛选、进入/退出、当前房间信息"),

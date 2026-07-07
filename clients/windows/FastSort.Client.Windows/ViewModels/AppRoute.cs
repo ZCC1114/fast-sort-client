@@ -4,6 +4,7 @@ public enum AppRoute
 {
     Dashboard,
     LiveRooms,
+    DanmakuCookieTest,
     Entertainment,
     Pick,
     DouyinRemark,
