@@ -71,10 +71,11 @@ struct DanmakuCookieTestView: View {
             .disabled(viewModel.isCollecting)
 
             if viewModel.canCopyWorkbenchDiagnostics {
-                Button("复制抖音捕获诊断") {
+                Button(viewModel.isCopyingWorkbenchDiagnostics ? "正在生成诊断..." : "复制抖音捕获诊断") {
                     viewModel.copyWorkbenchDiagnostics()
                 }
                 .buttonStyle(AccentOutlineButtonStyle())
+                .disabled(viewModel.isCopyingWorkbenchDiagnostics)
             }
 
             if viewModel.selectedPlatform.key == "xhs" {
@@ -423,6 +424,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     @Published var danmuStatusLevel = DanmakuStatusLevel.info
     @Published var danmuMessages: [DanmakuTestMessage] = []
     @Published var workbenchCaptureCount = 0
+    @Published var isCopyingWorkbenchDiagnostics = false
 
     let websiteDataStore = DanmakuWebAuthSessionStore.shared.websiteDataStore
     private weak var webView: WKWebView?
@@ -561,7 +563,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
     func handleWorkbenchCapture(payload: DanmakuWebCapturePayload) {
         guard selectedPlatform.directDanmuAdapter == .douyin else { return }
-        let text = payload.combinedText
+        let text = String(payload.combinedText.prefix(60_000))
         guard !text.isEmpty else { return }
         let signature = payload.signature
         guard !capturedWorkbenchPayloadSignatures.contains(signature) else { return }
@@ -581,11 +583,24 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     }
 
     func copyWorkbenchDiagnostics() {
-        guard canCopyWorkbenchDiagnostics else { return }
-        let diagnostics = buildWorkbenchDiagnostics()
-        copyToPasteboard(diagnostics)
-        statusText = "已复制抖音捕获诊断，内容已脱敏。请把诊断文本发给我用于补齐字段解析。"
-        statusLevel = .success
+        guard canCopyWorkbenchDiagnostics, !isCopyingWorkbenchDiagnostics else { return }
+        let payloads = capturedWorkbenchPayloads
+        let candidate = capturedDouyinRoomInput
+        isCopyingWorkbenchDiagnostics = true
+        statusText = "正在生成抖音捕获诊断..."
+        statusLevel = .info
+        Task.detached(priority: .userInitiated) {
+            let diagnostics = DanmakuWorkbenchDiagnosticsBuilder.build(
+                payloads: payloads,
+                candidate: candidate
+            )
+            await MainActor.run {
+                self.copyToPasteboard(diagnostics)
+                self.isCopyingWorkbenchDiagnostics = false
+                self.statusText = "已复制抖音捕获诊断，内容已脱敏并限制大小。请把诊断文本发给我用于补齐字段解析。"
+                self.statusLevel = .success
+            }
+        }
     }
 
     func collectCookies(trigger: String) {
@@ -1041,6 +1056,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         capturedWorkbenchPayloadSignatures = []
         capturedDouyinRoomInput = nil
         workbenchCaptureCount = 0
+        isCopyingWorkbenchDiagnostics = false
     }
 
     private func buildWorkbenchDiagnostics() -> String {
@@ -1242,6 +1258,75 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     }
 }
 
+private enum DanmakuWorkbenchDiagnosticsBuilder {
+    static func build(payloads: [String], candidate: String?) -> String {
+        let sampledPayloads = payloads.suffix(12).map { String($0.prefix(8_000)) }
+        let sections = sampledPayloads.enumerated().map { index, payload in
+            let masked = maskSensitiveText(payload)
+            return """
+            ## capture \(payloads.count - sampledPayloads.count + index + 1)
+            \(diagnosticSnippet(from: masked))
+            """
+        }
+        let output = """
+        # Douyin Workbench Capture Diagnostic
+        generated_at: \(ISO8601DateFormatter().string(from: Date()))
+        captured_count: \(payloads.count)
+        sampled_count: \(sampledPayloads.count)
+        parsed_candidate: \(candidate ?? "nil")
+
+        \(sections.joined(separator: "\n\n"))
+        """
+        return String(output.prefix(60_000))
+    }
+
+    private static func maskSensitiveText(_ text: String) -> String {
+        var output = text
+        let replacements = [
+            (#"(?i)(["']?[A-Za-z0-9_\-]*(?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*["']?\s*[:=]\s*["']?)([^"',&\s}\]]{4,})"#, "$1***"),
+            (#"(?i)((?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*=)[^&\s"']+"#, "$1***"),
+            (#"([A-Za-z0-9_\-=]{96,})"#, "***long-value***")
+        ]
+        for (pattern, template) in replacements {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            let range = NSRange(output.startIndex..<output.endIndex, in: output)
+            output = regex.stringByReplacingMatches(in: output, range: range, withTemplate: template)
+        }
+        return output
+    }
+
+    private static func diagnosticSnippet(from text: String) -> String {
+        let keywords = #"(?i)(room|webcast|live|anchor|douyin|comment|message|chat|control|直播|中控|互动)"#
+        guard let regex = try? NSRegularExpression(pattern: keywords) else {
+            return String(text.prefix(1200))
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        let matches = regex.matches(in: text, range: range)
+        guard !matches.isEmpty else {
+            return String(text.prefix(1200))
+        }
+
+        var snippets: [String] = []
+        var usedRanges: [Range<String.Index>] = []
+        for match in matches.prefix(5) {
+            guard let matchRange = Range(match.range, in: text) else { continue }
+            let lower = text.index(matchRange.lowerBound, offsetBy: -240, limitedBy: text.startIndex) ?? text.startIndex
+            let upper = text.index(matchRange.upperBound, offsetBy: 360, limitedBy: text.endIndex) ?? text.endIndex
+            let snippetRange = lower..<upper
+            if usedRanges.contains(where: { rangesOverlap($0, snippetRange) }) {
+                continue
+            }
+            usedRanges.append(snippetRange)
+            snippets.append(String(text[snippetRange]))
+        }
+        return snippets.joined(separator: "\n---\n")
+    }
+
+    private static func rangesOverlap(_ left: Range<String.Index>, _ right: Range<String.Index>) -> Bool {
+        left.lowerBound < right.upperBound && right.lowerBound < left.upperBound
+    }
+}
+
 struct DanmakuWebCapturePayload {
     let kind: String
     let url: String
@@ -1350,7 +1435,7 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
                 url: String(url || ""),
                 status: Number(status || 0),
                 href: String(location.href || ""),
-                text: body.slice(0, 180000),
+                text: body.slice(0, 60000),
                 ts: Date.now()
               });
             } catch (_) {}
