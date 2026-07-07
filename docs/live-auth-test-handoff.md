@@ -202,6 +202,44 @@ clients/windows/FastSort.Client.Windows/Core/Danmaku
 - 不依赖授权测试页的临时 WebView 状态、捕获缓存或当前页面。
 - 打印和弹幕事件联动不被破坏。
 
+### 后端 liveSession 字段合同
+
+当前已验证的抖音、小红书、视频号三个平台，后端原则上可以继续只用一个字段保存授权信息，建议沿用现有 `liveSession`。但不要把它长期设计成只保存裸 Cookie 字符串，而应把它当成平台无关的 opaque session JSON，由客户端负责写入和解析。
+
+建议 `liveSession` 保存为 JSON 字符串，至少包含：
+
+```json
+{
+  "version": 1,
+  "platform": "xhs",
+  "cookieHeader": "a=...; b=...",
+  "cookies": [],
+  "captured": {
+    "liveId": "...",
+    "roomId": "...",
+    "finderUsername": "..."
+  },
+  "savedAt": "2026-07-08T00:00:00Z"
+}
+```
+
+后续改造注意事项：
+
+- 后端只需要保存/返回一个 `liveSession` 字段，不需要为抖音、小红书、视频号分别建不同 Cookie 字段。
+- 正式连接弹幕时，客户端必须同时拿到房间的 `liveType`，用 `liveType` 选择对应 native adapter。
+- `liveSession` 里至少要有 `cookieHeader`，或保存能还原成 Cookie header 的 cookie item 列表。
+- Cookie 是再次连接的核心，但为了稳定，建议把当次解析到的 `roomId`、`liveId`、`finderUsername` 等辅助信息也放进同一个 `liveSession` JSON。
+- adapter 不应依赖测试页 WebView 的临时内存状态；正式开播只能依赖 `queryRoomsByUserId` 返回的 `liveType` 和 `liveSession`。
+- Cookie 会过期，连接失败时要能提示“授权失效，请重新登录采集”，不要静默回退到外部 Python 服务或手填直播间号。
+
+三个已验证平台的字段建议：
+
+| 平台 | 只存 Cookie 是否够 | 建议保存内容 |
+| --- | --- | --- |
+| 抖音工作台 | 基本够，但不够稳 | `cookieHeader` + 中控解析到的 `room_id` / `live_id` |
+| 小红书工作台 | Cookie 是核心，但 ark 中控信息更稳 | `cookieHeader` + ark 捕获到的直播标识/token 摘要 |
+| 视频号工作台 | 不建议只存 Cookie | `cookieHeader` + `sessionid` / `wxuin` 可还原 Cookie + `finderUsername` / `auth_data` 解析结果 |
+
 ### 测试页不应该承担生产保存逻辑
 
 为了先跑通平台弹幕，测试页已经弱化/去掉“保存到迅拣直播间”这类测试入口。后续正式保存应在 `直播端` 或专门授权保存流程里做，不要把测试页临时状态当生产合同。
@@ -271,9 +309,9 @@ clients/macos/FastSortClientMac/Sources/FastSortClientMac/Views/DanmakuCookieTes
 
 1. 直播端打开平台工作台登录窗口。
 2. 采集 Cookie。
-3. 保存 Cookie 到后台房间 `liveSession`。
+3. 将 Cookie 和平台辅助信息打包成 `liveSession` JSON，保存到后台房间。
 4. 断开测试页临时 WebView 状态依赖。
-5. 正式开播时从 `queryRoomsByUserId` 返回的房间 `liveSession` 取 Cookie。
+5. 正式开播时从 `queryRoomsByUserId` 返回的房间 `liveType` + `liveSession` 恢复 adapter 输入。
 6. 使用 native adapter 连接弹幕。
 
 ### 3. 统一重连和生命周期机制
