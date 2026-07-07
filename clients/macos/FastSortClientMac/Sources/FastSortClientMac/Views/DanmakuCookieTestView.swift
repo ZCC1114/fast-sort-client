@@ -4,7 +4,6 @@ import SwiftUI
 import WebKit
 
 struct DanmakuCookieTestView: View {
-    @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = DanmakuCookieTestViewModel()
 
     var body: some View {
@@ -70,16 +69,6 @@ struct DanmakuCookieTestView: View {
             }
             .buttonStyle(AccentOutlineButtonStyle())
             .disabled(viewModel.isCollecting)
-
-            if viewModel.selectedPlatform.key == "xhs" || viewModel.selectedPlatform.key == "tb" {
-                Button(viewModel.isSavingRoom ? "保存中..." : "保存到迅拣直播间") {
-                    Task {
-                        await viewModel.saveCurrentPlatformRoom(apiClient: appState.makeAPIClient())
-                    }
-                }
-                .buttonStyle(AccentOutlineButtonStyle())
-                .disabled(viewModel.isSavingRoom || viewModel.cookieSnapshots.isEmpty || !appState.isAuthenticated)
-            }
 
             Divider()
 
@@ -412,7 +401,6 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     @Published var statusLevel = DanmakuStatusLevel.info
     @Published var cookieSnapshots: [DanmakuCookieSnapshot] = []
     @Published var isCollecting = false
-    @Published var isSavingRoom = false
     @Published var showCookieValues = false
     @Published var liveRoomInput = ""
     @Published var danmuStatus = DanmakuConnectionStatus.idle
@@ -579,37 +567,6 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         copyToPasteboard(cookieString(masked: false))
         statusText = "已复制完整 Cookie 串到剪贴板。"
         statusLevel = .success
-    }
-
-    @MainActor
-    func saveCurrentPlatformRoom(apiClient: APIClient) async {
-        guard selectedPlatform.key == "xhs" || selectedPlatform.key == "tb" else { return }
-        let cookieHeader = cookieString(masked: false).replacingOccurrences(of: ";", with: "; ")
-        guard !cookieHeader.isEmpty else {
-            statusText = "请先完成 \(selectedPlatform.name) 登录并采集 Cookie。"
-            statusLevel = .error
-            return
-        }
-
-        isSavingRoom = true
-        statusText = "正在保存 \(selectedPlatform.name) 工作台登录态到迅拣直播间..."
-        statusLevel = .info
-        defer { isSavingRoom = false }
-
-        do {
-            let service = LiveRoomsService(apiClient: apiClient)
-            if selectedPlatform.key == "tb" {
-                try await service.addTaobaoRoom(roomName: "淘宝直播间", liveSession: cookieHeader)
-                statusText = "淘宝工作台登录态已保存到迅拣直播间 liveSession。开播时会由 native adapter 解析当前直播并直连弹幕。"
-            } else {
-                try await service.addOrUpdateXiaohongshuRoom(cookies: cookieHeader)
-                statusText = "小红书 ark 工作台登录态已保存到迅拣直播间。账号已开播时，native adapter 会解析当前直播并直连弹幕。"
-            }
-            statusLevel = .success
-        } catch {
-            statusText = "保存 \(selectedPlatform.name) 直播间失败：\(error.localizedDescription)"
-            statusLevel = .error
-        }
     }
 
     func copyMaskedJSON() {
