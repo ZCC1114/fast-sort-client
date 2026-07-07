@@ -569,8 +569,15 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         guard !capturedWorkbenchPayloadSignatures.contains(signature) else { return }
         capturedWorkbenchPayloadSignatures.insert(signature)
         capturedWorkbenchPayloads.append(text)
-        if capturedWorkbenchPayloads.count > 80 {
-            capturedWorkbenchPayloads.removeFirst(capturedWorkbenchPayloads.count - 80)
+        while capturedWorkbenchPayloads.count > 160 {
+            if let removableIndex = capturedWorkbenchPayloads.firstIndex(where: { payload in
+                !payload.localizedCaseInsensitiveContains("websocket-")
+                    && !payload.localizedCaseInsensitiveContains("frontier.snssdk.com")
+            }) {
+                capturedWorkbenchPayloads.remove(at: removableIndex)
+            } else {
+                capturedWorkbenchPayloads.removeFirst()
+            }
         }
         workbenchCaptureCount = capturedWorkbenchPayloads.count
 
@@ -1245,7 +1252,11 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
 private enum DanmakuWorkbenchDiagnosticsBuilder {
     static func build(payloads: [String], candidate: String?) -> String {
-        let sampledPayloads = diagnosticSample(from: payloads).map { String($0.prefix(10_000)) }
+        let sampledPayloads = diagnosticSample(from: payloads).map { payload in
+            payload.localizedCaseInsensitiveContains("websocket-")
+                ? String(payload.prefix(24_000))
+                : String(payload.prefix(10_000))
+        }
         let sections = sampledPayloads.enumerated().map { index, payload in
             let masked = maskSensitiveText(payload)
             return """
@@ -1278,8 +1289,11 @@ private enum DanmakuWorkbenchDiagnosticsBuilder {
 
         let priorityPatterns = [
             "api/livepc/playinfo",
-            "frontier.snssdk.com",
+            "websocket-send-b64",
+            "websocket-message-b64",
+            "websocket-send",
             "websocket-message",
+            "frontier.snssdk.com",
             "__base64__",
             "\"room_id\"",
             "room_id"
@@ -1297,6 +1311,19 @@ private enum DanmakuWorkbenchDiagnosticsBuilder {
 
     private static func maskSensitiveText(_ text: String) -> String {
         var output = text
+        var base64Placeholders: [(String, String)] = []
+        if let binaryRegex = try? NSRegularExpression(pattern: #"__base64__:[A-Za-z0-9+/=]{16,}"#) {
+            let range = NSRange(output.startIndex..<output.endIndex, in: output)
+            let matches = binaryRegex.matches(in: output, range: range).reversed()
+            for (index, match) in matches.enumerated() {
+                guard let matchRange = Range(match.range, in: output) else { continue }
+                let value = String(output[matchRange])
+                let marker = "__FAST_SORT_BINARY_FRAME_\(index)__"
+                output.replaceSubrange(matchRange, with: marker)
+                base64Placeholders.append((marker, value))
+            }
+        }
+
         let replacements = [
             (#"(?i)(["']?[A-Za-z0-9_\-]*(?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*["']?\s*[:=]\s*["']?)([^"',&\s}\]]{4,})"#, "$1***"),
             (#"(?i)((?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*=)[^&\s"']+"#, "$1***"),
@@ -1307,10 +1334,17 @@ private enum DanmakuWorkbenchDiagnosticsBuilder {
             let range = NSRange(output.startIndex..<output.endIndex, in: output)
             output = regex.stringByReplacingMatches(in: output, range: range, withTemplate: template)
         }
+        for (marker, value) in base64Placeholders {
+            output = output.replacingOccurrences(of: marker, with: value)
+        }
         return output
     }
 
     private static func diagnosticSnippet(from text: String) -> String {
+        if text.localizedCaseInsensitiveContains("websocket-") || text.contains("__base64__:") {
+            return String(text.prefix(8_000))
+        }
+
         let keywords = #"(?i)(room|webcast|live|anchor|douyin|comment|message|chat|control|直播|中控|互动)"#
         guard let regex = try? NSRegularExpression(pattern: keywords) else {
             return String(text.prefix(1200))
@@ -1360,7 +1394,9 @@ struct DanmakuWebCapturePayload {
             kind,
             url,
             "\(status)",
-            String(text.prefix(512))
+            "\(text.count)",
+            String(text.prefix(512)),
+            String(text.suffix(512))
         ].joined(separator: "|")
     }
 }
@@ -1449,6 +1485,54 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
               return "";
             }
           };
+          const blobToBase64 = blob => new Promise(resolve => {
+            try {
+              if (blob && typeof blob.arrayBuffer === "function") {
+                blob.arrayBuffer()
+                  .then(buffer => resolve(arrayBufferToBase64(buffer)))
+                  .catch(() => resolve(""));
+                return;
+              }
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const result = String(reader.result || "");
+                const comma = result.indexOf(",");
+                resolve(comma >= 0 ? result.slice(comma + 1) : result);
+              };
+              reader.onerror = () => resolve("");
+              reader.readAsDataURL(blob);
+            } catch (_) {
+              resolve("");
+            }
+          });
+          const binaryValueToBase64 = value => {
+            try {
+              if (value instanceof ArrayBuffer) return arrayBufferToBase64(value);
+              if (ArrayBuffer.isView(value)) {
+                const view = value;
+                return arrayBufferToBase64(view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength));
+              }
+            } catch (_) {}
+            return "";
+          };
+          const postBinary = (kind, url, value) => {
+            try {
+              if (typeof value === "string") {
+                post(kind, url, 0, value);
+                return;
+              }
+              const base64 = binaryValueToBase64(value);
+              if (base64) {
+                post(`${kind}-b64`, url, 0, "__base64__:" + base64);
+                return;
+              }
+              if (value && (typeof Blob !== "undefined") && value instanceof Blob) {
+                blobToBase64(value).then(encoded => {
+                  if (encoded) post(`${kind}-b64`, url, 0, "__base64__:" + encoded);
+                });
+              }
+            } catch (_) {}
+          };
           const post = (kind, url, status, value) => {
             try {
               if (!handler) return;
@@ -1524,20 +1608,37 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
 
           const NativeWebSocket = window.WebSocket;
           if (typeof NativeWebSocket === "function") {
+            const nativeSocketSend = NativeWebSocket.prototype && NativeWebSocket.prototype.send;
+            if (typeof nativeSocketSend === "function" && !NativeWebSocket.prototype.__fastSortSendCaptured) {
+              try {
+                Object.defineProperty(NativeWebSocket.prototype, "__fastSortSendCaptured", { value: true });
+                NativeWebSocket.prototype.send = function(data) {
+                  try {
+                    postBinary("websocket-send", this.__fastSortDanmakuURL || "", data);
+                  } catch (_) {}
+                  return nativeSocketSend.apply(this, arguments);
+                };
+              } catch (_) {}
+            }
             const FastSortWebSocket = function(url, protocols) {
               post("websocket-open", url, 0, String(url || ""));
               const socket = protocols === undefined ? new NativeWebSocket(url) : new NativeWebSocket(url, protocols);
+              try { socket.__fastSortDanmakuURL = String(url || ""); } catch (_) {}
+              try {
+                if (/frontier\.snssdk\.com|X-Ecom-Platform-Source=fxg/i.test(String(url || ""))) {
+                  socket.binaryType = "arraybuffer";
+                }
+              } catch (_) {}
+              try { post("websocket-binary-type", url, 0, String(socket.binaryType || "")); } catch (_) {}
               try {
                 socket.addEventListener("message", event => {
-                  if (typeof event.data === "string") {
-                    post("websocket-message", url, 0, event.data);
-                  } else if (event.data instanceof ArrayBuffer) {
-                    post("websocket-message-b64", url, 0, "__base64__:" + arrayBufferToBase64(event.data));
-                  } else if (event.data && typeof event.data.arrayBuffer === "function") {
-                    event.data.arrayBuffer()
-                      .then(buffer => post("websocket-message-b64", url, 0, "__base64__:" + arrayBufferToBase64(buffer)))
-                      .catch(() => {});
-                  }
+                  postBinary("websocket-message", url, event.data);
+                });
+                socket.addEventListener("close", event => {
+                  post("websocket-close", url, Number(event.code || 0), String(event.reason || ""));
+                });
+                socket.addEventListener("error", () => {
+                  post("websocket-error", url, 0, String(url || ""));
                 });
               } catch (_) {}
               return socket;
