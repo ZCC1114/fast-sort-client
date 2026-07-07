@@ -33,7 +33,7 @@
                           Height="34"
                           VerticalAlignment="Center" />
                 <TextBox Grid.Column="1"
-                         Text="{Binding LoginUrlText}"
+                         Text="{Binding LoginUrlText, Mode=OneWay}"
                          IsReadOnly="True"
                          Height="34"
                          Margin="10,0"
@@ -124,7 +124,7 @@
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource FastSortText}"
                                        Margin="0,0,0,8" />
-                            <TextBox Text="{Binding MaskedCookieHeader}"
+                            <TextBox Text="{Binding MaskedCookieHeader, Mode=OneWay}"
                                      IsReadOnly="True"
                                      AcceptsReturn="True"
                                      TextWrapping="Wrap"

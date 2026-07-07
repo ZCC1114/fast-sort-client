@@ -161,7 +161,7 @@
                                    Foreground="{StaticResource FastSortMuted}"
                                    TextWrapping="Wrap"
                                    Margin="0,6,0,0" />
-                        <TextBox Text="{Binding MaskedCookieHeader}"
+                        <TextBox Text="{Binding MaskedCookieHeader, Mode=OneWay}"
                                  IsReadOnly="True"
                                  AcceptsReturn="True"
                                  TextWrapping="Wrap"
