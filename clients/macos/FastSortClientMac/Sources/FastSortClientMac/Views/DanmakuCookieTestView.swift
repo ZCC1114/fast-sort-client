@@ -850,7 +850,8 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         for jsonText in possibleJSONTexts(from: decoded) {
             guard let data = jsonText.data(using: .utf8),
                   let object = try? JSONSerialization.jsonObject(with: data) else { continue }
-            if let roomId = douyinJSONCandidate(in: object, path: [], mode: .room) {
+            if let roomId = douyinJSONCandidate(in: object, path: [], mode: .room),
+               isDouyinPublicRoomIdCandidate(roomId) {
                 return roomId
             }
         }
@@ -865,7 +866,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         ]
         for key in roomKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
-               isDouyinRoomIdCandidate(value) {
+               isDouyinPublicRoomIdCandidate(value) {
                 return value
             }
         }
@@ -881,7 +882,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         ]
         for pattern in roomPatterns {
             if let value = firstDouyinRegexValue(in: decoded, pattern: pattern),
-               isDouyinRoomIdCandidate(value) {
+               isDouyinPublicRoomIdCandidate(value) {
                 return value
             }
         }
@@ -1093,6 +1094,10 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         value.range(of: #"^\d{5,30}$"#, options: .regularExpression) != nil
     }
 
+    private func isDouyinPublicRoomIdCandidate(_ value: String) -> Bool {
+        value.range(of: #"^\d{12,30}$"#, options: .regularExpression) != nil
+    }
+
     private func isDouyinLiveIdCandidate(_ value: String) -> Bool {
         value.range(of: #"^[A-Za-z0-9_\-]{4,80}$"#, options: .regularExpression) != nil
     }
@@ -1103,72 +1108,6 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         capturedDouyinRoomInput = nil
         workbenchCaptureCount = 0
         isCopyingWorkbenchDiagnostics = false
-    }
-
-    private func buildWorkbenchDiagnostics() -> String {
-        let joinedPayloads = capturedWorkbenchPayloads.joined(separator: "\n")
-        let candidate = capturedDouyinRoomInput ?? douyinRoomInputCandidate(from: joinedPayloads)
-        let sections = capturedWorkbenchPayloads.enumerated().map { index, payload in
-            let masked = maskSensitiveWorkbenchText(payload)
-            return """
-            ## capture \(index + 1)
-            \(workbenchDiagnosticSnippet(from: masked))
-            """
-        }
-        return """
-        # Douyin Workbench Capture Diagnostic
-        generated_at: \(ISO8601DateFormatter().string(from: Date()))
-        captured_count: \(capturedWorkbenchPayloads.count)
-        parsed_candidate: \(candidate ?? "nil")
-
-        \(sections.joined(separator: "\n\n"))
-        """
-    }
-
-    private func maskSensitiveWorkbenchText(_ text: String) -> String {
-        var output = text
-        let replacements = [
-            (#"(?i)(["']?[A-Za-z0-9_\-]*(?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*["']?\s*[:=]\s*["']?)([^"',&\s}\]]{4,})"#, "$1***"),
-            (#"(?i)((?:token|cookie|session|authorization|auth|ticket|csrf|sign|signature|secret|passwd|password|sid)[A-Za-z0-9_\-]*=)[^&\s"']+"#, "$1***"),
-            (#"([A-Za-z0-9_\-=]{96,})"#, "***long-value***")
-        ]
-        for (pattern, template) in replacements {
-            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
-            let range = NSRange(output.startIndex..<output.endIndex, in: output)
-            output = regex.stringByReplacingMatches(in: output, range: range, withTemplate: template)
-        }
-        return output
-    }
-
-    private func workbenchDiagnosticSnippet(from text: String) -> String {
-        let keywords = #"(?i)(room|webcast|live|anchor|douyin|comment|message|chat|control|直播|中控|互动)"#
-        guard let regex = try? NSRegularExpression(pattern: keywords) else {
-            return String(text.prefix(1600))
-        }
-        let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        let matches = regex.matches(in: text, range: range)
-        guard !matches.isEmpty else {
-            return String(text.prefix(1600))
-        }
-
-        var snippets: [String] = []
-        var usedRanges: [Range<String.Index>] = []
-        for match in matches.prefix(8) {
-            guard let matchRange = Range(match.range, in: text) else { continue }
-            let lower = text.index(matchRange.lowerBound, offsetBy: -360, limitedBy: text.startIndex) ?? text.startIndex
-            let upper = text.index(matchRange.upperBound, offsetBy: 520, limitedBy: text.endIndex) ?? text.endIndex
-            let snippetRange = lower..<upper
-            if usedRanges.contains(where: { rangesOverlap($0, snippetRange) }) {
-                continue
-            }
-            usedRanges.append(snippetRange)
-            snippets.append(String(text[snippetRange]))
-        }
-        return snippets.joined(separator: "\n---\n")
-    }
-
-    private func rangesOverlap(_ left: Range<String.Index>, _ right: Range<String.Index>) -> Bool {
-        left.lowerBound < right.upperBound && right.lowerBound < left.upperBound
     }
 
     private func handleNativeDanmuEvent(_ event: NativeDanmakuEvent, adapter: DanmakuDirectAdapterKind) {
@@ -1306,11 +1245,11 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
 private enum DanmakuWorkbenchDiagnosticsBuilder {
     static func build(payloads: [String], candidate: String?) -> String {
-        let sampledPayloads = payloads.suffix(12).map { String($0.prefix(8_000)) }
+        let sampledPayloads = diagnosticSample(from: payloads).map { String($0.prefix(10_000)) }
         let sections = sampledPayloads.enumerated().map { index, payload in
             let masked = maskSensitiveText(payload)
             return """
-            ## capture \(payloads.count - sampledPayloads.count + index + 1)
+            ## sample \(index + 1)
             \(diagnosticSnippet(from: masked))
             """
         }
@@ -1324,6 +1263,36 @@ private enum DanmakuWorkbenchDiagnosticsBuilder {
         \(sections.joined(separator: "\n\n"))
         """
         return String(output.prefix(60_000))
+    }
+
+    private static func diagnosticSample(from payloads: [String]) -> [String] {
+        var sampled: [String] = []
+        var signatures = Set<String>()
+
+        func add(_ payload: String) {
+            let signature = String(payload.prefix(300))
+            guard !signatures.contains(signature) else { return }
+            signatures.insert(signature)
+            sampled.append(payload)
+        }
+
+        let priorityPatterns = [
+            "api/livepc/playinfo",
+            "frontier.snssdk.com",
+            "websocket-message",
+            "__base64__",
+            "\"room_id\"",
+            "room_id"
+        ]
+        for pattern in priorityPatterns {
+            for payload in payloads where payload.localizedCaseInsensitiveContains(pattern) {
+                add(payload)
+            }
+        }
+        for payload in payloads.suffix(12) {
+            add(payload)
+        }
+        return Array(sampled.prefix(16))
     }
 
     private static func maskSensitiveText(_ text: String) -> String {
@@ -1469,6 +1438,17 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
             if (value instanceof ArrayBuffer) return "";
             try { return JSON.stringify(value); } catch (_) { return String(value); }
           };
+          const arrayBufferToBase64 = buffer => {
+            try {
+              const bytes = new Uint8Array(buffer);
+              const size = Math.min(bytes.byteLength, 12000);
+              let binary = "";
+              for (let i = 0; i < size; i += 1) binary += String.fromCharCode(bytes[i]);
+              return btoa(binary);
+            } catch (_) {
+              return "";
+            }
+          };
           const post = (kind, url, status, value) => {
             try {
               if (!handler) return;
@@ -1551,6 +1531,12 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
                 socket.addEventListener("message", event => {
                   if (typeof event.data === "string") {
                     post("websocket-message", url, 0, event.data);
+                  } else if (event.data instanceof ArrayBuffer) {
+                    post("websocket-message-b64", url, 0, "__base64__:" + arrayBufferToBase64(event.data));
+                  } else if (event.data && typeof event.data.arrayBuffer === "function") {
+                    event.data.arrayBuffer()
+                      .then(buffer => post("websocket-message-b64", url, 0, "__base64__:" + arrayBufferToBase64(buffer)))
+                      .catch(() => {});
                   }
                 });
               } catch (_) {}

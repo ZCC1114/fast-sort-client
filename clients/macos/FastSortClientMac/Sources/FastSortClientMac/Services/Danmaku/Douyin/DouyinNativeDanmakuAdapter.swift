@@ -68,12 +68,19 @@ final class DouyinRoomResolver: Sendable {
         }
 
         let liveSessionFields = liveSessionRoomFields(from: request.liveSession)
+        var shortRoomId: String?
         if let directRoomId = liveSessionFields.roomId {
-            return DouyinResolvedRoom(
-                liveId: liveSessionFields.liveId ?? directRoomId,
-                roomId: directRoomId,
-                cookieHeader: cookieJar.header(includeMsToken: true)
-            )
+            if isPublicWebcastRoomIdCandidate(directRoomId) {
+                return DouyinResolvedRoom(
+                    liveId: liveSessionFields.liveId ?? directRoomId,
+                    roomId: directRoomId,
+                    cookieHeader: cookieJar.header(includeMsToken: true)
+                )
+            }
+            shortRoomId = directRoomId
+            if let resolved = try await resolveRoomFromLivePage(liveId: directRoomId, cookieJar: cookieJar) {
+                return resolved
+            }
         }
 
         if let liveId = requestLiveId(request, liveSessionLiveId: liveSessionFields.liveId),
@@ -81,12 +88,19 @@ final class DouyinRoomResolver: Sendable {
             return resolved
         }
 
-        if let resolved = try await resolveRoomFromWorkbenchAPI(cookieJar: cookieJar) {
+        let workbenchAPIResult = try await resolveRoomFromWorkbenchAPI(cookieJar: cookieJar)
+        if let resolved = workbenchAPIResult.resolved {
             return resolved
         }
 
-        if let resolved = try await resolveRoomFromWorkbench(cookieJar: cookieJar) {
+        let workbenchResult = try await resolveRoomFromWorkbench(cookieJar: cookieJar)
+        if let resolved = workbenchResult.resolved {
             return resolved
+        }
+
+        shortRoomId = workbenchAPIResult.shortRoomId ?? workbenchResult.shortRoomId ?? shortRoomId
+        if let shortRoomId {
+            throw NativeDanmakuError("抖音抖店中控返回 room_id=\(shortRoomId)，但它不是公开 Webcast WSS 需要的长 roomId。下一步需要接入抖店 frontier.snssdk.com 中控弹幕通道。")
         }
 
         throw NativeDanmakuAdapterError.notStarted("抖音")
@@ -133,17 +147,19 @@ final class DouyinRoomResolver: Sendable {
             throw NativeDanmakuAdapterError.loginExpired("抖音")
         }
         let html = String(data: data, encoding: .utf8) ?? ""
-        if let roomId = douyinRoomId(from: html) {
+        if let roomId = douyinRoomId(from: html),
+           isPublicWebcastRoomIdCandidate(roomId) {
             return DouyinResolvedRoom(liveId: liveId, roomId: roomId, cookieHeader: cookieJar.header(includeMsToken: true))
         }
-        if isRoomIdCandidate(liveId) {
+        if isPublicWebcastRoomIdCandidate(liveId) {
             return DouyinResolvedRoom(liveId: liveId, roomId: liveId, cookieHeader: cookieJar.header(includeMsToken: true))
         }
         return nil
     }
 
-    private func resolveRoomFromWorkbenchAPI(cookieJar: DouyinCookieJar) async throws -> DouyinResolvedRoom? {
+    private func resolveRoomFromWorkbenchAPI(cookieJar: DouyinCookieJar) async throws -> (resolved: DouyinResolvedRoom?, shortRoomId: String?) {
         var redirectedToLogin = false
+        var shortRoomId: String?
         for url in workbenchAPIURLs {
             for referer in workbenchAPIReferers {
                 var request = URLRequest(url: url)
@@ -168,14 +184,23 @@ final class DouyinRoomResolver: Sendable {
 
                 let text = String(data: data, encoding: .utf8) ?? ""
                 if let roomId = douyinRoomId(from: text) {
-                    return DouyinResolvedRoom(liveId: roomId, roomId: roomId, cookieHeader: cookieJar.header(includeMsToken: true))
+                    if isPublicWebcastRoomIdCandidate(roomId) {
+                        return (
+                            DouyinResolvedRoom(liveId: roomId, roomId: roomId, cookieHeader: cookieJar.header(includeMsToken: true)),
+                            nil
+                        )
+                    }
+                    shortRoomId = roomId
+                    if let resolved = try await resolveRoomFromLivePage(liveId: roomId, cookieJar: cookieJar) {
+                        return (resolved, nil)
+                    }
                 }
             }
         }
         if redirectedToLogin {
             throw NativeDanmakuAdapterError.loginExpired("抖音")
         }
-        return nil
+        return (nil, shortRoomId)
     }
 
     private func origin(fromReferer referer: String) -> String {
@@ -187,8 +212,9 @@ final class DouyinRoomResolver: Sendable {
         return "\(scheme)://\(host)"
     }
 
-    private func resolveRoomFromWorkbench(cookieJar: DouyinCookieJar) async throws -> DouyinResolvedRoom? {
+    private func resolveRoomFromWorkbench(cookieJar: DouyinCookieJar) async throws -> (resolved: DouyinResolvedRoom?, shortRoomId: String?) {
         var redirectedToLogin = false
+        var shortRoomId: String?
         for url in workbenchURLs {
             var request = URLRequest(url: url)
             request.timeoutInterval = 12
@@ -203,17 +229,26 @@ final class DouyinRoomResolver: Sendable {
             }
             let text = String(data: data, encoding: .utf8) ?? ""
             if let roomId = douyinRoomId(from: text) {
-                return DouyinResolvedRoom(liveId: roomId, roomId: roomId, cookieHeader: cookieJar.header(includeMsToken: true))
+                if isPublicWebcastRoomIdCandidate(roomId) {
+                    return (
+                        DouyinResolvedRoom(liveId: roomId, roomId: roomId, cookieHeader: cookieJar.header(includeMsToken: true)),
+                        nil
+                    )
+                }
+                shortRoomId = roomId
+                if let resolved = try await resolveRoomFromLivePage(liveId: roomId, cookieJar: cookieJar) {
+                    return (resolved, nil)
+                }
             }
             if let liveId = douyinLiveId(from: text),
                let resolved = try await resolveRoomFromLivePage(liveId: liveId, cookieJar: cookieJar) {
-                return resolved
+                return (resolved, nil)
             }
         }
         if redirectedToLogin {
             throw NativeDanmakuAdapterError.loginExpired("抖音")
         }
-        return nil
+        return (nil, shortRoomId)
     }
 
     private func isLoginRedirect(_ url: URL?) -> Bool {
@@ -323,6 +358,10 @@ final class DouyinRoomResolver: Sendable {
 
     private func isRoomIdCandidate(_ value: String) -> Bool {
         value.range(of: #"^\d{5,30}$"#, options: .regularExpression) != nil
+    }
+
+    private func isPublicWebcastRoomIdCandidate(_ value: String) -> Bool {
+        value.range(of: #"^\d{12,30}$"#, options: .regularExpression) != nil
     }
 }
 
@@ -916,7 +955,7 @@ final class DouyinNativeDanmakuAdapter: NativeDanmakuAdapter {
                         status: .error,
                         roomId: request.roomId,
                         platformRoomId: roomInit.roomId,
-                        content: error.localizedDescription
+                        content: "\(error.localizedDescription)（liveId=\(roomInit.liveId), roomId=\(roomInit.roomId)）"
                     )
                 )
             }
