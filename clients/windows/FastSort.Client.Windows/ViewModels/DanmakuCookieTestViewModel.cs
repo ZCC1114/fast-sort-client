@@ -39,7 +39,7 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
 
     private Task SaveCookieAsync()
     {
-        SaveResultText = "测试页不绑定后端房间，请在直播端页面保存 liveSession。";
+        SaveResultText = "测试页只做 Cookie 采集和 native adapter 验证，不写入正式房间 liveSession。";
         return Task.CompletedTask;
     }
 

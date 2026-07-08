@@ -98,16 +98,24 @@
 
                     <StackPanel DockPanel.Dock="Bottom">
                         <Button Command="{Binding SelectRouteCommand}" CommandParameter="{Binding ProfileRoute}" Style="{StaticResource SidebarRouteButton}" Margin="0,0,0,4">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE77B;" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="15" FontFamily="Segoe MDL2 Assets" />
-                                <TextBlock Text="个人中心" Foreground="{StaticResource FastSortText}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" />
-                            </StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding ProfileRoute.IconText}" Width="22" HorizontalAlignment="Center" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="15" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding ProfileRoute.Title}" Foreground="{StaticResource FastSortText}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" VerticalAlignment="Center" />
+                            </Grid>
                         </Button>
                         <Button Command="{Binding LogoutCommand}" Style="{StaticResource SidebarRouteButton}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE8BB;" Width="22" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="15" FontFamily="Segoe MDL2 Assets" />
-                                <TextBlock Text="退出登录" Foreground="{StaticResource FastSortMuted}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" />
-                            </StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="&#xE8BB;" Width="22" HorizontalAlignment="Center" TextAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="15" FontFamily="Segoe MDL2 Assets" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="退出登录" Foreground="{StaticResource FastSortMuted}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" VerticalAlignment="Center" />
+                            </Grid>
                         </Button>
                     </StackPanel>
 
@@ -130,10 +138,10 @@
                                     </Button.Style>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="22" />
+                                            <ColumnDefinition Width="28" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding IconText}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="15" FontFamily="Segoe MDL2 Assets" TextAlignment="Center" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding IconText}" Width="22" HorizontalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="15" FontFamily="Segoe MDL2 Assets" TextAlignment="Center" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" FontSize="13" FontWeight="Medium" Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     </Grid>
                                 </Button>
@@ -166,7 +174,7 @@
 
                 <Grid Grid.Row="1" Background="{StaticResource FastSortGroupedBackground}">
                     <ScrollViewer Padding="24,20,24,24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <Grid>
+                        <Grid Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
                             <views:DashboardView DataContext="{Binding Dashboard}"
                                                  Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Dashboard}" />
                             <views:LiveRoomsView DataContext="{Binding LiveRooms}"

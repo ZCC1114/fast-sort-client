@@ -27,7 +27,7 @@ public sealed class MainViewModel : ViewModelBase
         _authService = new AuthService(apiClient);
         Dashboard = new DashboardViewModel(new DashboardService(apiClient), () => CurrentUserId);
         DanmakuCookieTest = new DanmakuCookieTestViewModel(danmakuCoordinator);
-        LiveRooms = new LiveRoomsViewModel(liveRoomsService, danmakuCoordinator, () => CurrentUserId);
+        LiveRooms = new LiveRoomsViewModel(liveRoomsService, danmakuCoordinator, () => CurrentUserId, NavigateToRoute);
         BusinessPage = new BusinessModulesViewModel(
             new BlacklistService(apiClient),
             new VipService(apiClient),
@@ -71,11 +71,11 @@ public sealed class MainViewModel : ViewModelBase
 
     public RouteItemViewModel SettingsRoute => Routes[^1];
 
-    public RouteItemViewModel ProfileRoute { get; } = new(AppRoute.Profile, "个人中心", "个");
+    public RouteItemViewModel ProfileRoute { get; } = new(AppRoute.Profile, "个人中心", "\uE77B");
 
-    public RouteItemViewModel PaymentRoute { get; } = new(AppRoute.Payment, "支付", "付");
+    public RouteItemViewModel PaymentRoute { get; } = new(AppRoute.Payment, "支付", "\uE8C7");
 
-    public RouteItemViewModel PrinterTestRoute { get; } = new(AppRoute.PrinterTest, "打印测试", "印");
+    public RouteItemViewModel PrinterTestRoute { get; } = new(AppRoute.PrinterTest, "打印测试", "\uE749");
 
     public RelayCommand<RouteItemViewModel> SelectRouteCommand { get; }
 

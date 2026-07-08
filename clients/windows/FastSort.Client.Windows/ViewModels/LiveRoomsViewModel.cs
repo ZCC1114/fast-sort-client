@@ -6,38 +6,68 @@ using FastSort.Client.Windows.Core.Danmaku;
 
 namespace FastSort.Client.Windows.ViewModels;
 
-public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
+public sealed class LiveRoomsViewModel : ViewModelBase
 {
     private readonly LiveRoomsService _liveRoomsService;
     private readonly NativeDanmakuSessionCoordinator _coordinator;
     private readonly Func<string> _userIdProvider;
+    private readonly Action<AppRoute> _navigate;
     private INativeDanmakuConnection? _activeConnection;
     private bool _isLoading;
-    private string _remark = "";
-    private string _statusText = "选择平台并打开工作台登录页，授权后采集 Cookie 并保存到后端直播间。";
+    private string _searchText = "";
+    private string _statusText = "请选择直播间。正式连接只使用后台房间 liveSession。";
+    private string _selectedPrintMode = "manual";
+    private bool _onlyPrintFans;
+    private bool _uniqueMode;
+    private bool _bidModeEnabled;
+    private bool _nineGridModeEnabled;
+    private LiveRoomPlatformFilter _selectedPlatformFilter;
     private LiveRoomRowViewModel? _selectedRoom;
 
     public LiveRoomsViewModel(
         LiveRoomsService liveRoomsService,
         NativeDanmakuSessionCoordinator coordinator,
-        Func<string> userIdProvider)
+        Func<string> userIdProvider,
+        Action<AppRoute> navigate)
     {
         _liveRoomsService = liveRoomsService;
         _coordinator = coordinator;
         _userIdProvider = userIdProvider;
+        _navigate = navigate;
+        PlatformFilters =
+        [
+            new("全部", ""),
+            new("抖音", "0"),
+            new("淘宝", "1"),
+            new("小红书", "2"),
+            new("微信", "3"),
+            new("快手", "4")
+        ];
+        PrintModes =
+        [
+            new("手动", "manual"),
+            new("自动", "auto")
+        ];
+        _selectedPlatformFilter = PlatformFilters[0];
         LoadRoomsCommand = new AsyncRelayCommand(() => LoadRoomsAsync(force: true), () => !IsLoading);
-        SaveAuthorizedRoomCommand = new AsyncRelayCommand(SaveAuthorizedRoomAsync, CanSaveAuthorizedRoom);
+        OpenAuthorizationPageCommand = new RelayCommand<object>(_ => _navigate(AppRoute.DanmakuCookieTest));
         ConnectSelectedRoomCommand = new AsyncRelayCommand(ConnectSelectedRoomAsync, () => SelectedRoom is not null && !IsLoading && _activeConnection is null);
         StopNativeConnectionCommand = new AsyncRelayCommand(StopNativeConnectionAsync, () => _activeConnection is not null);
     }
 
+    public IReadOnlyList<LiveRoomPlatformFilter> PlatformFilters { get; }
+
+    public IReadOnlyList<LiveRoomPrintMode> PrintModes { get; }
+
     public ObservableCollection<LiveRoomRowViewModel> Rooms { get; } = [];
+
+    public ObservableCollection<LiveRoomRowViewModel> VisibleRooms { get; } = [];
 
     public ObservableCollection<NativeDanmakuEventRowViewModel> Events { get; } = [];
 
     public AsyncRelayCommand LoadRoomsCommand { get; }
 
-    public AsyncRelayCommand SaveAuthorizedRoomCommand { get; }
+    public RelayCommand<object> OpenAuthorizationPageCommand { get; }
 
     public AsyncRelayCommand ConnectSelectedRoomCommand { get; }
 
@@ -55,16 +85,86 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         }
     }
 
-    public string Remark
+    public LiveRoomPlatformFilter SelectedPlatformFilter
     {
-        get => _remark;
-        set => SetProperty(ref _remark, value);
+        get => _selectedPlatformFilter;
+        set
+        {
+            if (SetProperty(ref _selectedPlatformFilter, value))
+            {
+                RefreshVisibleRooms();
+            }
+        }
+    }
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value))
+            {
+                RefreshVisibleRooms();
+            }
+        }
     }
 
     public string StatusText
     {
         get => _statusText;
         private set => SetProperty(ref _statusText, value);
+    }
+
+    public string ConnectionStatusText => _activeConnection is null ? "未连接" : "已连接";
+
+    public string SelectedRoomPlatformText => SelectedRoom?.Platform ?? "-";
+
+    public string SelectedRoomNameText => SelectedRoom?.Name ?? "请选择直播间";
+
+    public string SelectedRoomNumberText => SelectedRoom?.RoomNumberDisplay ?? "-";
+
+    public string SelectedRoomSessionText => SelectedRoom?.LiveSessionStatus ?? "-";
+
+    public string SelectedPrintMode
+    {
+        get => _selectedPrintMode;
+        set => SetProperty(ref _selectedPrintMode, value);
+    }
+
+    public bool OnlyPrintFans
+    {
+        get => _onlyPrintFans;
+        set => SetProperty(ref _onlyPrintFans, value);
+    }
+
+    public bool UniqueMode
+    {
+        get => _uniqueMode;
+        set => SetProperty(ref _uniqueMode, value);
+    }
+
+    public bool BidModeEnabled
+    {
+        get => _bidModeEnabled;
+        set
+        {
+            if (SetProperty(ref _bidModeEnabled, value) && value)
+            {
+                NineGridModeEnabled = false;
+            }
+        }
+    }
+
+    public bool NineGridModeEnabled
+    {
+        get => _nineGridModeEnabled;
+        set
+        {
+            if (SetProperty(ref _nineGridModeEnabled, value) && value)
+            {
+                BidModeEnabled = false;
+            }
+        }
     }
 
     public LiveRoomRowViewModel? SelectedRoom
@@ -74,6 +174,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         {
             if (SetProperty(ref _selectedRoom, value))
             {
+                RaiseSelectedRoomProperties();
                 RaiseCommandStates();
             }
         }
@@ -103,7 +204,8 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
                 Rooms.Add(row);
             }
 
-            StatusText = $"已加载 {Rooms.Count} 个后端直播间。正式连接只使用后端房间 liveSession。";
+            RefreshVisibleRooms();
+            StatusText = $"已加载 {Rooms.Count} 个后台直播间。正式连接只使用后台房间 liveSession。";
         }
         catch (Exception ex)
         {
@@ -115,38 +217,29 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         }
     }
 
-    protected override void OnCollectedCookieChanged()
+    private void RefreshVisibleRooms()
     {
-        RaiseCommandStates();
-    }
-
-    private bool CanSaveAuthorizedRoom()
-    {
-        return !IsLoading && SelectedPlatform is not null && !string.IsNullOrWhiteSpace(CookieHeader);
-    }
-
-    private async Task SaveAuthorizedRoomAsync()
-    {
-        if (SelectedPlatform is null)
+        var filterLiveType = SelectedPlatformFilter.LiveType;
+        var keyword = SearchText.Trim();
+        var rows = Rooms.Where(room =>
         {
-            return;
+            var platformMatched = string.IsNullOrWhiteSpace(filterLiveType) || string.Equals(room.LiveType, filterLiveType, StringComparison.OrdinalIgnoreCase);
+            var keywordMatched = string.IsNullOrWhiteSpace(keyword)
+                || room.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || room.Platform.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || room.RoomMeta.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+            return platformMatched && keywordMatched;
+        }).ToList();
+
+        VisibleRooms.Clear();
+        foreach (var row in rows)
+        {
+            VisibleRooms.Add(row);
         }
 
-        IsLoading = true;
-        try
+        if (SelectedRoom is null || !VisibleRooms.Contains(SelectedRoom))
         {
-            var name = string.IsNullOrWhiteSpace(Remark) ? SelectedPlatform.Name : Remark.Trim();
-            await _liveRoomsService.AddAuthorizedRoomAsync(SelectedPlatform, name, CookieHeader);
-            StatusText = "授权 Cookie 已保存到后端直播间 liveSession。";
-            await LoadRoomsAsync(force: true);
-        }
-        catch (Exception ex)
-        {
-            StatusText = $"{ex.Message}。请确认后端已支持该平台 liveSession 保存字段。";
-        }
-        finally
-        {
-            IsLoading = false;
+            SelectedRoom = VisibleRooms.FirstOrDefault();
         }
     }
 
@@ -170,6 +263,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
             }
 
             _activeConnection = connection;
+            OnPropertyChanged(nameof(ConnectionStatusText));
             StatusText = $"native adapter 已连接：{connection.PlatformKey}。";
         }
         catch (Exception ex)
@@ -192,6 +286,7 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
 
         var connection = _activeConnection;
         _activeConnection = null;
+        OnPropertyChanged(nameof(ConnectionStatusText));
         RaiseCommandStates();
         await connection.StopAsync();
         await AddEventAsync(NativeDanmakuEvent.StatusEvent(connection.PlatformKey, NativeDanmakuStatus.Stopped, "用户手动停止。"));
@@ -209,43 +304,112 @@ public sealed class LiveRoomsViewModel : DanmakuWebAuthViewModelBase
         LoadRoomsCommand.RaiseCanExecuteChanged();
         ConnectSelectedRoomCommand.RaiseCanExecuteChanged();
         StopNativeConnectionCommand.RaiseCanExecuteChanged();
-        SaveAuthorizedRoomCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RaiseSelectedRoomProperties()
+    {
+        OnPropertyChanged(nameof(SelectedRoomPlatformText));
+        OnPropertyChanged(nameof(SelectedRoomNameText));
+        OnPropertyChanged(nameof(SelectedRoomNumberText));
+        OnPropertyChanged(nameof(SelectedRoomSessionText));
     }
 }
+
+public sealed record LiveRoomPlatformFilter(string Name, string LiveType);
+
+public sealed record LiveRoomPrintMode(string Name, string Value);
 
 public sealed record LiveRoomRowViewModel(
     string Name,
     string Platform,
+    string LiveType,
     string RoomMeta,
+    string RoomNumberDisplay,
+    string Handle,
+    string AvatarText,
     string LiveSessionStatus,
     RoomListItem Source)
 {
     public static LiveRoomRowViewModel FromDto(RoomListItem item)
     {
+        var liveType = LiveTypeValue(item);
         var name = !string.IsNullOrWhiteSpace(item.RoomName)
             ? item.RoomName
             : !string.IsNullOrWhiteSpace(item.RoomNumber) ? item.RoomNumber : "直播间";
-        var platform = PlatformLabel(item.LiveType, item.PlatformKey);
-        var metaParts = new[] { item.RoomNumber, item.Eid, item.Id }
+        var platform = PlatformLabel(liveType, item.PlatformKey);
+        var roomNumber = FirstNonEmpty(item.RoomNumber, item.RoomNo, item.RoomId, item.Eid, item.Id);
+        var metaParts = new[] { roomNumber, item.Eid, item.Id }
             .Where(value => !string.IsNullOrWhiteSpace(value));
         var liveSession = FirstNonEmpty(item.LiveSession, item.Cookies, item.Cookie, item.Session);
         return new LiveRoomRowViewModel(
             name,
             platform,
+            liveType,
             string.Join(" / ", metaParts),
+            string.IsNullOrWhiteSpace(roomNumber) ? "-" : roomNumber,
+            string.IsNullOrWhiteSpace(roomNumber) ? platform : $"#{roomNumber}",
+            AvatarInitial(platform),
             string.IsNullOrWhiteSpace(liveSession) ? "缺少 liveSession" : "已保存 liveSession",
             item);
     }
 
-    private static string PlatformLabel(JsonElement? liveType, string? platformKey)
+    private static string PlatformLabel(string liveType, string? platformKey)
     {
         var key = !string.IsNullOrWhiteSpace(platformKey)
             ? platformKey
-            : DanmakuPlatformRegistry.PlatformKeyForLiveType(JsonValue(liveType));
+            : DanmakuPlatformRegistry.PlatformKeyForLiveType(liveType);
         var platform = DanmakuPlatformRegistry.PlatformForKey(key) ??
                        DanmakuPlatformRegistry.AddablePlatforms.FirstOrDefault(item =>
                            string.Equals(item.AdapterKey, key, StringComparison.OrdinalIgnoreCase));
         return platform?.Name ?? DanmakuPlatformRegistry.AdapterKeyForAuthorizationKey(key);
+    }
+
+    private static string AvatarInitial(string platform)
+    {
+        if (string.IsNullOrWhiteSpace(platform))
+        {
+            return "播";
+        }
+
+        if (platform.Contains("抖音", StringComparison.OrdinalIgnoreCase))
+        {
+            return "抖";
+        }
+
+        if (platform.Contains("淘宝", StringComparison.OrdinalIgnoreCase) ||
+            platform.Contains("千牛", StringComparison.OrdinalIgnoreCase))
+        {
+            return "淘";
+        }
+
+        if (platform.Contains("小红书", StringComparison.OrdinalIgnoreCase))
+        {
+            return "红";
+        }
+
+        if (platform.Contains("视频号", StringComparison.OrdinalIgnoreCase) ||
+            platform.Contains("微信", StringComparison.OrdinalIgnoreCase))
+        {
+            return "微";
+        }
+
+        if (platform.Contains("快手", StringComparison.OrdinalIgnoreCase))
+        {
+            return "快";
+        }
+
+        return platform[..Math.Min(1, platform.Length)];
+    }
+
+    private static string LiveTypeValue(RoomListItem room)
+    {
+        return FirstNonEmpty(
+            JsonValue(room.LiveType),
+            JsonValue(room.PlatformType),
+            JsonValue(room.Platform),
+            JsonValue(room.Source),
+            room.PlatformKey,
+            "0");
     }
 
     private static string JsonValue(JsonElement? element)
