@@ -101,7 +101,7 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="54" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{Binding Id}"
+                                        <TextBlock Text="{Binding Sequence}"
                                                    FontSize="12"
                                                    FontWeight="SemiBold"
                                                    Foreground="{StaticResource FastSortMuted}"

@@ -235,23 +235,71 @@
                                             CornerRadius="10"
                                             Padding="10"
                                             Margin="0,0,0,10">
-                                        <DockPanel>
-                                            <TextBlock Text="{Binding Platform}"
-                                                       DockPanel.Dock="Right"
-                                                       Foreground="{StaticResource FastSortAccent}"
-                                                       FontSize="11"
-                                                       FontWeight="SemiBold" />
-                                            <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="36" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="36"
+                                                    Height="36"
+                                                    CornerRadius="9"
+                                                    Background="{Binding BadgeBackground}"
+                                                    VerticalAlignment="Center"
+                                                    ClipToBounds="True">
+                                                <Grid>
+                                                    <Image Source="{Binding AvatarUrl}"
+                                                           Stretch="UniformToFill">
+                                                        <Image.Style>
+                                                            <Style TargetType="Image">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding AvatarUrl}" Value="">
+                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Image.Style>
+                                                    </Image>
+                                                    <TextBlock Text="{Binding AvatarText}"
+                                                               Foreground="{Binding BadgeForeground}"
+                                                               FontSize="15"
+                                                               FontWeight="Bold"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding AvatarUrl}" Value="">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                 <TextBlock Text="{Binding Name}"
                                                            FontWeight="SemiBold"
                                                            Foreground="{StaticResource FastSortText}"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding Handle}"
-                                                           FontSize="12"
-                                                           Foreground="{StaticResource FastSortMuted}"
-                                                           Margin="0,3,0,0" />
+                                                <WrapPanel Margin="0,4,0,0">
+                                                    <Border Background="{Binding BadgeBackground}"
+                                                            CornerRadius="9"
+                                                            Padding="7,2"
+                                                            Margin="0,0,6,0">
+                                                        <TextBlock Text="{Binding Platform}"
+                                                                   Foreground="{Binding BadgeForeground}"
+                                                                   FontSize="11"
+                                                                   FontWeight="SemiBold" />
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Handle}"
+                                                               FontSize="12"
+                                                               Foreground="{StaticResource FastSortMuted}" />
+                                                </WrapPanel>
                                             </StackPanel>
-                                        </DockPanel>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

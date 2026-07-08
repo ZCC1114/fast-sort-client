@@ -327,7 +327,10 @@ public sealed record LiveRoomRowViewModel(
     string RoomNumberDisplay,
     string Handle,
     string AvatarText,
+    string AvatarUrl,
     string LiveSessionStatus,
+    string PlatformBadgeBackground,
+    string PlatformBadgeForeground,
     RoomListItem Source)
 {
     public static LiveRoomRowViewModel FromDto(RoomListItem item)
@@ -341,6 +344,8 @@ public sealed record LiveRoomRowViewModel(
         var metaParts = new[] { roomNumber, item.Eid, item.Id }
             .Where(value => !string.IsNullOrWhiteSpace(value));
         var liveSession = FirstNonEmpty(item.LiveSession, item.Cookies, item.Cookie, item.Session);
+        var avatarUrl = FirstNonEmpty(item.RoomUrl, item.Avatar, item.Cover);
+        var badge = PlatformBadge(liveType, platform);
         return new LiveRoomRowViewModel(
             name,
             platform,
@@ -349,7 +354,10 @@ public sealed record LiveRoomRowViewModel(
             string.IsNullOrWhiteSpace(roomNumber) ? "-" : roomNumber,
             string.IsNullOrWhiteSpace(roomNumber) ? platform : $"#{roomNumber}",
             AvatarInitial(platform),
+            avatarUrl,
             string.IsNullOrWhiteSpace(liveSession) ? "缺少 liveSession" : "已保存 liveSession",
+            badge.Background,
+            badge.Foreground,
             item);
     }
 
@@ -399,6 +407,37 @@ public sealed record LiveRoomRowViewModel(
         }
 
         return platform[..Math.Min(1, platform.Length)];
+    }
+
+    private static (string Background, string Foreground) PlatformBadge(string liveType, string platform)
+    {
+        var value = liveType.Trim();
+        if (value == "0" || platform.Contains("抖音", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("#FFEFF6FF", "#FF0877F2");
+        }
+
+        if (value == "1" || platform.Contains("淘宝", StringComparison.OrdinalIgnoreCase) || platform.Contains("千牛", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("#FFFFF3E8", "#FFE86B00");
+        }
+
+        if (value == "2" || platform.Contains("小红书", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("#FFFFEEEE", "#FFE53935");
+        }
+
+        if (value == "3" || platform.Contains("微信", StringComparison.OrdinalIgnoreCase) || platform.Contains("视频号", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("#FFEAF8EF", "#FF1F9D55");
+        }
+
+        if (value == "4" || platform.Contains("快手", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("#FFFFF7E6", "#FFFF8A00");
+        }
+
+        return ("#FFE8F1FF", "#FF0877F2");
     }
 
     private static string LiveTypeValue(RoomListItem room)

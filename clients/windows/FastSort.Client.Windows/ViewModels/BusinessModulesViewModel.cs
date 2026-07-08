@@ -451,7 +451,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
                 InputTwoLabel = "字段";
                 FilterText = "current";
                 InputOne = "0";
-                InputTwo = "orderName,orderNumber,orderIndex,orderCount,orderAmounts";
+                InputTwo = "orderName,orderNumber,orderCount,orderAmounts";
                 PrimaryActionText = "加载/导出";
                 SecondaryActionText = "打开工作台";
                 IsSearchVisible = true;
@@ -742,7 +742,12 @@ public sealed class BusinessModulesViewModel : ViewModelBase
             room.Id ?? "",
             "",
             RoomUrl(room),
-            room)).ToList();
+            room,
+            AvatarText: AvatarInitial(PlatformLabel(room)),
+            AvatarUrl: RoomUrl(room),
+            BadgeText: PlatformLabel(room),
+            BadgeBackground: PlatformBadgeBackground(LiveTypeValue(room)),
+            BadgeForeground: PlatformBadgeForeground(LiveTypeValue(room)))).ToList();
         ReplacePrimaryRows(rows);
         ReplaceRows(rows);
         ReplaceDetailRows([]);
@@ -1584,9 +1589,10 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     private void ReplaceRows(IEnumerable<BusinessRowViewModel> rows)
     {
         Rows.Clear();
+        var index = 0;
         foreach (var row in rows)
         {
-            Rows.Add(row);
+            Rows.Add(row with { Sequence = SequenceFor(index++) });
         }
 
         SelectedRow = Rows.FirstOrDefault();
@@ -1596,19 +1602,26 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     private void ReplacePrimaryRows(IEnumerable<BusinessRowViewModel> rows)
     {
         PrimaryRows.Clear();
+        var index = 0;
         foreach (var row in rows)
         {
-            PrimaryRows.Add(row);
+            PrimaryRows.Add(row with { Sequence = SequenceFor(index++) });
         }
     }
 
     private void ReplaceDetailRows(IEnumerable<BusinessRowViewModel> rows)
     {
         DetailRows.Clear();
+        var index = 0;
         foreach (var row in rows)
         {
-            DetailRows.Add(row);
+            DetailRows.Add(row with { Sequence = SequenceFor(index++) });
         }
+    }
+
+    private int SequenceFor(int zeroBasedIndex)
+    {
+        return (Math.Max(1, PageIndex) - 1) * Math.Max(1, PageSize) + zeroBasedIndex + 1;
     }
 
     private void ReplaceMetrics(params BusinessMetricViewModel[] metrics)
@@ -1762,6 +1775,42 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         };
     }
 
+    private static string AvatarInitial(string platform)
+    {
+        if (string.IsNullOrWhiteSpace(platform))
+        {
+            return "播";
+        }
+
+        return platform.Contains("小红书", StringComparison.OrdinalIgnoreCase) ? "红" : platform[..Math.Min(1, platform.Length)];
+    }
+
+    private static string PlatformBadgeBackground(string liveType)
+    {
+        return NormalizeLiveType(liveType) switch
+        {
+            "0" => "#FFEFF6FF",
+            "1" => "#FFFFF3E8",
+            "2" => "#FFFFEEEE",
+            "3" => "#FFEAF8EF",
+            "4" => "#FFFFF7E6",
+            _ => "#FFE8F1FF"
+        };
+    }
+
+    private static string PlatformBadgeForeground(string liveType)
+    {
+        return NormalizeLiveType(liveType) switch
+        {
+            "0" => "#FF0877F2",
+            "1" => "#FFE86B00",
+            "2" => "#FFE53935",
+            "3" => "#FF1F9D55",
+            "4" => "#FFFF8A00",
+            _ => "#FF0877F2"
+        };
+    }
+
     private static string RoomName(RoomListItem room)
     {
         return FirstNonEmpty(room.RoomName, room.Name, room.Title, room.RoomNumber, room.RoomNo, room.RoomId, room.Id, "直播间");
@@ -1833,4 +1882,10 @@ public sealed record BusinessRowViewModel(
     string Id,
     string Amount,
     string Time,
-    object? Source);
+    object? Source,
+    int Sequence = 0,
+    string AvatarText = "",
+    string AvatarUrl = "",
+    string BadgeText = "",
+    string BadgeBackground = "#FFE8F1FF",
+    string BadgeForeground = "#FF0877F2");

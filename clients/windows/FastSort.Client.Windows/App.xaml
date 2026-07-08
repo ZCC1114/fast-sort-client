@@ -258,6 +258,55 @@
             </Setter>
         </Style>
 
+        <Style x:Key="FieldToggleCheckBox" TargetType="CheckBox">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="Foreground" Value="{StaticResource FastSortText}" />
+            <Setter Property="Background" Value="{StaticResource FastSortBackground}" />
+            <Setter Property="BorderBrush" Value="{StaticResource FastSortBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Margin" Value="0,0,8,8" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="ToggleBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12"
+                                Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="CheckGlyph"
+                                           Text="✓"
+                                           FontWeight="Bold"
+                                           Margin="0,0,6,0"
+                                           Visibility="Collapsed" />
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleBorder" Property="BorderBrush" Value="{StaticResource FastSortAccent}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ToggleBorder" Property="Background" Value="{StaticResource FastSortAccent}" />
+                                <Setter TargetName="ToggleBorder" Property="BorderBrush" Value="{StaticResource FastSortAccent}" />
+                                <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible" />
+                                <Setter Property="Foreground" Value="White" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="PlainListBoxItem" TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0" />

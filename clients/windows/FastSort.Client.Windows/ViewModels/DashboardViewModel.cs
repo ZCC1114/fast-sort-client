@@ -299,6 +299,42 @@ public sealed class DashboardViewModel : ViewModelBase
         };
     }
 
+    private static string PlatformBadgeBackground(JsonElement? liveType)
+    {
+        return JsonValue(liveType, "0") switch
+        {
+            "0" => "#FFEFF6FF",
+            "1" => "#FFFFF3E8",
+            "2" => "#FFFFEEEE",
+            "3" => "#FFEAF8EF",
+            "4" => "#FFFFF7E6",
+            _ => "#FFE8F1FF"
+        };
+    }
+
+    private static string PlatformBadgeForeground(JsonElement? liveType)
+    {
+        return JsonValue(liveType, "0") switch
+        {
+            "0" => "#FF0877F2",
+            "1" => "#FFE86B00",
+            "2" => "#FFE53935",
+            "3" => "#FF1F9D55",
+            "4" => "#FFFF8A00",
+            _ => "#FF0877F2"
+        };
+    }
+
+    private static string AvatarInitial(string platform)
+    {
+        if (string.IsNullOrWhiteSpace(platform))
+        {
+            return "播";
+        }
+
+        return platform.Contains("小红书", StringComparison.OrdinalIgnoreCase) ? "红" : platform[..Math.Min(1, platform.Length)];
+    }
+
     private sealed record PlatformOption(string Label, string LiveType);
 
     public sealed record DashboardChartTickViewModel(string Label, double X, double Y);
@@ -350,7 +386,14 @@ public sealed class DashboardViewModel : ViewModelBase
         }
     }
 
-    public sealed record RoomRowViewModel(string Name, string Handle, string Platform)
+    public sealed record RoomRowViewModel(
+        string Name,
+        string Handle,
+        string Platform,
+        string AvatarText,
+        string AvatarUrl,
+        string BadgeBackground,
+        string BadgeForeground)
     {
         public static RoomRowViewModel FromDto(RoomListItem item)
         {
@@ -358,7 +401,16 @@ public sealed class DashboardViewModel : ViewModelBase
                 ? item.RoomName
                 : !string.IsNullOrWhiteSpace(item.RoomNumber) ? item.RoomNumber : "直播间";
             var handle = !string.IsNullOrWhiteSpace(item.RoomNumber) ? $"#{item.RoomNumber}" : "";
-            return new RoomRowViewModel(name, handle, PlatformLabel(item.LiveType));
+            var platform = PlatformLabel(item.LiveType);
+            var avatarUrl = item.RoomUrl ?? item.Avatar ?? item.Cover ?? "";
+            return new RoomRowViewModel(
+                name,
+                handle,
+                platform,
+                AvatarInitial(platform),
+                avatarUrl,
+                PlatformBadgeBackground(item.LiveType),
+                PlatformBadgeForeground(item.LiveType));
         }
     }
 

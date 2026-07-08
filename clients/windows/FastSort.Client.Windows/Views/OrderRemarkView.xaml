@@ -1,6 +1,7 @@
 <UserControl x:Class="FastSort.Client.Windows.Views.OrderRemarkView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Loaded="OrderRemarkView_Loaded"
              MinHeight="680">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -77,11 +78,40 @@
                                FontWeight="SemiBold"
                                Foreground="{StaticResource FastSortText}" />
                     <WrapPanel Margin="0,12,0,0">
-                        <CheckBox Content="昵称" IsChecked="True" Margin="0,0,14,0" />
-                        <CheckBox Content="编号" IsChecked="True" Margin="0,0,14,0" />
-                        <CheckBox Content="序号" Margin="0,0,14,0" />
-                        <CheckBox Content="数量" IsChecked="True" Margin="0,0,14,0" />
-                        <CheckBox Content="金额" IsChecked="True" Margin="0,0,14,0" />
+                        <CheckBox x:Name="FieldOrderName"
+                                  Content="昵称"
+                                  Tag="orderName"
+                                  IsChecked="True"
+                                  Style="{StaticResource FieldToggleCheckBox}"
+                                  Checked="RemarkField_Changed"
+                                  Unchecked="RemarkField_Changed" />
+                        <CheckBox x:Name="FieldOrderNumber"
+                                  Content="编号"
+                                  Tag="orderNumber"
+                                  IsChecked="True"
+                                  Style="{StaticResource FieldToggleCheckBox}"
+                                  Checked="RemarkField_Changed"
+                                  Unchecked="RemarkField_Changed" />
+                        <CheckBox x:Name="FieldOrderIndex"
+                                  Content="序号"
+                                  Tag="orderIndex"
+                                  Style="{StaticResource FieldToggleCheckBox}"
+                                  Checked="RemarkField_Changed"
+                                  Unchecked="RemarkField_Changed" />
+                        <CheckBox x:Name="FieldOrderCount"
+                                  Content="数量"
+                                  Tag="orderCount"
+                                  IsChecked="True"
+                                  Style="{StaticResource FieldToggleCheckBox}"
+                                  Checked="RemarkField_Changed"
+                                  Unchecked="RemarkField_Changed" />
+                        <CheckBox x:Name="FieldOrderAmounts"
+                                  Content="金额"
+                                  Tag="orderAmounts"
+                                  IsChecked="True"
+                                  Style="{StaticResource FieldToggleCheckBox}"
+                                  Checked="RemarkField_Changed"
+                                  Unchecked="RemarkField_Changed" />
                     </WrapPanel>
                     <TextBox Text="{Binding InputTwo, UpdateSourceTrigger=PropertyChanged}"
                              Visibility="Collapsed" />
@@ -112,14 +142,10 @@
                                     <ColumnDefinition Width="58" />
                                     <ColumnDefinition Width="180" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="130" />
-                                    <ColumnDefinition Width="150" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="序号" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
                                 <TextBlock Grid.Column="1" Text="昵称" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
                                 <TextBlock Grid.Column="2" Text="备注内容" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
-                                <TextBlock Grid.Column="3" Text="买家标识" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
-                                <TextBlock Grid.Column="4" Text="时间" FontWeight="SemiBold" Foreground="{StaticResource FastSortMuted}" />
                             </Grid>
 
                             <ListBox Grid.Row="1"
@@ -139,14 +165,10 @@
                                                     <ColumnDefinition Width="58" />
                                                     <ColumnDefinition Width="180" />
                                                     <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="130" />
-                                                    <ColumnDefinition Width="150" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding Id}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Sequence}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Grid.Column="2" Text="{Binding Detail}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Grid.Column="3" Text="{Binding Meta}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Grid.Column="4" Text="{Binding Time}" Foreground="{StaticResource FastSortMuted}" TextTrimming="CharacterEllipsis" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
