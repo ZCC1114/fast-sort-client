@@ -26,6 +26,7 @@
                     <ListBox SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
                              Style="{StaticResource SegmentedSelector}"
+                             SelectionChanged="AutoRefreshSelector_SelectionChanged"
                              Margin="0,0,12,0">
                         <ListBoxItem Content="全部" Tag="all" />
                         <ListBoxItem Content="已支付" Tag="paid" />
@@ -33,9 +34,6 @@
                         <ListBoxItem Content="已取消" Tag="canceled" />
                         <ListBoxItem Content="支付失败" Tag="failed" />
                     </ListBox>
-                    <Button Content="刷新"
-                            Command="{Binding RefreshCommand}"
-                            Style="{StaticResource PrimaryButton}" />
                 </WrapPanel>
             </StackPanel>
 

@@ -19,6 +19,7 @@
                     <ListBox SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
                              Style="{StaticResource SegmentedSelector}"
+                             SelectionChanged="AutoRefreshSelector_SelectionChanged"
                              Margin="0,12,0,12">
                         <ListBoxItem Content="当前" Tag="current" />
                         <ListBoxItem Content="历史" Tag="history" />
@@ -28,9 +29,6 @@
                                FontWeight="SemiBold"
                                Foreground="{StaticResource FastSortMuted}"
                                Margin="0,0,0,8" />
-                    <Button Content="刷新批次"
-                            Command="{Binding RefreshCommand}"
-                            Margin="0,0,0,12" />
                 </StackPanel>
 
                 <ListBox ItemsSource="{Binding PrimaryRows}"
@@ -80,6 +78,7 @@
                     <ListBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
                              Style="{StaticResource SegmentedSelector}"
+                             SelectionChanged="AutoRefreshSelector_SelectionChanged"
                              Margin="0,0,12,0">
                         <ListBoxItem Content="抖音" Tag="0" />
                         <ListBoxItem Content="淘宝" Tag="1" />

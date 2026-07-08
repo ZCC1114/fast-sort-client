@@ -16,29 +16,22 @@
                                FontSize="18"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource FastSortText}" />
-                    <TextBlock Text="平台"
-                               FontSize="12"
-                               Foreground="{StaticResource FastSortMuted}"
-                               Margin="0,14,0,6" />
                     <ListBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
-                             Style="{StaticResource SegmentedSelector}">
+                             Style="{StaticResource SegmentedSelector}"
+                             SelectionChanged="AutoRefreshSelector_SelectionChanged"
+                             Margin="0,14,0,10">
                         <ListBoxItem Content="抖音" Tag="0" />
                         <ListBoxItem Content="小红书" Tag="2" />
                     </ListBox>
-                    <TextBlock Text="批次"
-                               FontSize="12"
-                               Foreground="{StaticResource FastSortMuted}"
-                               Margin="0,12,0,6" />
                     <ListBox SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
-                             Style="{StaticResource SegmentedSelector}">
+                             Style="{StaticResource SegmentedSelector}"
+                             SelectionChanged="AutoRefreshSelector_SelectionChanged"
+                             Margin="0,0,0,12">
                         <ListBoxItem Content="当前" Tag="current" />
                         <ListBoxItem Content="历史" Tag="history" />
                     </ListBox>
-                    <Button Content="刷新批次"
-                            Command="{Binding RefreshCommand}"
-                            Margin="0,12,0,12" />
                 </StackPanel>
 
                 <ListBox ItemsSource="{Binding PrimaryRows}"

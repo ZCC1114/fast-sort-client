@@ -26,35 +26,50 @@
                 </StackPanel>
                 <ListBox ItemsSource="{Binding PrimaryRows}"
                          SelectedItem="{Binding SelectedRow}"
+                         ItemContainerStyle="{StaticResource PlainListBoxItem}"
                          BorderThickness="0"
-                         Background="Transparent">
+                         Background="Transparent"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border Background="{StaticResource FastSortBackground}"
                                     CornerRadius="10"
                                     Padding="12"
                                     Margin="0,0,0,10">
-                                <DockPanel>
-                                    <TextBlock Text="▶"
-                                               DockPanel.Dock="Right"
-                                               Foreground="{StaticResource FastSortAccent}"
-                                               FontWeight="Bold" />
-                                    <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="24" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0"
+                                                Margin="0,0,8,0">
                                         <TextBlock Text="{Binding Name}"
                                                    FontSize="14"
                                                    FontWeight="SemiBold"
                                                    Foreground="{StaticResource FastSortText}"
+                                                   TextWrapping="NoWrap"
                                                    TextTrimming="CharacterEllipsis" />
                                         <TextBlock Text="{Binding Detail}"
                                                    FontSize="12"
                                                    Foreground="{StaticResource FastSortMuted}"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
                                                    Margin="0,4,0,0" />
                                         <TextBlock Text="{Binding Status}"
                                                    FontSize="11"
                                                    Foreground="{StaticResource FastSortMuted}"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
                                                    Margin="0,4,0,0" />
                                     </StackPanel>
-                                </DockPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="&#xE768;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               Foreground="{StaticResource FastSortAccent}"
+                                               FontSize="13"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" />
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

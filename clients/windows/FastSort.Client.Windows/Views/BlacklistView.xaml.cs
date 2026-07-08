@@ -14,6 +14,7 @@ public partial class BlacklistView : UserControl
     private void FilterSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!IsLoaded ||
+            e.RemovedItems.Count == 0 ||
             DataContext is not BusinessModulesViewModel viewModel ||
             viewModel.Route != AppRoute.Blacklist ||
             !viewModel.RefreshCommand.CanExecute(null))

@@ -183,9 +183,10 @@
         <Style x:Key="SegmentedSelectorItem" TargetType="ListBoxItem">
             <Setter Property="Foreground" Value="{StaticResource FastSortText}" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Padding" Value="10,5" />
             <Setter Property="Margin" Value="1" />
-            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="MinWidth" Value="52" />
+            <Setter Property="MinHeight" Value="32" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
@@ -194,7 +195,7 @@
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="SegmentBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="9"
+                                CornerRadius="10"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
@@ -227,6 +228,9 @@
             <Setter Property="BorderBrush" Value="{StaticResource FastSortBorder}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="2" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="ItemContainerStyle" Value="{StaticResource SegmentedSelectorItem}" />
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
             <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
@@ -243,7 +247,7 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="11"
+                                CornerRadius="12"
                                 Padding="{TemplateBinding Padding}">
                             <ScrollViewer Focusable="False">
                                 <ItemsPresenter />
