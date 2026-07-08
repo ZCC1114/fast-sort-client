@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Text.Json;
 using FastSort.Client.Windows.Core.Api;
 using FastSort.Client.Windows.Core.Api.Dto;
@@ -13,6 +14,7 @@ public sealed class DashboardViewModel : ViewModelBase
     private bool _isLoading;
     private string _errorText = "";
     private string _trendSummary = "暂无趋势数据";
+    private string _chartPolylinePoints = "";
     private int _blacklistTotal;
 
     public DashboardViewModel(DashboardService dashboardService, Func<string> userIdProvider)
@@ -38,6 +40,12 @@ public sealed class DashboardViewModel : ViewModelBase
 
     public ObservableCollection<BlacklistRowViewModel> Blacklist { get; } = [];
 
+    public ObservableCollection<DashboardChartTickViewModel> ChartYTicks { get; } = [];
+
+    public ObservableCollection<DashboardChartTickViewModel> ChartXTicks { get; } = [];
+
+    public ObservableCollection<DashboardChartTickViewModel> ChartHorizontalLines { get; } = [];
+
     public AsyncRelayCommand RefreshCommand { get; }
 
     public bool IsLoading
@@ -62,6 +70,12 @@ public sealed class DashboardViewModel : ViewModelBase
     {
         get => _trendSummary;
         private set => SetProperty(ref _trendSummary, value);
+    }
+
+    public string ChartPolylinePoints
+    {
+        get => _chartPolylinePoints;
+        private set => SetProperty(ref _chartPolylinePoints, value);
     }
 
     public int BlacklistTotal
@@ -159,10 +173,93 @@ public sealed class DashboardViewModel : ViewModelBase
     private void ApplyTrend(TrendResponse trend)
     {
         var firstSeries = trend.Series?.FirstOrDefault();
-        var total = firstSeries?.Data?.Sum() ?? 0;
-        TrendSummary = trend.Labels.Count > 0
-            ? $"{trend.Labels.First()} - {trend.Labels.Last()}，累计 {total:0} 个标签"
+        var values = firstSeries?.Data ?? [];
+        var labels = trend.Labels.Count > 0
+            ? trend.Labels.ToList()
+            : Enumerable.Range(0, Math.Max(values.Count, 7))
+                .Select(offset => DateTime.Today.AddDays(offset - Math.Max(values.Count, 7) + 1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+                .ToList();
+        var total = values.Sum();
+        ApplyChart(labels, values);
+        TrendSummary = labels.Count > 0
+            ? $"{labels.First()} - {labels.Last()}，累计 {total:0} 个标签"
             : "暂无趋势数据";
+    }
+
+    private void ApplyChart(IReadOnlyList<string> labels, IReadOnlyList<double> values)
+    {
+        const double left = 48;
+        const double top = 18;
+        const double width = 684;
+        const double height = 168;
+        var count = Math.Max(labels.Count, values.Count);
+        var maxValue = values.Count > 0 ? values.Max() : 0;
+        var axisMax = NiceAxisMax(maxValue);
+
+        var points = new List<string>();
+        for (var index = 0; index < count; index++)
+        {
+            var value = index < values.Count ? Math.Max(0, values[index]) : 0;
+            var x = count <= 1 ? left + width / 2 : left + width * index / (count - 1);
+            var y = top + height - value / axisMax * height;
+            points.Add($"{x.ToString("0.##", CultureInfo.InvariantCulture)},{y.ToString("0.##", CultureInfo.InvariantCulture)}");
+        }
+
+        ChartPolylinePoints = string.Join(" ", points);
+
+        var yTicks = Enumerable.Range(0, 4)
+            .Select(index =>
+            {
+                var value = axisMax * index / 3d;
+                var y = top + height - value / axisMax * height;
+                return new DashboardChartTickViewModel(FormatChartValue(value), 4, y - 8);
+            })
+            .Reverse()
+            .ToList();
+        Replace(ChartYTicks, yTicks);
+        Replace(ChartHorizontalLines, yTicks.Select(item => new DashboardChartTickViewModel("", left, item.Y + 8)));
+
+        var xTicks = new List<DashboardChartTickViewModel>();
+        for (var index = 0; index < labels.Count; index++)
+        {
+            if (labels.Count > 8 && index != 0 && index != labels.Count - 1 && index % 2 != 0)
+            {
+                continue;
+            }
+
+            var x = labels.Count <= 1 ? left + width / 2 : left + width * index / (labels.Count - 1);
+            xTicks.Add(new DashboardChartTickViewModel(ShortChartLabel(labels[index]), x - 22, top + height + 12));
+        }
+
+        Replace(ChartXTicks, xTicks);
+    }
+
+    private static double NiceAxisMax(double maxValue)
+    {
+        if (maxValue <= 0)
+        {
+            return 1;
+        }
+
+        var exponent = Math.Floor(Math.Log10(maxValue));
+        var magnitude = Math.Pow(10, exponent);
+        var scaled = maxValue / magnitude;
+        var niceScaled = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
+        return niceScaled * magnitude;
+    }
+
+    private static string FormatChartValue(double value)
+    {
+        return value >= 10 || Math.Abs(value % 1) < 0.001
+            ? value.ToString("0", CultureInfo.InvariantCulture)
+            : value.ToString("0.#", CultureInfo.InvariantCulture);
+    }
+
+    private static string ShortChartLabel(string label)
+    {
+        return DateTime.TryParse(label, out var date)
+            ? date.ToString("MM-dd", CultureInfo.InvariantCulture)
+            : label;
     }
 
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> items)
@@ -203,6 +300,8 @@ public sealed class DashboardViewModel : ViewModelBase
     }
 
     private sealed record PlatformOption(string Label, string LiveType);
+
+    public sealed record DashboardChartTickViewModel(string Label, double X, double Y);
 
     public sealed class StatCardViewModel : ViewModelBase
     {

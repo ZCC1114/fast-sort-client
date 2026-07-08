@@ -58,17 +58,17 @@
             <StackPanel Grid.Column="0">
                 <Border Style="{StaticResource CardBorder}" Margin="0,0,0,16">
                     <StackPanel>
-                        <DockPanel Margin="0,0,0,14">
+                        <WrapPanel Margin="0,0,0,14">
                             <TextBlock Text="打印报表"
                                        FontSize="18"
                                        FontWeight="SemiBold"
-                                       Foreground="{StaticResource FastSortText}" />
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                <Button Content="7 天" Style="{StaticResource TopbarTextButton}" Margin="0,0,8,0" />
-                                <Button Content="30 天" Style="{StaticResource TopbarTextButton}" Margin="0,0,8,0" />
-                                <Button Content="刷新" Command="{Binding RefreshCommand}" />
-                            </StackPanel>
-                        </DockPanel>
+                                       Foreground="{StaticResource FastSortText}"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,8" />
+                            <Button Content="7 天" Style="{StaticResource TopbarTextButton}" Margin="0,0,8,8" />
+                            <Button Content="30 天" Style="{StaticResource TopbarTextButton}" Margin="0,0,8,8" />
+                            <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,0,8" />
+                        </WrapPanel>
                         <Border Height="310"
                                 Background="{StaticResource FastSortBackground}"
                                 CornerRadius="10"
@@ -81,12 +81,89 @@
                                 </Grid.RowDefinitions>
                                 <Viewbox Grid.Row="0" Stretch="Fill">
                                     <Canvas Width="760" Height="230">
-                                        <Polyline Points="18,180 145,145 278,168 410,92 540,125 665,54 742,78"
+                                        <ItemsControl ItemsSource="{Binding ChartHorizontalLines}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Line X1="48"
+                                                          X2="732"
+                                                          Y1="{Binding Y}"
+                                                          Y2="{Binding Y}"
+                                                          Stroke="{StaticResource FastSortBorder}"
+                                                          StrokeThickness="1" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <Line X1="48"
+                                              X2="732"
+                                              Y1="186"
+                                              Y2="186"
+                                              Stroke="{StaticResource FastSortMuted}"
+                                              StrokeThickness="1" />
+                                        <Line X1="48"
+                                              X2="48"
+                                              Y1="18"
+                                              Y2="186"
+                                              Stroke="{StaticResource FastSortMuted}"
+                                              StrokeThickness="1" />
+
+                                        <Polyline Points="{Binding ChartPolylinePoints}"
                                                   Stroke="{StaticResource FastSortAccent}"
                                                   StrokeThickness="3"
                                                   StrokeStartLineCap="Round"
                                                   StrokeEndLineCap="Round"
                                                   StrokeLineJoin="Round" />
+
+                                        <ItemsControl ItemsSource="{Binding ChartYTicks}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                    <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Label}"
+                                                               Foreground="{StaticResource FastSortMuted}"
+                                                               FontSize="11"
+                                                               Width="38"
+                                                               TextAlignment="Right" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <ItemsControl ItemsSource="{Binding ChartXTicks}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Canvas />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemContainerStyle>
+                                                <Style TargetType="ContentPresenter">
+                                                    <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                                    <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                                </Style>
+                                            </ItemsControl.ItemContainerStyle>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Label}"
+                                                               Foreground="{StaticResource FastSortMuted}"
+                                                               FontSize="11"
+                                                               Width="56"
+                                                               TextAlignment="Center" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </Canvas>
                                 </Viewbox>
                                 <TextBlock Grid.Row="1"
@@ -184,16 +261,22 @@
 
                 <Border Style="{StaticResource CardBorder}">
                     <StackPanel>
-                        <DockPanel Margin="0,0,0,14">
-                            <TextBlock Text="黑名单"
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="黑名单"
                                        FontSize="18"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource FastSortText}" />
-                            <TextBlock Text="{Binding BlacklistTotal, StringFormat=共 {0} 条}"
-                                       DockPanel.Dock="Right"
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding BlacklistTotal, StringFormat=共 {0} 条}"
                                        Foreground="{StaticResource FastSortMuted}"
-                                       FontSize="12" />
-                        </DockPanel>
+                                       FontSize="12"
+                                       VerticalAlignment="Center" />
+                        </Grid>
                         <ItemsControl ItemsSource="{Binding Blacklist}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>

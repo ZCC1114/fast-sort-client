@@ -11,7 +11,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <DockPanel Grid.Row="0">
+            <StackPanel Grid.Row="0">
                 <StackPanel>
                     <TextBlock Text="订单列表"
                                FontSize="18"
@@ -22,7 +22,7 @@
                                Foreground="{StaticResource FastSortMuted}"
                                Margin="0,4,0,0" />
                 </StackPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <WrapPanel Margin="0,12,0,0">
                     <ListBox SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
                              Style="{StaticResource SegmentedSelector}"
@@ -36,8 +36,8 @@
                     <Button Content="刷新"
                             Command="{Binding RefreshCommand}"
                             Style="{StaticResource PrimaryButton}" />
-                </StackPanel>
-            </DockPanel>
+                </WrapPanel>
+            </StackPanel>
 
             <Grid Grid.Row="2">
                 <Grid.RowDefinitions>

@@ -10,22 +10,31 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" Style="{StaticResource CardBorder}">
-            <DockPanel>
-                <StackPanel Orientation="Horizontal">
+            <StackPanel>
+                <WrapPanel>
                     <ListBox SelectedValue="{Binding InputTwo, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
                              Style="{StaticResource SegmentedSelector}"
-                             Margin="0,0,10,0">
+                             SelectionChanged="FilterSelector_SelectionChanged"
+                             Margin="0,0,10,8">
                         <ListBoxItem Content="我的黑名单" Tag="mine" />
                         <ListBoxItem Content="全网黑名单" Tag="global" />
                     </ListBox>
                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Width="220"
+                             Width="260"
                              Height="34"
-                             Margin="0,0,10,0" />
+                             Margin="0,0,10,8" />
+                    <Button Content="搜索"
+                            Command="{Binding RefreshCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            Width="110"
+                            Margin="0,0,0,8" />
+                </WrapPanel>
+                <WrapPanel Margin="0,4,0,0">
                     <ListBox SelectedValue="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
                              Style="{StaticResource SegmentedSelector}"
+                             SelectionChanged="FilterSelector_SelectionChanged"
                              Margin="0,0,10,0">
                         <ListBoxItem Content="全部等级" Tag="" />
                         <ListBoxItem Content="LV1" Tag="1" />
@@ -36,7 +45,8 @@
                     </ListBox>
                     <ListBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
                              SelectedValuePath="Tag"
-                             Style="{StaticResource SegmentedSelector}">
+                             Style="{StaticResource SegmentedSelector}"
+                             SelectionChanged="FilterSelector_SelectionChanged">
                         <ListBoxItem Content="全部平台" Tag="" />
                         <ListBoxItem Content="抖音" Tag="0" />
                         <ListBoxItem Content="淘宝" Tag="1" />
@@ -44,12 +54,8 @@
                         <ListBoxItem Content="微信" Tag="3" />
                         <ListBoxItem Content="快手" Tag="4" />
                     </ListBox>
-                </StackPanel>
-                <Button Content="搜索"
-                        Command="{Binding RefreshCommand}"
-                        Style="{StaticResource PrimaryButton}"
-                        DockPanel.Dock="Right" />
-            </DockPanel>
+                </WrapPanel>
+            </StackPanel>
         </Border>
 
         <Grid Grid.Row="2">
