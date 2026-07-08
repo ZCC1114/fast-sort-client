@@ -29,6 +29,7 @@
                          ItemContainerStyle="{StaticResource PlainListBoxItem}"
                          BorderThickness="0"
                          Background="Transparent"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -90,8 +91,7 @@
                                                    FontSize="14"
                                                    FontWeight="SemiBold"
                                                    Foreground="{StaticResource FastSortText}"
-                                                   TextWrapping="NoWrap"
-                                                   TextTrimming="CharacterEllipsis" />
+                                                   TextWrapping="Wrap" />
                                         <WrapPanel Margin="0,5,0,0">
                                             <Border Background="{Binding BadgeBackground}"
                                                     CornerRadius="9"
@@ -240,7 +240,9 @@
                               ItemsSource="{Binding DetailRows}"
                               SelectedItem="{Binding SelectedRow}"
                               BorderThickness="0"
-                              Background="Transparent">
+                              Background="Transparent"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource FastSortBackground}"

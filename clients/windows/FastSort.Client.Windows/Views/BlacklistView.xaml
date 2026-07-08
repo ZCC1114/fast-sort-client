@@ -88,7 +88,9 @@
                              SelectedItem="{Binding SelectedRow}"
                              ItemContainerStyle="{StaticResource PlainListBoxItem}"
                              BorderThickness="0"
-                             Background="Transparent">
+                             Background="Transparent"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource FastSortBackground}"
@@ -182,7 +184,9 @@
                              SelectedItem="{Binding SelectedRow}"
                              ItemContainerStyle="{StaticResource PlainListBoxItem}"
                              BorderThickness="0"
-                             Background="Transparent">
+                             Background="Transparent"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource FastSortBackground}"
@@ -217,12 +221,24 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <DockPanel Grid.Row="3" Margin="0,12,0,0">
-                        <TextBlock Text="{Binding StatusText}"
-                                   Foreground="{StaticResource FastSortMuted}"
-                                   TextWrapping="Wrap"
-                                   VerticalAlignment="Center" />
+                    <DockPanel Grid.Row="3" LastChildFill="False" Margin="0,12,0,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PageText}"
+                                       Foreground="{StaticResource FastSortMuted}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding StatusText}"
+                                       Foreground="{StaticResource FastSortMuted}"
+                                       TextWrapping="Wrap"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="上一页"
+                                    Command="{Binding PreviousPageCommand}"
+                                    Margin="0,0,8,0" />
+                            <Button Content="下一页"
+                                    Command="{Binding NextPageCommand}"
+                                    Margin="0,0,8,0" />
                             <Button Content="加载详情"
                                     Command="{Binding PrimaryActionCommand}"
                                     Style="{StaticResource PrimaryButton}"

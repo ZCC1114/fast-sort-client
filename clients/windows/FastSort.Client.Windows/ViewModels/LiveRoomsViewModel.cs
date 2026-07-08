@@ -36,7 +36,6 @@ public sealed class LiveRoomsViewModel : ViewModelBase
         _navigate = navigate;
         PlatformFilters =
         [
-            new("全部", ""),
             new("抖音", "0"),
             new("淘宝", "1"),
             new("小红书", "2"),

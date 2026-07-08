@@ -221,6 +221,13 @@
             </Setter>
         </Style>
 
+        <Style x:Key="SegmentedSelectorCompactItem" TargetType="ListBoxItem" BasedOn="{StaticResource SegmentedSelectorItem}">
+            <Setter Property="Padding" Value="7,4" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="MinWidth" Value="42" />
+            <Setter Property="MinHeight" Value="30" />
+        </Style>
+
         <Style x:Key="SegmentedSelector" TargetType="ListBox">
             <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
             <Setter Property="Foreground" Value="{StaticResource FastSortText}" />
@@ -256,6 +263,12 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <Style x:Key="SegmentedSelectorCompact" TargetType="ListBox" BasedOn="{StaticResource SegmentedSelector}">
+            <Setter Property="Padding" Value="2" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource SegmentedSelectorCompactItem}" />
         </Style>
 
         <Style x:Key="FieldToggleCheckBox" TargetType="CheckBox">

@@ -46,7 +46,7 @@
 
                     <ListBox ItemsSource="{Binding PlatformFilters}"
                              SelectedItem="{Binding SelectedPlatformFilter}"
-                             Style="{StaticResource SegmentedSelector}"
+                             Style="{StaticResource SegmentedSelectorCompact}"
                              Margin="0,0,0,10">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -54,10 +54,6 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Height="34"
-                             Margin="0,0,0,12"
-                             ToolTip="按昵称、平台、编号搜索" />
                 </StackPanel>
 
                 <ListBox ItemsSource="{Binding VisibleRooms}"
@@ -65,6 +61,7 @@
                          ItemContainerStyle="{StaticResource PlainListBoxItem}"
                          BorderThickness="0"
                          Background="Transparent"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
@@ -129,7 +126,7 @@
                                                    FontSize="14"
                                                    FontWeight="SemiBold"
                                                    Foreground="{StaticResource FastSortText}"
-                                                   TextTrimming="CharacterEllipsis" />
+                                                   TextWrapping="Wrap" />
                                         <WrapPanel Margin="0,5,0,0">
                                             <Border Background="{Binding PlatformBadgeBackground}"
                                                     CornerRadius="9"
@@ -390,6 +387,8 @@
                               ItemsSource="{Binding Events}"
                               BorderThickness="0"
                               Background="Transparent"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               Margin="16,16,16,16">
                         <ListView.ItemTemplate>
                             <DataTemplate>

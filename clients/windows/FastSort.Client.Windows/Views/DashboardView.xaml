@@ -283,7 +283,7 @@
                                                 <TextBlock Text="{Binding Name}"
                                                            FontWeight="SemiBold"
                                                            Foreground="{StaticResource FastSortText}"
-                                                           TextTrimming="CharacterEllipsis" />
+                                                           TextWrapping="Wrap" />
                                                 <WrapPanel Margin="0,4,0,0">
                                                     <Border Background="{Binding BadgeBackground}"
                                                             CornerRadius="9"

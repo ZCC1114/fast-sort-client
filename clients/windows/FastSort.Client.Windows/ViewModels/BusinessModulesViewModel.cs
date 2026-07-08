@@ -60,6 +60,9 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     private int _pageIndex = 1;
     private int _pageSize = 20;
     private int _total;
+    private int _pickBatchPageIndex = 1;
+    private int _pickBatchPageSize = 10;
+    private int _pickBatchTotal;
     private BusinessRowViewModel? _selectedRow;
 
     public BusinessModulesViewModel(
@@ -90,6 +93,8 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         DangerActionCommand = new AsyncRelayCommand(RunDangerActionAsync, () => CanRunAction(IsDangerVisible));
         PreviousPageCommand = new AsyncRelayCommand(PreviousPageAsync, () => !IsLoading && PageIndex > 1);
         NextPageCommand = new AsyncRelayCommand(NextPageAsync, () => !IsLoading && PageIndex < TotalPages);
+        PreviousPickBatchPageCommand = new AsyncRelayCommand(PreviousPickBatchPageAsync, () => !IsLoading && Route == AppRoute.Pick && PickBatchPageIndex > 1);
+        NextPickBatchPageCommand = new AsyncRelayCommand(NextPickBatchPageAsync, () => !IsLoading && Route == AppRoute.Pick && PickBatchPageIndex < PickBatchTotalPages);
         ConfigureRoute(AppRoute.Blacklist);
     }
 
@@ -114,6 +119,10 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     public AsyncRelayCommand PreviousPageCommand { get; }
 
     public AsyncRelayCommand NextPageCommand { get; }
+
+    public AsyncRelayCommand PreviousPickBatchPageCommand { get; }
+
+    public AsyncRelayCommand NextPickBatchPageCommand { get; }
 
     public bool IsLoading
     {
@@ -172,8 +181,16 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     public string FilterText
     {
         get => _filterText;
-        set => SetProperty(ref _filterText, value);
+        set
+        {
+            if (SetProperty(ref _filterText, value))
+            {
+                OnPropertyChanged(nameof(PickBatchPanelTitle));
+            }
+        }
     }
+
+    public string PickBatchPanelTitle => IsHistoryTab(FilterText) ? "历史批次" : "当前批次";
 
     public string InputOneLabel
     {
@@ -377,6 +394,54 @@ public sealed class BusinessModulesViewModel : ViewModelBase
 
     public string PageText => $"{PageIndex} / {TotalPages} · 共 {Total} 条";
 
+    public int PickBatchPageIndex
+    {
+        get => _pickBatchPageIndex;
+        private set
+        {
+            var next = Math.Max(1, value);
+            if (SetProperty(ref _pickBatchPageIndex, next))
+            {
+                OnPropertyChanged(nameof(PickBatchPageText));
+                OnPropertyChanged(nameof(PickBatchTotalPages));
+                RaiseCommandStates();
+            }
+        }
+    }
+
+    public int PickBatchPageSize
+    {
+        get => _pickBatchPageSize;
+        private set
+        {
+            var next = Math.Clamp(value, 1, 100);
+            if (SetProperty(ref _pickBatchPageSize, next))
+            {
+                OnPropertyChanged(nameof(PickBatchPageText));
+                OnPropertyChanged(nameof(PickBatchTotalPages));
+                RaiseCommandStates();
+            }
+        }
+    }
+
+    public int PickBatchTotal
+    {
+        get => _pickBatchTotal;
+        private set
+        {
+            if (SetProperty(ref _pickBatchTotal, value))
+            {
+                OnPropertyChanged(nameof(PickBatchTotalPages));
+                OnPropertyChanged(nameof(PickBatchPageText));
+                RaiseCommandStates();
+            }
+        }
+    }
+
+    public int PickBatchTotalPages => Math.Max(1, (int)Math.Ceiling(PickBatchTotal / (double)Math.Max(1, PickBatchPageSize)));
+
+    public string PickBatchPageText => $"{PickBatchPageIndex} / {PickBatchTotalPages} · 共 {PickBatchTotal} 条";
+
     public BusinessRowViewModel? SelectedRow
     {
         get => _selectedRow;
@@ -401,6 +466,15 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         }
 
         await RefreshAsync();
+    }
+
+    public void ResetPickBatchPagination()
+    {
+        PickBatchPageIndex = 1;
+        PageIndex = 1;
+        _selectedPickBatch = null;
+        SelectedRow = null;
+        DetailRows.Clear();
     }
 
     private void ConfigureRoute(AppRoute route)
@@ -576,6 +650,9 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         IsDangerVisible = false;
         _selectedPickBatch = null;
         _selectedRemarkBatch = null;
+        PickBatchPageIndex = 1;
+        PickBatchPageSize = 10;
+        PickBatchTotal = 0;
     }
 
     private async Task RefreshAsync()
@@ -715,12 +792,56 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     private async Task PreviousPageAsync()
     {
         PageIndex = Math.Max(1, PageIndex - 1);
+        if (Route == AppRoute.Pick && _selectedPickBatch is not null)
+        {
+            await LoadPickTagsAsync(_selectedPickBatch);
+            return;
+        }
+
+        if (Route == AppRoute.DouyinRemark && _selectedRemarkBatch is not null)
+        {
+            await LoadRemarkTagsAsync(_selectedRemarkBatch);
+            return;
+        }
+
         await RefreshAsync();
     }
 
     private async Task NextPageAsync()
     {
         PageIndex = Math.Min(TotalPages, PageIndex + 1);
+        if (Route == AppRoute.Pick && _selectedPickBatch is not null)
+        {
+            await LoadPickTagsAsync(_selectedPickBatch);
+            return;
+        }
+
+        if (Route == AppRoute.DouyinRemark && _selectedRemarkBatch is not null)
+        {
+            await LoadRemarkTagsAsync(_selectedRemarkBatch);
+            return;
+        }
+
+        await RefreshAsync();
+    }
+
+    private async Task PreviousPickBatchPageAsync()
+    {
+        PickBatchPageIndex = Math.Max(1, PickBatchPageIndex - 1);
+        _selectedPickBatch = null;
+        SelectedRow = null;
+        DetailRows.Clear();
+        PageIndex = 1;
+        await RefreshAsync();
+    }
+
+    private async Task NextPickBatchPageAsync()
+    {
+        PickBatchPageIndex = Math.Min(PickBatchTotalPages, PickBatchPageIndex + 1);
+        _selectedPickBatch = null;
+        SelectedRow = null;
+        DetailRows.Clear();
+        PageIndex = 1;
         await RefreshAsync();
     }
 
@@ -878,7 +999,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
             return;
         }
 
-        var result = await _pickService.GetAllSortBatchListAsync(PageIndex, PageSize, userId, NormalizeLiveType(InputOne));
+        var result = await _pickService.GetAllSortBatchListAsync(PickBatchPageIndex, PickBatchPageSize, userId, NormalizeLiveType(InputOne));
         var useHistory = IsHistoryTab(FilterText);
         var batches = useHistory
             ? result.HistoryCompletedPage?.List ?? []
@@ -893,10 +1014,11 @@ public sealed class BusinessModulesViewModel : ViewModelBase
             "",
             batch.CreatedTime ?? "",
             batch)).ToList();
-        ReplacePrimaryRows(rows);
+        ReplacePrimaryRows(rows, useHistory ? PickBatchPageIndex : 1, PickBatchPageSize);
         ReplaceRows(rows);
         ReplaceDetailRows([]);
-        Total = useHistory ? result.HistoryCompletedPage?.TotalValue ?? Rows.Count : Rows.Count;
+        PickBatchTotal = useHistory ? result.HistoryCompletedPage?.TotalValue ?? PrimaryRows.Count : PrimaryRows.Count;
+        Total = 0;
         ReplaceMetrics(new("批次", useHistory ? "历史" : "当前"), new("行数", Rows.Count.ToString(CultureInfo.InvariantCulture)));
         StatusText = "选择批次后加载标签；选择标签后可加入黑名单。";
     }
@@ -905,6 +1027,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     {
         if (SelectedRow?.Source is SortBatchItem batch)
         {
+            PageIndex = 1;
             await LoadPickTagsAsync(batch);
             return;
         }
@@ -1030,6 +1153,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     {
         if (SelectedRow?.Source is SortBatchItem batch)
         {
+            PageIndex = 1;
             await LoadRemarkTagsAsync(batch);
             return;
         }
@@ -1056,7 +1180,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         IsLoading = true;
         try
         {
-            var result = await _pickService.GetLiveTagsAsync(PageIndex, 100, userId, batch.Id, SearchText.Trim());
+            var result = await _pickService.GetLiveTagsAsync(PageIndex, PageSize, userId, batch.Id, SearchText.Trim());
             var tags = result.List ?? [];
             var rows = tags.Select(tag => new BusinessRowViewModel(
                 "tag",
@@ -1599,13 +1723,15 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         ReplaceDetailRows(Rows);
     }
 
-    private void ReplacePrimaryRows(IEnumerable<BusinessRowViewModel> rows)
+    private void ReplacePrimaryRows(IEnumerable<BusinessRowViewModel> rows, int? pageIndex = null, int? pageSize = null)
     {
         PrimaryRows.Clear();
         var index = 0;
+        var sequencePageIndex = pageIndex ?? PageIndex;
+        var sequencePageSize = pageSize ?? PageSize;
         foreach (var row in rows)
         {
-            PrimaryRows.Add(row with { Sequence = SequenceFor(index++) });
+            PrimaryRows.Add(row with { Sequence = SequenceFor(index++, sequencePageIndex, sequencePageSize) });
         }
     }
 
@@ -1621,7 +1747,12 @@ public sealed class BusinessModulesViewModel : ViewModelBase
 
     private int SequenceFor(int zeroBasedIndex)
     {
-        return (Math.Max(1, PageIndex) - 1) * Math.Max(1, PageSize) + zeroBasedIndex + 1;
+        return SequenceFor(zeroBasedIndex, PageIndex, PageSize);
+    }
+
+    private static int SequenceFor(int zeroBasedIndex, int pageIndex, int pageSize)
+    {
+        return (Math.Max(1, pageIndex) - 1) * Math.Max(1, pageSize) + zeroBasedIndex + 1;
     }
 
     private void ReplaceMetrics(params BusinessMetricViewModel[] metrics)
@@ -1642,6 +1773,8 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         DangerActionCommand.RaiseCanExecuteChanged();
         PreviousPageCommand.RaiseCanExecuteChanged();
         NextPageCommand.RaiseCanExecuteChanged();
+        PreviousPickBatchPageCommand.RaiseCanExecuteChanged();
+        NextPickBatchPageCommand.RaiseCanExecuteChanged();
     }
 
     private static string BuildPrinterPreset(string instructionType, string width, string height)

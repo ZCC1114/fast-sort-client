@@ -12,7 +12,7 @@
         <Border Grid.Column="0" Style="{StaticResource CardBorder}">
             <DockPanel LastChildFill="True">
                 <StackPanel DockPanel.Dock="Top">
-                    <TextBlock Text="当前批次"
+                    <TextBlock Text="{Binding PickBatchPanelTitle}"
                                FontSize="18"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource FastSortText}" />
@@ -20,39 +20,85 @@
                              SelectedValuePath="Tag"
                              Style="{StaticResource SegmentedSelector}"
                              SelectionChanged="AutoRefreshSelector_SelectionChanged"
-                             Margin="0,12,0,12">
+                             Margin="0,12,0,8">
                         <ListBoxItem Content="当前" Tag="current" />
                         <ListBoxItem Content="历史" Tag="history" />
                     </ListBox>
-                    <TextBlock Text="序号    批次信息"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource FastSortMuted}"
-                               Margin="0,0,0,8" />
+                    <ListBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
+                             SelectedValuePath="Tag"
+                             Style="{StaticResource SegmentedSelectorCompact}"
+                             SelectionChanged="AutoRefreshSelector_SelectionChanged"
+                             Margin="0,0,0,12">
+                        <ListBoxItem Content="抖音" Tag="0" />
+                        <ListBoxItem Content="淘宝" Tag="1" />
+                        <ListBoxItem Content="小红书" Tag="2" />
+                        <ListBoxItem Content="微信" Tag="3" />
+                        <ListBoxItem Content="快手" Tag="4" />
+                    </ListBox>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="序号"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortMuted}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="批次信息"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FastSortMuted}" />
+                    </Grid>
                 </StackPanel>
+
+                <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="0,12,0,0">
+                    <TextBlock Text="{Binding PickBatchPageText}"
+                               Foreground="{StaticResource FastSortMuted}"
+                               VerticalAlignment="Center" />
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="上一页"
+                                Command="{Binding PreviousPickBatchPageCommand}"
+                                Margin="0,0,8,0" />
+                        <Button Content="下一页"
+                                Command="{Binding NextPickBatchPageCommand}" />
+                    </StackPanel>
+                </DockPanel>
 
                 <ListBox ItemsSource="{Binding PrimaryRows}"
                          SelectedItem="{Binding SelectedRow}"
                          ItemContainerStyle="{StaticResource PlainListBoxItem}"
                          BorderThickness="0"
-                         Background="Transparent">
+                         Background="Transparent"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border Background="{StaticResource FastSortBackground}"
                                     CornerRadius="10"
                                     Padding="12"
                                     Margin="0,0,0,10">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Name}"
-                                               FontSize="14"
-                                               FontWeight="SemiBold"
-                                               Foreground="{StaticResource FastSortText}"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding Time}"
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="44" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Sequence}"
                                                FontSize="12"
-                                               Foreground="{StaticResource FastSortMuted}"
-                                               Margin="0,5,0,0" />
-                                </StackPanel>
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource FastSortMuted}" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource FastSortText}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Time}"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource FastSortMuted}"
+                                                   Margin="0,5,0,0" />
+                                    </StackPanel>
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
@@ -63,40 +109,11 @@
         <Border Grid.Column="2" Style="{StaticResource CardBorder}">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="14" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="360" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <ListBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
-                             SelectedValuePath="Tag"
-                             Style="{StaticResource SegmentedSelector}"
-                             SelectionChanged="AutoRefreshSelector_SelectionChanged"
-                             Margin="0,0,12,0">
-                        <ListBoxItem Content="抖音" Tag="0" />
-                        <ListBoxItem Content="淘宝" Tag="1" />
-                        <ListBoxItem Content="小红书" Tag="2" />
-                        <ListBoxItem Content="微信" Tag="3" />
-                        <ListBoxItem Content="快手" Tag="4" />
-                    </ListBox>
-                    <TextBox Grid.Column="1"
-                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Height="34"
-                             Margin="0,0,10,0" />
-                    <Button Grid.Column="2"
-                            Content="搜索"
-                            Command="{Binding PrimaryActionCommand}"
-                            Style="{StaticResource PrimaryButton}" />
-                </Grid>
-
-                <Grid Grid.Row="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
@@ -127,6 +144,7 @@
                              ItemContainerStyle="{StaticResource PlainListBoxItem}"
                              BorderThickness="0"
                              Background="Transparent"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
@@ -161,7 +179,7 @@
                     </ListBox>
                 </Grid>
 
-                <DockPanel Grid.Row="3" Margin="0,12,0,0">
+                <DockPanel Grid.Row="1" LastChildFill="False" Margin="0,12,0,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="{Binding PageText}" Foreground="{StaticResource FastSortMuted}" VerticalAlignment="Center" />
                         <CheckBox Content="重置序号" IsChecked="True" VerticalAlignment="Center" Margin="18,0,0,0" />

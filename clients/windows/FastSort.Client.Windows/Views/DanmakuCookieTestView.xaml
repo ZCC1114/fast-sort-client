@@ -28,6 +28,8 @@
                              SelectedItem="{Binding SelectedPlatform}"
                              BorderThickness="0"
                              Background="Transparent"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              Margin="0,0,0,14">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
@@ -259,7 +261,9 @@
                     <ListView Grid.Row="1"
                               ItemsSource="{Binding Events}"
                               BorderThickness="0"
-                              Background="Transparent">
+                              Background="Transparent"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="{StaticResource FastSortBackground}"

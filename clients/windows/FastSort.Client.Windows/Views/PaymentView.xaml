@@ -36,7 +36,9 @@
             <ListBox ItemsSource="{Binding DetailRows}"
                      SelectedItem="{Binding SelectedRow}"
                      BorderThickness="0"
-                     Background="Transparent">
+                     Background="Transparent"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Border Background="{StaticResource FastSortBackground}"

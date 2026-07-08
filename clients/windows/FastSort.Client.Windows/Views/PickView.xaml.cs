@@ -29,8 +29,7 @@ public partial class PickView : UserControl
                     current.Route == AppRoute.Pick &&
                     current.RefreshCommand.CanExecute(null))
                 {
-                    current.PageIndex = 1;
-                    current.SelectedRow = null;
+                    current.ResetPickBatchPagination();
                     current.RefreshCommand.Execute(null);
                 }
             },
