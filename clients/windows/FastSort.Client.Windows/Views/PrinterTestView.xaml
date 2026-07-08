@@ -19,14 +19,14 @@
                     <Button Content="刷新设备"
                             Command="{Binding RefreshCommand}"
                             Margin="0,12,0,12" />
-                    <ComboBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
-                              SelectedValuePath="Content"
-                              Height="34"
-                              Margin="0,0,0,8">
-                        <ComboBoxItem Content="TSPL" />
-                        <ComboBoxItem Content="CPCL" />
-                        <ComboBoxItem Content="ESC/POS" />
-                    </ComboBox>
+                    <ListBox SelectedValue="{Binding InputOne, UpdateSourceTrigger=PropertyChanged}"
+                             SelectedValuePath="Content"
+                             Style="{StaticResource SegmentedSelector}"
+                             Margin="0,0,0,8">
+                        <ListBoxItem Content="TSPL" />
+                        <ListBoxItem Content="CPCL" />
+                        <ListBoxItem Content="ESC/POS" />
+                    </ListBox>
                     <DockPanel Margin="0,0,0,12">
                         <TextBox Text="{Binding InputTwo, UpdateSourceTrigger=PropertyChanged}"
                                  Width="90"

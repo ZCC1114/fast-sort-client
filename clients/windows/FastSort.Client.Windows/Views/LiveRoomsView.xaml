@@ -44,11 +44,16 @@
                         </Button>
                     </DockPanel>
 
-                    <ComboBox ItemsSource="{Binding PlatformFilters}"
-                              SelectedItem="{Binding SelectedPlatformFilter}"
-                              DisplayMemberPath="Name"
-                              Height="34"
-                              Margin="0,0,0,10" />
+                    <ListBox ItemsSource="{Binding PlatformFilters}"
+                             SelectedItem="{Binding SelectedPlatformFilter}"
+                             Style="{StaticResource SegmentedSelector}"
+                             Margin="0,0,0,10">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                     <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                              Height="34"
                              Margin="0,0,0,12"
@@ -198,15 +203,19 @@
                             <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedRoomSessionText}" Foreground="{StaticResource FastSortText}" FontSize="14" FontWeight="SemiBold" TextAlignment="Right" TextTrimming="CharacterEllipsis" MaxWidth="360" HorizontalAlignment="Right" VerticalAlignment="Center" />
 
                             <TextBlock Grid.Row="4" Text="打印模式" Foreground="{StaticResource FastSortMuted}" FontSize="13" VerticalAlignment="Center" />
-                            <ComboBox Grid.Row="4"
-                                      Grid.Column="1"
-                                      ItemsSource="{Binding PrintModes}"
-                                      SelectedValue="{Binding SelectedPrintMode}"
-                                      SelectedValuePath="Value"
-                                      DisplayMemberPath="Name"
-                                      Width="170"
-                                      Height="32"
-                                      HorizontalAlignment="Right" />
+                            <ListBox Grid.Row="4"
+                                     Grid.Column="1"
+                                     ItemsSource="{Binding PrintModes}"
+                                     SelectedValue="{Binding SelectedPrintMode}"
+                                     SelectedValuePath="Value"
+                                     Style="{StaticResource SegmentedSelector}"
+                                     HorizontalAlignment="Right">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
                         </Grid>
 
                         <WrapPanel Margin="0,18,0,0">
