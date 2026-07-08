@@ -279,14 +279,7 @@ internal sealed class WechatLiveApiClient
             UserId = userId,
             UserName = userName,
             Content = content,
-            RawPayload = new JsonObject
-            {
-                ["wxMsgId"] = messageId,
-                ["danmuUserId"] = userId,
-                ["danmuUserName"] = userName,
-                ["danmuContent"] = content,
-                ["wxRoomId"] = _liveId
-            }.ToJsonString(NativeDanmakuHttp.JsonOptions)
+            RawPayload = member.ToJsonString(NativeDanmakuHttp.JsonOptions)
         };
     }
 

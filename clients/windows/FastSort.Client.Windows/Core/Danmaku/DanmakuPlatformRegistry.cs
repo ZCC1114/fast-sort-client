@@ -97,6 +97,11 @@ public sealed record DanmakuPlatform(
             }
 
             domains.AddRange(AllowedDomains);
+            if (string.Equals(Key, "tb", StringComparison.OrdinalIgnoreCase))
+            {
+                domains.Add("alicdn.com");
+            }
+
             return domains
                 .Select(NormalizeDomain)
                 .Where(domain => !string.IsNullOrWhiteSpace(domain))
@@ -167,8 +172,8 @@ public static class DanmakuPlatformRegistry
             "taobao",
             "千牛工作台",
             "taobao.com",
-            "*://myseller.taobao.com/*",
-            "*://myseller.taobao.com/home.htm/live-dashboard-qn/",
+            "*://*.taobao.com/*",
+            "*://*.taobao.com/home.htm/*live*",
             new Uri("https://loginmyseller.taobao.com/?from=&f=top&style=&sub=true&redirect_url=https%3A%2F%2Fmyseller.taobao.com%2Fhome.htm%2Flive-dashboard-qn%2F"),
             [],
             ["tmall.com"]),

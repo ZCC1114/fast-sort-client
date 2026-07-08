@@ -1,12 +1,14 @@
+using System.IO;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using FastSort.Client.Windows.Core.Danmaku.Shared;
 
 namespace FastSort.Client.Windows.Core.Danmaku.Taobao;
 
-internal sealed record TaobaoNativePollResult(long? NextEndTime, IReadOnlyList<NativeDanmakuEvent> Events);
+internal sealed record TaobaoNativePollResult(long? NextEndTime, int? PullInterval, IReadOnlyList<NativeDanmakuEvent> Events);
 
 internal sealed class TaobaoRoomResolver
 {
@@ -81,6 +83,22 @@ internal sealed class TaobaoRoomResolver
             .Replace("\\u0026", "&", StringComparison.Ordinal)
             .Replace("\\/", "/", StringComparison.Ordinal);
 
+        if (NativeDanmakuHttp.FirstRegexMatch(
+                decoded,
+                @"(?:https?:)?//(?:impaas|impaasgw)\.alicdn\.com/live/message/([A-Za-z0-9_\-]{6,80})/",
+                RegexOptions.IgnoreCase) is { } impaasRoomId)
+        {
+            return impaasRoomId;
+        }
+
+        if (NativeDanmakuHttp.FirstRegexMatch(
+                decoded,
+                @"/live/message/([A-Za-z0-9_\-]{6,80})/",
+                RegexOptions.IgnoreCase) is { } liveMessageRoomId)
+        {
+            return liveMessageRoomId;
+        }
+
         string[] queryKeys = ["wh_cid", "roomId", "room_id", "liveId", "live_id", "liveRoomId", "liveRoomID", "livingRoomId", "liveIdStr"];
         foreach (var key in queryKeys)
         {
@@ -141,7 +159,7 @@ internal sealed class TaobaoDanmakuPoller
         Exception? lastError = null;
         foreach (var host in Hosts)
         {
-            var url = new Uri($"{host}/live/message/{Uri.EscapeDataString(roomId)}/{start}/{end}?deviceId={Uri.EscapeDataString(deviceId)}");
+            var url = new Uri($"{host}/live/message/{Uri.EscapeDataString(roomId)}/{start}/{end}");
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.TryAddWithoutValidation("User-Agent", NativeDanmakuHttp.TaobaoMobileUserAgent);
             request.Headers.TryAddWithoutValidation("Accept", "*/*");
@@ -166,6 +184,7 @@ internal sealed class TaobaoDanmakuPoller
                 var root = NativeDanmakuHttp.ParseObject(await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false))
                     ?? throw new NativeDanmakuException("淘宝弹幕接口返回不是 JSON");
                 var nextEndTime = NativeDanmakuHttp.FlexibleLong(root["endTime"]);
+                var pullInterval = NativeDanmakuHttp.FlexibleInt(root["pullInterval"]);
                 var payloads = root["payloads"] as JsonArray ?? [];
                 var events = payloads
                     .OfType<JsonObject>()
@@ -173,7 +192,7 @@ internal sealed class TaobaoDanmakuPoller
                     .Where(evt => evt is not null)
                     .Select(evt => evt!)
                     .ToList();
-                return new TaobaoNativePollResult(nextEndTime, events);
+                return new TaobaoNativePollResult(nextEndTime, pullInterval, events);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -214,7 +233,9 @@ internal sealed class TaobaoDanmakuPoller
         }
 
         var renders = obj["renders"] as JsonObject ?? new JsonObject();
-        var userId = TaobaoUserId(renders, obj);
+        var userName = TaobaoNick(obj, renders);
+        var interfaceBuyerId = TaobaoBuyerId(obj) ?? TaobaoBuyerIdFromText(userName);
+        var userId = interfaceBuyerId ?? TaobaoUserId(renders, obj, userName);
         var messageId = NativeDanmakuHttp.FirstText(obj, "id", "msgId", "messageId");
         var eventId = string.IsNullOrWhiteSpace(messageId)
             ? NativeDanmakuHttp.Sha1Hex($"{roomId}|{userId}|{content}|{DateTimeOffset.Now.ToUnixTimeMilliseconds()}")
@@ -229,7 +250,7 @@ internal sealed class TaobaoDanmakuPoller
             PlatformRoomId = string.IsNullOrWhiteSpace(liveId) ? roomId : liveId,
             MessageId = string.IsNullOrWhiteSpace(messageId) ? eventId : messageId,
             UserId = userId,
-            UserName = TaobaoNick(obj, renders),
+            UserName = userName,
             Content = content,
             RawPayload = obj.ToJsonString(NativeDanmakuHttp.JsonOptions)
         };
@@ -253,17 +274,27 @@ internal sealed class TaobaoDanmakuPoller
         return string.IsNullOrWhiteSpace(publisherNick) ? "淘宝用户" : publisherNick;
     }
 
-    private static string TaobaoUserId(JsonObject renders, JsonObject root)
+    private static string TaobaoUserId(JsonObject renders, JsonObject root, string userName)
     {
+        if (TaobaoBuyerIdFromText(userName) is { Length: > 0 } userIdFromName)
+        {
+            return userIdFromName;
+        }
+
         var direct = NativeDanmakuHttp.FirstText(renders, "tbUserIdEncode", "userId", "userIdEncode").Trim();
         if (!string.IsNullOrWhiteSpace(direct))
         {
             return direct;
         }
 
-        foreach (var field in new[] { "snsNickPic", "guangGuangJumpUrl" })
+        foreach (var field in new[] { "snsNick", "publisherNick", "snsNickPic", "guangGuangJumpUrl" })
         {
             var urlText = NativeDanmakuHttp.FirstText(renders, field);
+            if (TaobaoBuyerIdFromText(urlText) is { Length: > 0 } userIdFromText)
+            {
+                return userIdFromText;
+            }
+
             var userId = NativeDanmakuHttp.QueryValue(urlText, "userIdStrV2") ??
                          NativeDanmakuHttp.QueryValue(urlText, "userIdStr") ??
                          NativeDanmakuHttp.QueryValue(urlText, "userId");
@@ -273,7 +304,132 @@ internal sealed class TaobaoDanmakuPoller
             }
         }
 
+        foreach (var field in new[] { "tbNick", "publisherNick", "nick", "userName", "nickname", "snsNick" })
+        {
+            if (TaobaoBuyerIdFromText(NativeDanmakuHttp.FirstText(root, field)) is { Length: > 0 } userIdFromText)
+            {
+                return userIdFromText;
+            }
+        }
+
         return NativeDanmakuHttp.FirstText(root, "userId", "uid", "publisherId");
+    }
+
+    private static string? TaobaoBuyerId(JsonNode? value, int depth = 0)
+    {
+        if (value is null || depth >= 5)
+        {
+            return null;
+        }
+
+        if (value is JsonObject obj)
+        {
+            foreach (var key in new[]
+                     {
+                         "tbUserId", "tbUserIdEncode", "tbNick", "snsNick", "publisherNick",
+                         "userIdStrV2", "userIdStr", "userId", "nick", "userName", "nickname"
+                     })
+            {
+                if (TaobaoBuyerId(obj[key], depth + 1) is { Length: > 0 } buyerId)
+                {
+                    return buyerId;
+                }
+            }
+
+            foreach (var item in obj)
+            {
+                if (TaobaoBuyerId(item.Value, depth + 1) is { Length: > 0 } buyerId)
+                {
+                    return buyerId;
+                }
+            }
+        }
+        else if (value is JsonArray array)
+        {
+            foreach (var item in array)
+            {
+                if (TaobaoBuyerId(item, depth + 1) is { Length: > 0 } buyerId)
+                {
+                    return buyerId;
+                }
+            }
+        }
+        else
+        {
+            var text = value.ToString();
+            if (TaobaoBuyerIdFromText(text) is { Length: > 0 } buyerId)
+            {
+                return buyerId;
+            }
+
+            if (DecodedBase64Text(text) is { Length: > 0 } decoded && !string.Equals(decoded, text, StringComparison.Ordinal))
+            {
+                if (TaobaoBuyerIdFromText(decoded) is { Length: > 0 } decodedBuyerId)
+                {
+                    return decodedBuyerId;
+                }
+
+                if (JsonNodeFromText(decoded) is { } nestedNode &&
+                    TaobaoBuyerId(nestedNode, depth + 1) is { Length: > 0 } nestedBuyerId)
+                {
+                    return nestedBuyerId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? TaobaoBuyerIdFromText(string text)
+    {
+        var decoded = NativeDanmakuHttp.DecodeRepeatedly(text);
+        foreach (var pattern in new[]
+                 {
+                     @"\((tb[A-Za-z0-9_\-]{4,80})\)",
+                     @"\b(tb[A-Za-z0-9_\-]{4,80})\b"
+                 })
+        {
+            if (NativeDanmakuHttp.FirstRegexMatch(decoded, pattern, RegexOptions.IgnoreCase) is { Length: > 0 } userId)
+            {
+                return userId;
+            }
+        }
+
+        return null;
+    }
+
+    private static JsonNode? JsonNodeFromText(string text)
+    {
+        try
+        {
+            return JsonNode.Parse(text);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? DecodedBase64Text(string text)
+    {
+        var trimmed = text.Trim();
+        if (trimmed.Length is < 8 or > 80000 ||
+            !Regex.IsMatch(trimmed, @"^[A-Za-z0-9+/_=-]+$", RegexOptions.CultureInvariant))
+        {
+            return null;
+        }
+
+        try
+        {
+            var normalized = trimmed.Replace('-', '+').Replace('_', '/');
+            var data = Convert.FromBase64String(NativeDanmakuHttp.PaddedBase64(normalized));
+            var payload = NativeDanmakuHttp.IsGzipPayload(data) ? NativeDanmakuHttp.Gunzip(data) : data;
+            return Encoding.UTF8.GetString(payload);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidDataException)
+        {
+            return null;
+        }
     }
 }
 
@@ -296,8 +452,8 @@ public sealed class TaobaoNativeDanmakuAdapter : INativeDanmakuAdapter
             var deviceId = NativeDanmakuHttp.Sha1Hex(roomId)[..24];
             var loop = Task.Run(async () =>
             {
-                var start = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                var end = start;
+                var end = DateTimeOffset.Now.ToUnixTimeSeconds();
+                var start = Math.Max(0, end - 4);
                 while (!cts.IsCancellationRequested)
                 {
                     try
@@ -305,8 +461,15 @@ public sealed class TaobaoNativeDanmakuAdapter : INativeDanmakuAdapter
                         var result = await poller.FetchMessagesAsync(roomId, start, end, deviceId, request.CookieHeader, cts.Token).ConfigureAwait(false);
                         if (result.NextEndTime is { } nextEnd)
                         {
+                            var interval = Math.Max(result.PullInterval ?? 4, 1);
                             start = nextEnd;
-                            end = nextEnd + 1;
+                            end = nextEnd + interval;
+                        }
+                        else
+                        {
+                            var now = DateTimeOffset.Now.ToUnixTimeSeconds();
+                            start = Math.Max(end, now - 4);
+                            end = Math.Max(now, start + 4);
                         }
 
                         foreach (var nativeEvent in result.Events)

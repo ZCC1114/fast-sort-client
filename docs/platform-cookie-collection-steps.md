@@ -46,7 +46,7 @@
 | `fxg` | `jinritemai.com` | `*://fxg.jinritemai.com/*` | `*://fxg.jinritemai.com/ffa/mshop/homepage/index` | 弹幕捕手无额外项；迅拣可额外允许 `douyin.com` 供直播页接口扩展。 |
 | `fxg_kol` | `jinritemai.com` | `*://buyin.jinritemai.com/*` | `*://buyin.jinritemai.com/dashboard*` | 弹幕捕手无额外项；迅拣可额外允许 `douyin.com` 供直播页接口扩展。 |
 | `xhs` | `xiaohongshu.com` | `*://ark.xiaohongshu.com/*` | `*://ark.xiaohongshu.com/app-system/home` | 无。 |
-| `tb` | `taobao.com` | `*://myseller.taobao.com/*` | `*://myseller.taobao.com/home.htm/live-dashboard-qn/` | 迅拣可额外允许 `tmall.com`。 |
+| `tb` | `taobao.com` | `*://*.taobao.com/*` | `*://*.taobao.com/home.htm/*live*` | 兼容旧 `myseller.taobao.com/home.htm/live-dashboard-qn/` 和新版 `qn.taobao.com/home.htm/qn-live-container/live/control?liveId=...`；迅拣可额外允许 `tmall.com`；授权窗口额外允许 `alicdn.com` 作为导航白名单，不纳入 Cookie 采集域。 |
 | `tiktok` | `tiktokshopglobalselling.com` | `*://seller.us.tiktokshopglobalselling.com/*` | `*://seller.us.tiktokshopglobalselling.com/homepage*` | 迅拣可额外允许 `tiktok.com`。 |
 | `shopee` | `shopee.cn` | `*://seller.shopee.cn/?cnsc_shop_id=*` | `*://seller.shopee.cn/*` | 无。 |
 | `ec` | `weixin.qq.com` | `*://channels.weixin.qq.com/platform/*` | `*://channels.weixin.qq.com/platform/*` | 无。 |
@@ -60,7 +60,7 @@
 | 抖音工作台 | `https://fxg.jinritemai.com/login/common` | `*://fxg.jinritemai.com/ffa/mshop/homepage/index` | `jinritemai.com` | `douyin.com` | 扫码/账号登录后保存 Cookie，adapter 自动解析当前直播 |
 | 抖音达人工作台 | `https://buyin.jinritemai.com/mpa/account/login` | `*://buyin.jinritemai.com/dashboard*` | `jinritemai.com` | `douyin.com` | 扫码/账号登录后保存 Cookie，adapter 自动解析当前直播 |
 | 小红书工作台 | `https://customer.xiaohongshu.com/login?service=https://ark.xiaohongshu.com/app-system/home` | `*://ark.xiaohongshu.com/app-system/home*` | `xiaohongshu.com` | 无 | 扫码/账号登录后保存 ark Cookie，adapter 自动解析当前直播 |
-| 千牛/淘宝工作台 | `https://loginmyseller.taobao.com/?from=&f=top&style=&sub=true&redirect_url=https%3A%2F%2Fmyseller.taobao.com%2Fhome.htm%2Flive-dashboard-qn%2F` | `*://myseller.taobao.com/home.htm/live-dashboard-qn/` | `taobao.com` | `tmall.com` | 扫码/账号登录后保存 Cookie，adapter 自动解析当前直播 |
+| 千牛/淘宝工作台 | `https://loginmyseller.taobao.com/?from=&f=top&style=&sub=true&redirect_url=https%3A%2F%2Fmyseller.taobao.com%2Fhome.htm%2Flive-dashboard-qn%2F` | `*://*.taobao.com/home.htm/*live*` | `taobao.com` | `tmall.com`；导航额外允许 `alicdn.com` | 扫码/账号登录后保存 Cookie，adapter 自动解析当前直播 |
 | TikTok 工作台 | `https://seller.tiktokshopglobalselling.com/account/login` | `*://seller.us.tiktokshopglobalselling.com/homepage*` | `tiktokshopglobalselling.com` | `tiktok.com` | 扫码/账号登录后保存 Cookie，adapter 自动解析当前直播 |
 | Shopee/虾皮工作台 | `https://seller.shopee.cn/account/signin` | `*://seller.shopee.cn/*` | `shopee.cn` | 无 | 扫码/账号登录后保存 Cookie，adapter 自动解析当前直播 |
 | 视频号工作台 | `https://channels.weixin.qq.com/login.html` | `*://channels.weixin.qq.com/platform/*` | `weixin.qq.com` | 无 | 扫码登录后保存 Cookie，adapter 自动解析当前直播 |
@@ -104,6 +104,7 @@
 4. 采集 `taobao.com`、登录页 host 和 `tmall.com` 相关 Cookie。
 5. 保存完整 Cookie 到迅拣淘宝房间的 `liveSession`。
 6. native adapter 用千牛 Cookie 打开直播看板或工作台接口并解析当前 `roomId`，再轮询淘宝 `impaas` 弹幕源。
+7. 新版千牛直播管理页的 URL 可能只有数字 `liveId`，真实弹幕轮询 roomId 需要从工作台请求 `//impaas.alicdn.com/live/message/{uuid}/{start}/{end}` 中解析，例如 `69297687-d197-4781-b71a-4d3ba1dc7acf`；轮询时间窗口是 Unix 秒，不是毫秒。
 
 ### TikTok 工作台
 

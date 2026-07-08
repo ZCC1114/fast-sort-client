@@ -2,6 +2,7 @@ import Foundation
 
 struct TaobaoNativePollResult {
     let nextEndTime: Int?
+    let pullInterval: Int?
     let events: [NativeDanmakuEvent]
 }
 
@@ -62,6 +63,21 @@ final class TaobaoRoomResolver: Sendable {
             .replacingOccurrences(of: "\\u0026", with: "&")
             .replacingOccurrences(of: "\\/", with: "/")
 
+        if let roomId = NativeDanmakuHTTP.firstRegexMatch(
+            in: decoded,
+            pattern: #"(?:https?:)?//(?:impaas|impaasgw)\.alicdn\.com/live/message/([A-Za-z0-9_\-]{6,80})/"#,
+            options: [.caseInsensitive]
+        ) {
+            return roomId
+        }
+        if let roomId = NativeDanmakuHTTP.firstRegexMatch(
+            in: decoded,
+            pattern: #"/live/message/([A-Za-z0-9_\-]{6,80})/"#,
+            options: [.caseInsensitive]
+        ) {
+            return roomId
+        }
+
         let queryKeys = ["wh_cid", "roomId", "room_id", "liveId", "live_id", "liveRoomId", "liveRoomID", "livingRoomId", "liveIdStr"]
         for key in queryKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key), isRoomIdCandidate(value) {
@@ -109,7 +125,8 @@ final class TaobaoDanmakuPoller: Sendable {
     ) async throws -> TaobaoNativePollResult {
         var lastError: Error?
         for host in hosts {
-            guard let url = URL(string: "\(host)/live/message/\(roomId)/\(start)/\(end)?deviceId=\(deviceId)") else {
+            guard let encodedRoomId = roomId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let url = URL(string: "\(host)/live/message/\(encodedRoomId)/\(start)/\(end)") else {
                 throw NativeDanmakuError("淘宝弹幕 URL 构造失败")
             }
             var request = URLRequest(url: url)
@@ -132,9 +149,10 @@ final class TaobaoDanmakuPoller: Sendable {
                     throw NativeDanmakuError("淘宝弹幕接口返回不是 JSON")
                 }
                 let nextEndTime = NativeDanmakuHTTP.flexibleInt(object["endTime"])
+                let pullInterval = NativeDanmakuHTTP.flexibleInt(object["pullInterval"])
                 let payloads = object["payloads"] as? [[String: Any]] ?? []
                 let events = payloads.compactMap { decodePayload($0, roomId: roomId) }
-                return TaobaoNativePollResult(nextEndTime: nextEndTime, events: events)
+                return TaobaoNativePollResult(nextEndTime: nextEndTime, pullInterval: pullInterval, events: events)
             } catch {
                 lastError = error
                 continue
@@ -150,7 +168,9 @@ final class TaobaoDanmakuPoller: Sendable {
         let content = NativeDanmakuHTTP.firstText(object, keys: ["content", "text", "msg"]).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return nil }
         let renders = object["renders"] as? [String: Any] ?? [:]
-        let userId = taobaoUserId(renders: renders, root: object)
+        let userName = taobaoNick(root: object, renders: renders)
+        let interfaceBuyerId = taobaoBuyerId(in: object) ?? taobaoBuyerIdFromText(userName)
+        let userId = interfaceBuyerId ?? taobaoUserId(renders: renders, root: object, userName: userName)
         let messageId = NativeDanmakuHTTP.firstText(object, keys: ["id", "msgId", "messageId"], fallback: "")
         let eventId = messageId.isEmpty ? "\(roomId)-\(userId)-\(content)-\(Date().timeIntervalSince1970)" : messageId
         let liveId = NativeDanmakuHTTP.firstText(renders, keys: ["liveId"], fallback: roomId)
@@ -162,7 +182,7 @@ final class TaobaoDanmakuPoller: Sendable {
             platformRoomId: liveId.isEmpty ? roomId : liveId,
             messageId: messageId.isEmpty ? eventId : messageId,
             userId: userId,
-            userName: taobaoNick(root: object, renders: renders),
+            userName: userName,
             content: content,
             rawPayload: object
         )
@@ -177,19 +197,102 @@ final class TaobaoDanmakuPoller: Sendable {
         return publisherNick.isEmpty ? "淘宝用户" : publisherNick
     }
 
-    private func taobaoUserId(renders: [String: Any], root: [String: Any]) -> String {
+    private func taobaoUserId(renders: [String: Any], root: [String: Any], userName: String) -> String {
+        if let userId = taobaoBuyerIdFromText(userName) {
+            return userId
+        }
         let direct = NativeDanmakuHTTP.firstText(renders, keys: ["tbUserIdEncode", "userId", "userIdEncode"])
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if !direct.isEmpty { return direct }
-        for field in ["snsNickPic", "guangGuangJumpUrl"] {
+        for field in ["snsNick", "publisherNick", "snsNickPic", "guangGuangJumpUrl"] {
             let urlText = NativeDanmakuHTTP.firstText(renders, keys: [field])
+            if let userId = taobaoBuyerIdFromText(urlText) {
+                return userId
+            }
             if let userId = NativeDanmakuHTTP.queryValue(in: urlText, name: "userIdStrV2")
                 ?? NativeDanmakuHTTP.queryValue(in: urlText, name: "userIdStr")
                 ?? NativeDanmakuHTTP.queryValue(in: urlText, name: "userId") {
                 return userId
             }
         }
+        for field in ["tbNick", "publisherNick", "nick", "userName", "nickname", "snsNick"] {
+            if let userId = taobaoBuyerIdFromText(NativeDanmakuHTTP.firstText(root, keys: [field])) {
+                return userId
+            }
+        }
         return NativeDanmakuHTTP.firstText(root, keys: ["userId", "uid", "publisherId"])
+    }
+
+    private func taobaoBuyerId(in value: Any?, depth: Int = 0) -> String? {
+        guard let value, depth < 5 else { return nil }
+        if let dictionary = value as? [String: Any] {
+            let preferredKeys = [
+                "tbUserId", "tbUserIdEncode", "tbNick", "snsNick", "publisherNick",
+                "userIdStrV2", "userIdStr", "userId", "nick", "userName", "nickname"
+            ]
+            for key in preferredKeys {
+                if let buyerId = taobaoBuyerId(in: dictionary[key], depth: depth + 1) {
+                    return buyerId
+                }
+            }
+            for (_, nestedValue) in dictionary {
+                if let buyerId = taobaoBuyerId(in: nestedValue, depth: depth + 1) {
+                    return buyerId
+                }
+            }
+        } else if let array = value as? [Any] {
+            for nestedValue in array {
+                if let buyerId = taobaoBuyerId(in: nestedValue, depth: depth + 1) {
+                    return buyerId
+                }
+            }
+        } else if let text = value as? String {
+            if let buyerId = taobaoBuyerIdFromText(text) {
+                return buyerId
+            }
+            if let decoded = decodedBase64Text(text), decoded != text {
+                if let buyerId = taobaoBuyerIdFromText(decoded) {
+                    return buyerId
+                }
+                if let data = decoded.data(using: .utf8),
+                   let object = try? JSONSerialization.jsonObject(with: data),
+                   let buyerId = taobaoBuyerId(in: object, depth: depth + 1) {
+                    return buyerId
+                }
+            }
+        } else if let convertible = value as? CustomStringConvertible {
+            return taobaoBuyerIdFromText(convertible.description)
+        }
+        return nil
+    }
+
+    private func taobaoBuyerIdFromText(_ text: String) -> String? {
+        let decoded = NativeDanmakuHTTP.decodeRepeatedly(text)
+        let patterns = [
+            #"\((tb[A-Za-z0-9_\-]{4,80})\)"#,
+            #"\b(tb[A-Za-z0-9_\-]{4,80})\b"#
+        ]
+        for pattern in patterns {
+            if let value = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: pattern, options: [.caseInsensitive]) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func decodedBase64Text(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 8,
+              trimmed.count <= 80_000,
+              trimmed.range(of: #"^[A-Za-z0-9+/_=-]+$"#, options: .regularExpression) != nil else {
+            return nil
+        }
+        let normalized = trimmed
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        guard let data = Data(base64Encoded: NativeDanmakuHTTP.paddedBase64(normalized)) else { return nil }
+        let payload = (try? NativeDanmakuHTTP.gunzip(data)) ?? data
+        return String(data: payload, encoding: .utf8)
     }
 }
 
@@ -223,8 +326,8 @@ final class TaobaoNativeDanmakuAdapter: NativeDanmakuAdapter {
         let poller = TaobaoDanmakuPoller()
         let task = Task {
             onEvent(NativeDanmakuEvent(platform: platformKey, event: .status, status: .living, roomId: request.roomId, platformRoomId: roomId))
-            var start = Int(Date().timeIntervalSince1970 * 1000)
-            var end = start
+            var end = Int(Date().timeIntervalSince1970)
+            var start = max(0, end - 4)
             while !Task.isCancelled {
                 do {
                     let result = try await poller.fetchMessages(
@@ -235,8 +338,13 @@ final class TaobaoNativeDanmakuAdapter: NativeDanmakuAdapter {
                         cookieHeader: request.cookieHeader
                     )
                     if let nextEnd = result.nextEndTime {
+                        let interval = max(result.pullInterval ?? 4, 1)
                         start = nextEnd
-                        end = nextEnd + 1
+                        end = nextEnd + interval
+                    } else {
+                        let now = Int(Date().timeIntervalSince1970)
+                        start = max(end, now - 4)
+                        end = max(now, start + 4)
                     }
                     for event in result.events {
                         onEvent(event)

@@ -14,10 +14,9 @@ struct DanmakuCookieTestView: View {
                     .frame(width: 360)
                     .frame(maxHeight: .infinity)
                 VStack(alignment: .leading, spacing: 14) {
-                    browserPanel
-                        .frame(height: max(300, proxy.size.height * 0.44))
                     cookiePanel
                         .frame(maxWidth: .infinity)
+                        .frame(height: max(210, min(300, proxy.size.height * 0.26)))
                     danmuPanel
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -38,7 +37,7 @@ struct DanmakuCookieTestView: View {
                 Text("平台授权测试")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(FastSortTheme.text)
-                Text("按迅拣平台配置打开工作台登录页，登录后从当前 WebKit 会话采集平台 Cookie。")
+                Text("点击平台会直接打开独立登录窗口，登录后从当前 WebKit 会话采集平台 Cookie。")
                     .font(.system(size: 12))
                     .foregroundStyle(FastSortTheme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -53,6 +52,14 @@ struct DanmakuCookieTestView: View {
             Divider()
 
             selectedPlatformInfo
+
+            if !viewModel.statusText.isEmpty {
+                Text(viewModel.statusText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(viewModel.statusLevel == .error ? FastSortTheme.danger : FastSortTheme.muted)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             HStack(spacing: 10) {
                 Button("打开登录页") {
@@ -173,8 +180,8 @@ struct DanmakuCookieTestView: View {
                     Text(message.user)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(FastSortTheme.text)
-                    if !message.roomId.isEmpty {
-                        Text(message.roomId)
+                    if !message.subtitleId.isEmpty {
+                        Text(message.subtitleId)
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(FastSortTheme.muted)
                     }
@@ -183,6 +190,22 @@ struct DanmakuCookieTestView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(FastSortTheme.text)
                     .textSelection(.enabled)
+                if !message.rawText.isEmpty {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("组装内容")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(FastSortTheme.muted)
+                        Text(message.rawText)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(FastSortTheme.muted)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(FastSortTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
             }
             Spacer(minLength: 0)
         }
@@ -204,7 +227,12 @@ struct DanmakuCookieTestView: View {
     private func platformButton(_ platform: DanmakuPlatform) -> some View {
         let active = platform.id == viewModel.selectedPlatform.id
         return Button {
-            viewModel.selectPlatform(platform)
+            if active {
+                openAuthWindow(loadSelectedPlatform: !viewModel.isAuthWindowOpen)
+            } else {
+                viewModel.selectPlatform(platform)
+                openAuthWindow()
+            }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: platform.systemImage)
@@ -280,73 +308,6 @@ struct DanmakuCookieTestView: View {
                 .textSelection(.enabled)
                 .lineLimit(3)
         }
-    }
-
-    private var browserPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("平台登录窗口")
-                        .font(.system(size: 18, weight: .semibold))
-                    Text(viewModel.currentURLText)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(FastSortTheme.muted)
-                        .lineLimit(2)
-                        .textSelection(.enabled)
-                }
-                Spacer()
-                Button {
-                    openAuthWindow(loadSelectedPlatform: !viewModel.isAuthWindowOpen)
-                } label: {
-                    Label(viewModel.isAuthWindowOpen ? "聚焦窗口" : "独立窗口", systemImage: "rectangle.on.rectangle")
-                }
-                .buttonStyle(AccentOutlineButtonStyle())
-                matchBadge
-            }
-
-            standaloneWindowPlaceholder
-
-            if !viewModel.statusText.isEmpty {
-                Text(viewModel.statusText)
-                    .font(.system(size: 12))
-                    .foregroundStyle(viewModel.statusLevel == .error ? FastSortTheme.danger : FastSortTheme.muted)
-                    .lineLimit(2)
-            }
-        }
-        .padding(16)
-        .webCard()
-    }
-
-    private var standaloneWindowPlaceholder: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "rectangle.on.rectangle")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(FastSortTheme.accent)
-            Text(viewModel.isAuthWindowOpen ? "平台登录页已在独立窗口打开" : "平台登录页将在独立窗口打开")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(FastSortTheme.text)
-            Button(viewModel.isAuthWindowOpen ? "聚焦登录窗口" : "打开登录窗口") {
-                openAuthWindow(loadSelectedPlatform: !viewModel.isAuthWindowOpen)
-            }
-            .buttonStyle(PrimaryButtonStyle())
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(FastSortTheme.groupedBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(FastSortTheme.border, lineWidth: 1)
-        }
-    }
-
-    private var matchBadge: some View {
-        Label(viewModel.matchText, systemImage: viewModel.isPageMatched ? "checkmark.seal.fill" : "hourglass")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(viewModel.isPageMatched ? FastSortTheme.success : FastSortTheme.muted)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(viewModel.isPageMatched ? Color(hex: 0xe9f8ef) : FastSortTheme.groupedBackground)
-            .clipShape(Capsule())
     }
 
     private var cookiePanel: some View {
@@ -563,7 +524,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
     var canCopyWorkbenchDiagnostics: Bool {
         guard let adapter = selectedPlatform.directDanmuAdapter else { return false }
-        return [.douyin, .wechat, .xiaohongshu].contains(adapter) && workbenchCaptureCount > 0
+        return [.douyin, .wechat, .xiaohongshu, .taobao].contains(adapter) && workbenchCaptureCount > 0
     }
 
     var workbenchDiagnosticsButtonTitle: String {
@@ -602,16 +563,25 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
     func handleWorkbenchCapture(payload: DanmakuWebCapturePayload) {
         guard let adapter = selectedPlatform.directDanmuAdapter,
-              [.douyin, .wechat, .xiaohongshu].contains(adapter) else { return }
+              [.douyin, .wechat, .xiaohongshu, .taobao].contains(adapter) else { return }
         let text = String(payload.combinedText.prefix(60_000))
         guard !text.isEmpty else { return }
         guard storeWorkbenchPayload(text: text, signature: payload.signature) else { return }
 
         switch adapter {
         case .douyin:
+            if selectedPlatform.key == "dy_web",
+               !shouldUseDouyinWebCapturedPayloadForRoomInput(text) {
+                return
+            }
             guard let candidate = douyinWorkbenchRoomInputCandidate(from: text) else { return }
+            if selectedPlatform.key == "dy_web",
+               isDouyinPublicRoomIdCandidate(candidate) {
+                return
+            }
             if capturedDouyinRoomInput != candidate {
-                statusText = "已从抖店中控接口响应捕获到直播标识：\(candidate)。现在可以点击“连接弹幕”。"
+                let sourceName = selectedPlatform.key == "dy_web" ? "抖音网页响应" : "抖店中控接口响应"
+                statusText = "已从\(sourceName)捕获到直播标识：\(candidate)。现在可以点击“连接弹幕”。"
                 statusLevel = .success
             }
             capturedDouyinRoomInput = candidate
@@ -628,14 +598,21 @@ final class DanmakuCookieTestViewModel: ObservableObject {
                 statusText = "已捕获到小红书 ark 直播中控弹幕响应。现在可以点击“连接弹幕”。"
                 statusLevel = .success
             } else if let candidate = xiaohongshuRoomInputCandidate(from: text) {
-                if capturedXiaohongshuRoomInput != candidate {
+                if shouldReplaceXiaohongshuRoomInput(current: capturedXiaohongshuRoomInput, candidate: candidate) {
                     statusText = "已从小红书 ark 中控接口响应捕获到直播标识：\(candidate)。现在可以点击“连接弹幕”。"
                     statusLevel = .success
+                    capturedXiaohongshuRoomInput = candidate
                 }
-                capturedXiaohongshuRoomInput = candidate
             } else if xiaohongshuPayloadLooksUseful(text) {
-                statusText = "已捕获到小红书 ark 工作台接口响应；进入直播中控后会继续捕获弹幕或房间标识。"
+                statusText = "已捕获到小红书 ark 工作台接口响应；采集 Cookie 后可直接连接弹幕。"
                 statusLevel = .info
+            }
+        case .taobao:
+            if text.localizedCaseInsensitiveContains("impaas")
+                || text.localizedCaseInsensitiveContains("powermsg")
+                || text.localizedCaseInsensitiveContains("live/message") {
+                statusText = "已捕获到淘宝弹幕接口响应。现在可以点击“连接弹幕”。"
+                statusLevel = .success
             }
         default:
             break
@@ -653,6 +630,10 @@ final class DanmakuCookieTestViewModel: ObservableObject {
                     && !payload.localizedCaseInsensitiveContains("mmfinderassistant-bin/live/msg")
                     && !payload.localizedCaseInsensitiveContains("xiaohongshu")
                     && !payload.localizedCaseInsensitiveContains("ark")
+                    && !payload.localizedCaseInsensitiveContains("taobao")
+                    && !payload.localizedCaseInsensitiveContains("impaas")
+                    && !payload.localizedCaseInsensitiveContains("ws-msgacs")
+                    && !payload.localizedCaseInsensitiveContains("powermsg")
             }) {
                 capturedWorkbenchPayloads.remove(at: removableIndex)
             } else {
@@ -824,18 +805,58 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
     private func isXiaohongshuRoomCandidate(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = trimmed.lowercased()
+        let blockedLiterals = Set([
+            "array", "bigint", "boolean", "false", "function", "home",
+            "login", "null", "number", "object", "promise", "record",
+            "seller", "string", "symbol", "ticket", "true", "undefined"
+        ])
         guard trimmed.range(of: #"^[A-Za-z0-9_\-]{5,80}$"#, options: .regularExpression) != nil else { return false }
+        guard trimmed.range(of: #"\d"#, options: .regularExpression) != nil else { return false }
+        guard !blockedLiterals.contains(lowercased) else { return false }
         guard trimmed.range(of: #"^\d{1,4}$"#, options: .regularExpression) == nil else { return false }
-        return trimmed.localizedCaseInsensitiveContains("home") == false
+        guard trimmed.localizedCaseInsensitiveContains("home") == false else { return false }
+        return true
+    }
+
+    private func shouldReplaceXiaohongshuRoomInput(current: String?, candidate: String) -> Bool {
+        guard isXiaohongshuRoomCandidate(candidate) else { return false }
+        guard let current = current?.trimmingCharacters(in: .whitespacesAndNewlines),
+              isXiaohongshuRoomCandidate(current) else {
+            return true
+        }
+        return xiaohongshuRoomCandidateScore(candidate) > xiaohongshuRoomCandidateScore(current)
+    }
+
+    private func xiaohongshuRoomCandidateScore(_ value: String) -> Int {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        var score = trimmed.count
+        if trimmed.range(of: #"^\d{8,30}$"#, options: .regularExpression) != nil {
+            score += 1_000
+        }
+        if trimmed.range(of: #"^[A-Fa-f0-9]{16,40}$"#, options: .regularExpression) != nil {
+            score += 200
+        }
+        return score
     }
 
     private func capturedWorkbenchCandidateText() -> String? {
         switch selectedPlatform.directDanmuAdapter {
         case .douyin:
+            if selectedPlatform.key == "dy_web",
+               let capturedDouyinRoomInput,
+               isDouyinPublicRoomIdCandidate(capturedDouyinRoomInput) {
+                return nil
+            }
             return capturedDouyinRoomInput
         case .xiaohongshu:
+            guard let capturedXiaohongshuRoomInput,
+                  isXiaohongshuRoomCandidate(capturedXiaohongshuRoomInput) else { return nil }
             return capturedXiaohongshuRoomInput
-        case .wechat, .taobao, .kuaishou, .shopee, .tiktok, .none:
+        case .taobao:
+            return taobaoRoomInputCandidate(from: capturedWorkbenchPayloads.joined(separator: "\n"))
+                ?? taobaoRoomInputCandidate(from: currentURLText)
+        case .wechat, .kuaishou, .shopee, .tiktok, .none:
             return nil
         }
     }
@@ -973,12 +994,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
                 await runNativeDanmu(adapter: adapter, cookieHeader: cookieHeader)
             }
         case .xiaohongshu:
-            if await waitForXiaohongshuWorkbenchMessageCapture() {
-                await runXiaohongshuWorkbenchCaptureDanmu()
-            } else {
-                appendDanmuMessage(.system("未捕获到小红书 ark 直播中控弹幕接口，将尝试使用已捕获的直播标识走 native WSS；如果仍失败，请在小红书工作台进入“直播中控”后重新采集。"))
-                await runNativeDanmu(adapter: adapter, cookieHeader: cookieHeader)
-            }
+            await runNativeDanmu(adapter: adapter, cookieHeader: cookieHeader)
         case .taobao, .kuaishou, .shopee, .douyin, .tiktok:
             await runNativeDanmu(adapter: adapter, cookieHeader: cookieHeader)
         }
@@ -1070,18 +1086,20 @@ final class DanmakuCookieTestViewModel: ObservableObject {
 
     private func runNativeDanmu(adapter: DanmakuDirectAdapterKind, cookieHeader: String) async {
         do {
-            let platformKey = nativePlatformKey(for: adapter)
-            guard let nativeAdapter = NativeDanmakuAdapterFactory().adapter(for: platformKey) else {
+            let adapterPlatformKey = nativePlatformKey(for: adapter)
+            guard let nativeAdapter = NativeDanmakuAdapterFactory().adapter(for: adapterPlatformKey) else {
                 throw NativeDanmakuAdapterError.unsupportedPlatform(adapter.displayName)
             }
             let input = await nativeRoomInput(adapter: adapter)
+            let requestPlatformKey = adapter == .douyin ? selectedPlatform.key : adapterPlatformKey
+            let liveSession = nativeLiveSessionPayload(adapter: adapter, cookieHeader: cookieHeader)
             let request = NativeDanmakuConnectRequest(
-                platformKey: platformKey,
+                platformKey: requestPlatformKey,
                 roomId: nil,
                 roomNumber: input.isEmpty ? nil : input,
                 eid: nil,
                 liveType: nil,
-                liveSession: cookieHeader,
+                liveSession: liveSession,
                 cookieHeader: cookieHeader,
                 displayName: selectedPlatform.name
             )
@@ -1102,6 +1120,34 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         }
     }
 
+    private func nativeLiveSessionPayload(adapter: DanmakuDirectAdapterKind, cookieHeader: String) -> String {
+        guard adapter == .douyin, selectedPlatform.key == "dy_web" else {
+            return cookieHeader
+        }
+
+        let payloads = capturedWorkbenchPayloads
+            .suffix(40)
+            .filter { shouldIncludeDouyinWebPayloadInNativeSession($0) }
+            .map { String($0.prefix(20_000)) }
+        var object: [String: Any] = [
+            "version": 1,
+            "platform": selectedPlatform.key,
+            "cookieHeader": cookieHeader,
+            "currentURL": currentURLText,
+            "capturedPayloads": Array(payloads)
+        ]
+        if let capturedDouyinRoomInput,
+           !isDouyinPublicRoomIdCandidate(capturedDouyinRoomInput) {
+            object["capturedDouyinRoomInput"] = capturedDouyinRoomInput
+        }
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object),
+              let text = String(data: data, encoding: .utf8) else {
+            return cookieHeader
+        }
+        return text
+    }
+
     private func nativeRoomInput(adapter: DanmakuDirectAdapterKind) async -> String {
         let input = liveRoomInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard input.isEmpty else { return input }
@@ -1114,37 +1160,78 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         }
         if adapter == .xiaohongshu {
             if let capturedXiaohongshuRoomInput {
-                appendDanmuMessage(.system("已使用小红书 ark 中控接口捕获到的直播标识：\(capturedXiaohongshuRoomInput)"))
-                return capturedXiaohongshuRoomInput
+                if isXiaohongshuRoomCandidate(capturedXiaohongshuRoomInput) {
+                    appendDanmuMessage(.system("已使用小红书 ark 工作台捕获到的直播标识：\(capturedXiaohongshuRoomInput)"))
+                    return capturedXiaohongshuRoomInput
+                } else {
+                    self.capturedXiaohongshuRoomInput = nil
+                }
             }
             if let candidate = xiaohongshuRoomInputCandidate(from: capturedWorkbenchPayloads.joined(separator: "\n")) {
                 capturedXiaohongshuRoomInput = candidate
-                appendDanmuMessage(.system("已从已捕获的小红书 ark 中控接口响应解析到直播标识：\(candidate)"))
+                appendDanmuMessage(.system("已从已捕获的小红书 ark 工作台接口响应解析到直播标识：\(candidate)"))
                 return candidate
             }
             return ""
         }
+        if adapter == .taobao {
+            if let candidate = taobaoRoomInputCandidate(from: capturedWorkbenchPayloads.joined(separator: "\n")) {
+                appendDanmuMessage(.system("已从千牛工作台 impaas 轮询接口解析到弹幕 roomId：\(candidate)"))
+                return candidate
+            }
+            if let candidate = taobaoRoomInputCandidate(from: currentURLText) {
+                appendDanmuMessage(.system("已从当前千牛直播中控 URL 解析到直播标识：\(candidate)"))
+                return candidate
+            }
+            appendDanmuMessage(.system("未能从当前千牛页面 URL 或捕获响应解析到 liveId/roomId，将继续用 Cookie 请求工作台兜底。"))
+            return ""
+        }
         guard adapter == .douyin else { return input }
 
-        if let capturedDouyinRoomInput {
-            appendDanmuMessage(.system("已使用抖店中控接口捕获到的直播标识：\(capturedDouyinRoomInput)"))
-            return capturedDouyinRoomInput
-        }
-
-        if let capturedCandidate = douyinWorkbenchRoomInputCandidate(from: capturedWorkbenchPayloads.joined(separator: "\n")) {
-            capturedDouyinRoomInput = capturedCandidate
-            appendDanmuMessage(.system("已从已捕获的抖店中控接口响应解析到直播标识：\(capturedCandidate)"))
-            return capturedCandidate
-        }
-
-        guard let candidate = await douyinRoomInputFromCurrentWebView() else {
-            appendDanmuMessage(.system("未能从当前抖店中控页面或已捕获的 \(capturedWorkbenchPayloads.count) 条接口响应解析到 room_id/live_id，将继续用 Cookie 请求工作台兜底；如仍失败，需要等待中控页面刷新接口或补充中控接口 HAR。"))
+        if selectedPlatform.key == "dy_web" {
+            appendDanmuMessage(.system("抖音网页版将仅使用 Cookie 自动解析当前登录账号正在直播的房间，并连接 Webcast WSS。"))
             return ""
         }
 
-        capturedDouyinRoomInput = candidate
-        appendDanmuMessage(.system("已从当前抖店中控页面解析到直播标识：\(candidate)"))
-        return candidate
+        appendDanmuMessage(.system("抖音将直接使用 Cookie 请求抖店工作台评论接口，不再把页面捕获到的 liveId 当 roomId 直连 WSS。"))
+        return ""
+    }
+
+    private func taobaoRoomInputCandidate(from text: String) -> String? {
+        let decoded = NativeDanmakuHTTP.decodeRepeatedly(text)
+            .replacingOccurrences(of: "\\u0026", with: "&")
+            .replacingOccurrences(of: "\\/", with: "/")
+        if let roomId = NativeDanmakuHTTP.firstRegexMatch(
+            in: decoded,
+            pattern: #"(?:https?:)?//(?:impaas|impaasgw)\.alicdn\.com/live/message/([A-Za-z0-9_\-]{6,80})/"#,
+            options: [.caseInsensitive]
+        ) {
+            return roomId
+        }
+        if let roomId = NativeDanmakuHTTP.firstRegexMatch(
+            in: decoded,
+            pattern: #"/live/message/([A-Za-z0-9_\-]{6,80})/"#,
+            options: [.caseInsensitive]
+        ) {
+            return roomId
+        }
+        let keys = ["wh_cid", "roomId", "room_id", "liveId", "live_id", "liveRoomId", "liveRoomID", "livingRoomId", "liveIdStr"]
+        for key in keys {
+            if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
+               isTaobaoRoomIdCandidate(value) {
+                return value
+            }
+        }
+        let keyPattern = ##"["']?(?:wh_cid|roomId|room_id|liveId|live_id|liveRoomId|liveRoomID|livingRoomId|liveIdStr)["']?\s*[:=]\s*["']?([A-Za-z0-9_\-]{6,80})"##
+        if let value = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: keyPattern, options: [.caseInsensitive]),
+           isTaobaoRoomIdCandidate(value) {
+            return value
+        }
+        return nil
+    }
+
+    private func isTaobaoRoomIdCandidate(_ value: String) -> Bool {
+        value.range(of: #"^[A-Za-z0-9_\-]{6,80}$"#, options: .regularExpression) != nil
     }
 
     private func douyinRoomInputFromCurrentWebView() async -> String? {
@@ -1231,7 +1318,8 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             "live_room_id", "liveRoomId", "live_room_id_str", "liveRoomIdStr",
             "current_room_id", "currentRoomId", "ecom_live_room_id", "ecomLiveRoomId",
             "im_room_id", "imRoomId", "roomID", "RoomId", "roomid", "roomidstr",
-            "webcastRoomID", "webcast_roomid", "liveRoomID", "live_roomid"
+            "webcastRoomID", "webcast_roomid", "liveRoomID", "live_roomid",
+            "wss_push_room_id", "wssPushRoomId", "push_room_id", "pushRoomId"
         ]
         for key in roomKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
@@ -1247,6 +1335,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             #"["'](?:\#(roomKeyPattern))["']\s*[:=]\s*["']?(\d{5,30})"#,
             #"\\?["'](?:\#(roomKeyPattern))\\?["']\s*[:=]\s*\\?["']?(\d{5,30})"#,
             #"(?:(?:\#(roomKeyPattern))=)([0-9]{5,30})"#,
+            #"(?i)(?:wss_push_room_id|push_room_id|room_id|webcast_room_id|live_room_id|ecom_live_room_id|current_room_id)\s*[:=]\s*["']?(\d{5,30})"#,
             #"(?i)(?:room|webcast|live)[A-Za-z0-9_\-]{0,48}(?:id|ID|Id)["']?\s*[:=]\s*["']?(\d{5,30})"#
         ]
         for pattern in roomPatterns {
@@ -1255,7 +1344,89 @@ final class DanmakuCookieTestViewModel: ObservableObject {
                 return value
             }
         }
+
+        if let livePageId = NativeDanmakuHTTP.firstRegexMatch(
+            in: decoded,
+            pattern: #"live\.douyin\.com/([A-Za-z0-9_\-]{4,80})"#
+        ), isDouyinLiveIdCandidate(livePageId) {
+            return livePageId
+        }
+
+        let liveKeys = [
+            "live_id", "liveId", "live_id_str", "liveIdStr",
+            "webcastLiveId", "webcast_live_id", "webcastLiveIdStr", "webcast_live_id_str",
+            "anchorLiveId", "anchor_live_id", "authorLiveId", "author_live_id",
+            "douyinId"
+        ]
+        for key in liveKeys {
+            if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
+               isDouyinLiveIdCandidate(value) {
+                return value
+            }
+        }
+
+        let liveKeyPattern = liveKeys
+            .map(NSRegularExpression.escapedPattern(for:))
+            .joined(separator: "|")
+        let livePatterns = [
+            #"["'](?:\#(liveKeyPattern))["']\s*[:=]\s*["']?([A-Za-z0-9_\-]{4,80})"#,
+            #"\\?["'](?:\#(liveKeyPattern))\\?["']\s*[:=]\s*\\?["']?([A-Za-z0-9_\-]{4,80})"#,
+            #"(?i)(?:live|webcast|anchor|douyin)[A-Za-z0-9_\-]{0,48}(?:id|ID|Id)["']?\s*[:=]\s*["']?([A-Za-z0-9_\-]{4,80})"#
+        ]
+        for pattern in livePatterns {
+            if let value = firstDouyinRegexValue(in: decoded, pattern: pattern),
+               isDouyinLiveIdCandidate(value) {
+                return value
+            }
+        }
         return nil
+    }
+
+    private func shouldUseDouyinWebCapturedPayloadForRoomInput(_ text: String) -> Bool {
+        let decoded = normalizedDouyinWebCaptureText(text)
+        if isDouyinWebUnrelatedFeedPayload(decoded) {
+            return false
+        }
+        if decoded.localizedCaseInsensitiveContains("live.douyin.com/") {
+            return true
+        }
+        return decoded.localizedCaseInsensitiveContains("/aweme/v1/web/user/profile/self/")
+            || decoded.localizedCaseInsensitiveContains("/aweme/v1/web/aweme/post/")
+            || decoded.localizedCaseInsensitiveContains("/aweme/v1/web/social/count")
+            || decoded.localizedCaseInsensitiveContains("/aweme/v1/web/user/profile/other/")
+            || decoded.localizedCaseInsensitiveContains("www.douyin.com/user/self")
+            || decoded.localizedCaseInsensitiveContains("\"unique_id\"")
+            || decoded.localizedCaseInsensitiveContains("\"room_id\"")
+    }
+
+    private func shouldIncludeDouyinWebPayloadInNativeSession(_ text: String) -> Bool {
+        let decoded = normalizedDouyinWebCaptureText(text)
+        guard !isDouyinWebUnrelatedFeedPayload(decoded) else { return false }
+        if decoded.localizedCaseInsensitiveContains("/webcast/im/push/preview/") {
+            return decoded.localizedCaseInsensitiveContains("live.douyin.com/")
+                && !decoded.localizedCaseInsensitiveContains("www.douyin.com/friend")
+        }
+        return shouldUseDouyinWebCapturedPayloadForRoomInput(decoded)
+    }
+
+    private func normalizedDouyinWebCaptureText(_ text: String) -> String {
+        NativeDanmakuHTTP.decodeRepeatedly(text)
+            .replacingOccurrences(of: "\\/", with: "/")
+            .replacingOccurrences(of: "\\u0026", with: "&")
+    }
+
+    private func isDouyinWebUnrelatedFeedPayload(_ decoded: String) -> Bool {
+        if decoded.localizedCaseInsensitiveContains("www.douyin.com/friend") {
+            return true
+        }
+        if decoded.localizedCaseInsensitiveContains("/aweme/v1/web/familiar/feed/") {
+            return true
+        }
+        if decoded.localizedCaseInsensitiveContains("cell_room")
+            && decoded.localizedCaseInsensitiveContains("\"rawdata\"") {
+            return true
+        }
+        return false
     }
 
     private func douyinRoomInputCandidate(from text: String) -> String? {
@@ -1273,7 +1444,8 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             "live_room_id", "liveRoomId", "live_room_id_str", "liveRoomIdStr",
             "current_room_id", "currentRoomId", "ecom_live_room_id", "ecomLiveRoomId",
             "im_room_id", "imRoomId", "roomID", "RoomId", "roomid", "roomidstr",
-            "webcastRoomID", "webcast_roomid", "liveRoomID", "live_roomid"
+            "webcastRoomID", "webcast_roomid", "liveRoomID", "live_roomid",
+            "wss_push_room_id", "wssPushRoomId", "push_room_id", "pushRoomId"
         ]
         for key in roomKeys {
             if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key),
@@ -1289,6 +1461,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             #"["'](?:\#(roomKeyPattern))["']\s*[:=]\s*["']?(\d{5,30})"#,
             #"\\?["'](?:\#(roomKeyPattern))\\?["']\s*[:=]\s*\\?["']?(\d{5,30})"#,
             #"(?:(?:\#(roomKeyPattern))=)([0-9]{5,30})"#,
+            #"(?i)(?:wss_push_room_id|push_room_id|room_id|webcast_room_id|live_room_id|ecom_live_room_id|current_room_id)\s*[:=]\s*["']?(\d{5,30})"#,
             #"(?i)(?:room|webcast|live)[A-Za-z0-9_\-]{0,48}(?:id|ID|Id)["']?\s*[:=]\s*["']?(\d{5,30})"#
         ]
         for pattern in roomPatterns {
@@ -1521,13 +1694,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             userId: userId,
             userName: userName.isEmpty ? "小红书用户" : userName,
             content: content,
-            rawPayload: [
-                "xhsMsgId": messageId,
-                "danmuUserId": userId,
-                "danmuUserName": userName.isEmpty ? "小红书用户" : userName,
-                "danmuContent": content,
-                "xhsRoomId": resolvedRoomId ?? ""
-            ]
+            rawPayload: member
         )
     }
 
@@ -1646,12 +1813,7 @@ final class DanmakuCookieTestViewModel: ObservableObject {
             userId: userId,
             userName: userName,
             content: content,
-            rawPayload: [
-                "wxMsgId": messageId,
-                "danmuUserId": userId,
-                "danmuUserName": userName,
-                "danmuContent": content
-            ]
+            rawPayload: member
         )
     }
 
@@ -1725,7 +1887,8 @@ final class DanmakuCookieTestViewModel: ObservableObject {
         let pathText = path.joined(separator: ".")
         let exact = Set([
             "roomid", "roomidstr", "webcastroomid", "webcastroomidstr",
-            "liveroomid", "liveroomidstr", "currentroomid", "ecomliveroomid", "imroomid"
+            "liveroomid", "liveroomidstr", "currentroomid", "ecomliveroomid", "imroomid",
+            "wsspushroomid", "pushroomid"
         ])
         if exact.contains(key) { return true }
         if key == "id", path.dropLast().contains(where: { $0.contains("room") || $0.contains("webcast") }) {
@@ -1770,7 +1933,30 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     }
 
     private func isDouyinLiveIdCandidate(_ value: String) -> Bool {
-        value.range(of: #"^[A-Za-z0-9_\-]{4,80}$"#, options: .regularExpression) != nil
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = trimmed.lowercased()
+        let blockedLiterals = Set([
+            "anchor", "author", "aweme", "comment", "douyin", "false", "home",
+            "index", "live", "login", "main", "message", "post", "recommend",
+            "room", "search", "self", "share", "static", "stream", "true",
+            "undefined", "user", "video", "webcast"
+        ])
+        guard trimmed.range(of: #"^[A-Za-z0-9_\-]{4,80}$"#, options: .regularExpression) != nil else { return false }
+        guard !blockedLiterals.contains(lowercased) else { return false }
+        guard !isRejectedDouyinWebRid(lowercased) else { return false }
+        guard !lowercased.contains(".js"), !lowercased.contains(".css") else { return false }
+        return trimmed.range(of: #"\d"#, options: .regularExpression) != nil
+    }
+
+    private func isRejectedDouyinWebRid(_ lowercased: String) -> Bool {
+        if lowercased.hasPrefix("stream-") || lowercased.hasPrefix("pull-") || lowercased.hasPrefix("push-") {
+            return true
+        }
+        let blockedFragments = [
+            "_flv", "flv_", ".flv", "_m3u8", ".m3u8",
+            "_hd", "_sd", "_uhd", "stream-", "pull-flv", "pull-hls"
+        ]
+        return blockedFragments.contains { lowercased.contains($0) }
     }
 
     private func clearWorkbenchCaptures() {
@@ -1785,42 +1971,81 @@ final class DanmakuCookieTestViewModel: ObservableObject {
     private func handleNativeDanmuEvent(_ event: NativeDanmakuEvent, adapter: DanmakuDirectAdapterKind) {
         switch event.event {
         case .status:
-            handleNativeStatus(event.status, adapter: adapter)
+            handleNativeStatus(event.status, adapter: adapter, content: event.content)
         case .chat:
             let messageId = event.messageId ?? event.eventId
+            let userName = event.userName ?? "用户"
+            let content = event.content ?? ""
+            let rawText = DanmakuTestMessage.rawPayloadText(event.rawPayload)
+            let userId = event.userId ?? ""
             guard !seenDanmuMessageIds.contains(messageId) else { return }
             seenDanmuMessageIds.insert(messageId)
             appendDanmuMessage(
                 DanmakuTestMessage(
                     id: messageId,
                     messageId: messageId,
-                    user: event.userName ?? "用户",
-                    content: event.content ?? "",
-                    roomId: event.platformRoomId ?? event.roomId ?? ""
+                    user: userName,
+                    userId: userId,
+                    content: content,
+                    roomId: event.platformRoomId ?? event.roomId ?? "",
+                    rawText: rawText
                 )
             )
             danmuStatus = .open
             danmuStatusText = "\(adapter.displayName) native adapter 收到弹幕。"
+            danmuStatusLevel = .success
+        case .gift, .member, .like, .social, .control:
+            let messageId = event.messageId ?? event.eventId
+            guard !seenDanmuMessageIds.contains(messageId) else { return }
+            seenDanmuMessageIds.insert(messageId)
+            let content = event.content?.isEmpty == false
+                ? event.content ?? ""
+                : nativeEventLabel(event.event)
+            appendDanmuMessage(
+                DanmakuTestMessage(
+                    id: messageId,
+                    messageId: messageId,
+                    user: event.userName ?? nativeEventLabel(event.event),
+                    userId: event.userId ?? "",
+                    content: content,
+                    roomId: event.platformRoomId ?? event.roomId ?? "",
+                    rawText: DanmakuTestMessage.rawPayloadText(event.rawPayload)
+                )
+            )
+            danmuStatus = .open
+            danmuStatusText = "\(adapter.displayName) native adapter 收到\(nativeEventLabel(event.event))。"
             danmuStatusLevel = .success
         case .error:
             danmuStatus = .error
             danmuStatusText = event.content ?? "\(adapter.displayName) native adapter 连接失败。"
             danmuStatusLevel = .error
             appendDanmuMessage(.system(danmuStatusText))
-        case .gift, .member, .like, .social, .control:
-            break
         }
     }
 
-    private func handleNativeStatus(_ status: NativeDanmakuStatus?, adapter: DanmakuDirectAdapterKind) {
+    private func nativeEventLabel(_ event: NativeDanmakuEventKind) -> String {
+        switch event {
+        case .status: return "状态"
+        case .chat: return "弹幕"
+        case .gift: return "礼物"
+        case .member: return "进场"
+        case .like: return "点赞"
+        case .social: return "互动"
+        case .control: return "控制"
+        case .error: return "错误"
+        }
+    }
+
+    private func handleNativeStatus(_ status: NativeDanmakuStatus?, adapter: DanmakuDirectAdapterKind, content: String? = nil) {
+        let statusContent = content?.trimmingCharacters(in: .whitespacesAndNewlines)
         switch status {
         case .connecting:
             danmuStatus = .connecting
-            danmuStatusText = "\(adapter.displayName) native adapter 正在连接平台弹幕。"
+            danmuStatusText = statusContent?.isEmpty == false ? statusContent ?? "" : "\(adapter.displayName) native adapter 正在连接平台弹幕。"
             danmuStatusLevel = .info
         case .living:
             danmuStatus = .open
-            danmuStatusText = "\(adapter.displayName) native adapter 已连上平台弹幕。"
+            danmuStatusText = statusContent?.isEmpty == false ? statusContent ?? "" : "\(adapter.displayName) native adapter 已连上平台弹幕。"
             danmuStatusLevel = .success
         case .stopped, .disconnected:
             danmuStatus = .closed
@@ -1947,6 +2172,15 @@ private enum DanmakuWorkbenchDiagnosticsBuilder {
         }
 
         let priorityPatterns = [
+            "impaas.alicdn.com/live/message",
+            "impaasgw.alicdn.com/live/message",
+            "payloads",
+            "dataSize",
+            "pullInterval",
+            "powermsg",
+            "ws-msgacs.m.taobao.com",
+            "qn-live-container",
+            "taobao",
             "ark.xiaohongshu.com",
             "xiaohongshu",
             "commentList",
@@ -2255,7 +2489,7 @@ private struct DanmakuAuthWebView: NSViewRepresentable {
           window.__fastSortDanmakuCaptureInstalled = true;
 
           const handler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.fastSortDanmakuCapture;
-          const keywordPattern = /jinritemai|douyin|bytedance|webcast|room|live|anchor|comment|message|chat|control|channels\.weixin|mmfinderassistant|finder|msgList|msg_list|respJsonStr|liveCookies|weixin|wechat|xiaohongshu|ark|xhs|app-system|commentList|comment_list|customData|视频号|小红书|评论|互动|直播|中控/i;
+          const keywordPattern = /jinritemai|douyin|bytedance|webcast|room|live|anchor|comment|message|chat|control|taobao|tmall|alicdn|impaas|qn-live|qianniu|alimama|alibaba|channels\.weixin|mmfinderassistant|finder|msgList|msg_list|respJsonStr|liveCookies|weixin|wechat|xiaohongshu|ark|xhs|app-system|commentList|comment_list|customData|淘宝|千牛|视频号|小红书|评论|互动|直播|中控/i;
           const text = value => {
             if (value === undefined || value === null) return "";
             if (typeof value === "string") return value;
@@ -2619,21 +2853,42 @@ struct DanmakuTestMessage: Identifiable, Equatable {
     let id: String
     let messageId: String
     let user: String
+    let userId: String
     let content: String
     let roomId: String
+    let rawText: String
     let createdAt: Date
+
+    var subtitleId: String {
+        userId.isEmpty ? roomId : userId
+    }
 
     var timeText: String {
         createdAt.formatted(date: .omitted, time: .standard)
     }
 
-    init(id: String, messageId: String, user: String, content: String, roomId: String, createdAt: Date = Date()) {
+    init(id: String, messageId: String, user: String, userId: String = "", content: String, roomId: String, rawText: String = "", createdAt: Date = Date()) {
         self.id = id
         self.messageId = messageId
         self.user = user
+        self.userId = userId
         self.content = content
         self.roomId = roomId
+        self.rawText = rawText
         self.createdAt = createdAt
+    }
+
+    func updating(userId: String? = nil, rawText: String? = nil) -> DanmakuTestMessage {
+        DanmakuTestMessage(
+            id: id,
+            messageId: messageId,
+            user: user,
+            userId: userId ?? self.userId,
+            content: content,
+            roomId: roomId,
+            rawText: rawText ?? self.rawText,
+            createdAt: createdAt
+        )
     }
 
     init?(payload: [String: Any], platformKey: String) {
@@ -2651,8 +2906,10 @@ struct DanmakuTestMessage: Identifiable, Equatable {
             id: messageId.isEmpty ? "\(Date().timeIntervalSince1970)-\(UUID().uuidString)" : messageId,
             messageId: messageId,
             user: Self.firstText(payload, keys: ["danmuUserName", "nickname", "userName", "user"], fallback: "用户"),
+            userId: Self.firstText(payload, keys: ["danmuUserId", "userId", "uid", "publisherId"]),
             content: content,
-            roomId: roomId.isEmpty ? platformKey : roomId
+            roomId: roomId.isEmpty ? platformKey : roomId,
+            rawText: Self.rawPayloadText(payload)
         )
     }
 
@@ -2662,8 +2919,40 @@ struct DanmakuTestMessage: Identifiable, Equatable {
             messageId: "",
             user: "系统",
             content: text,
-            roomId: ""
+            roomId: "",
+            rawText: ""
         )
+    }
+
+    static func rawPayloadText(_ payload: [String: Any]) -> String {
+        guard !payload.isEmpty else { return "" }
+        let normalized = normalizeJSONValue(payload)
+        guard JSONSerialization.isValidJSONObject(normalized),
+              let data = try? JSONSerialization.data(withJSONObject: normalized, options: [.prettyPrinted, .sortedKeys]),
+              let text = String(data: data, encoding: .utf8)
+        else {
+            return String(describing: payload)
+        }
+        return String(text.prefix(80_000))
+    }
+
+    private static func normalizeJSONValue(_ value: Any) -> Any {
+        switch value {
+        case let dictionary as [String: Any]:
+            return dictionary.mapValues { normalizeJSONValue($0) }
+        case let array as [Any]:
+            return array.map { normalizeJSONValue($0) }
+        case let number as NSNumber:
+            return number
+        case let string as String:
+            return string
+        case let bool as Bool:
+            return bool
+        case _ as NSNull:
+            return NSNull()
+        default:
+            return String(describing: value)
+        }
     }
 
     private static func firstText(_ payload: [String: Any], keys: [String], fallback: String = "") -> String {

@@ -227,11 +227,10 @@ final class KuaishouMessageMapper: Sendable {
             userName: userName,
             content: content,
             rawPayload: [
-                "ksMsgId": messageId,
-                "ksRoomId": liveStreamId,
-                "danmuUserId": userId,
-                "danmuUserName": userName,
-                "danmuContent": content
+                "commentFeedBase64": data.base64EncodedString(),
+                "commentFeedFields": NativeDanmakuHTTP.protobufDebugFields(fields),
+                "userBase64": userData?.base64EncodedString() ?? "",
+                "userFields": NativeDanmakuHTTP.protobufDebugFields(userFields)
             ]
         )
     }

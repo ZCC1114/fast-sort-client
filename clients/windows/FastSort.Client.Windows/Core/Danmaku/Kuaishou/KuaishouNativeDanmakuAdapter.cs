@@ -359,11 +359,10 @@ internal sealed class KuaishouMessageMapper
             Content = content,
             RawPayload = JsonSerializer.Serialize(new
             {
-                ksMsgId = messageId,
-                ksRoomId = liveStreamId,
-                danmuUserId = userId,
-                danmuUserName = userName,
-                danmuContent = content
+                commentFeedBase64 = Convert.ToBase64String(data),
+                commentFeedFields = fields,
+                userBase64 = userData is null ? "" : Convert.ToBase64String(userData),
+                userFields
             }, NativeDanmakuHttp.JsonOptions)
         };
     }

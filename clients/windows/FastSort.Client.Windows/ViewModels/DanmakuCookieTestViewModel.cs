@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using FastSort.Client.Windows.Core.Danmaku;
+using FastSort.Client.Windows.Core.Danmaku.Shared;
 
 namespace FastSort.Client.Windows.ViewModels;
 
@@ -51,17 +53,22 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
         }
 
         Events.Clear();
+        var roomInput = SelectedPlatform.AdapterKey == "taobao"
+            ? TaobaoRoomInputCandidate(CurrentUrl)
+            : null;
         var request = new NativeDanmakuConnectRequest(
             SelectedPlatform.AdapterKey,
             null,
-            null,
+            roomInput,
             null,
             null,
             CookieHeader,
             CookieHeader,
             SelectedPlatform.Name);
 
-        SaveResultText = $"正在连接 native adapter：{SelectedPlatform.AdapterKey}";
+        SaveResultText = string.IsNullOrWhiteSpace(roomInput)
+            ? $"正在连接 native adapter：{SelectedPlatform.AdapterKey}"
+            : $"正在连接 native adapter：{SelectedPlatform.AdapterKey}，已从当前 URL 解析直播标识 {roomInput}";
         var connection = await _coordinator.ConnectAsync(request, AddEventAsync);
         if (connection.Status is NativeDanmakuStatus.Error or NativeDanmakuStatus.NotStarted or NativeDanmakuStatus.LoginExpired)
         {
@@ -100,6 +107,47 @@ public sealed class DanmakuCookieTestViewModel : DanmakuWebAuthViewModelBase
     {
         RunNativePreflightCommand.RaiseCanExecuteChanged();
         StopNativeConnectionCommand.RaiseCanExecuteChanged();
+    }
+
+    private static string? TaobaoRoomInputCandidate(string text)
+    {
+        var decoded = NativeDanmakuHttp.DecodeRepeatedly(text)
+            .Replace("\\u0026", "&", StringComparison.Ordinal)
+            .Replace("\\/", "/", StringComparison.Ordinal);
+        if (NativeDanmakuHttp.FirstRegexMatch(
+                decoded,
+                @"(?:https?:)?//(?:impaas|impaasgw)\.alicdn\.com/live/message/([A-Za-z0-9_\-]{6,80})/",
+                RegexOptions.IgnoreCase) is { } impaasRoomId)
+        {
+            return impaasRoomId;
+        }
+
+        if (NativeDanmakuHttp.FirstRegexMatch(
+                decoded,
+                @"/live/message/([A-Za-z0-9_\-]{6,80})/",
+                RegexOptions.IgnoreCase) is { } liveMessageRoomId)
+        {
+            return liveMessageRoomId;
+        }
+
+        string[] keys = ["wh_cid", "roomId", "room_id", "liveId", "live_id", "liveRoomId", "liveRoomID", "livingRoomId", "liveIdStr"];
+        foreach (var key in keys)
+        {
+            var value = NativeDanmakuHttp.QueryValue(decoded, key);
+            if (IsTaobaoRoomIdCandidate(value ?? ""))
+            {
+                return value;
+            }
+        }
+
+        const string keyPattern = @"[""']?(?:wh_cid|roomId|room_id|liveId|live_id|liveRoomId|liveRoomID|livingRoomId|liveIdStr)[""']?\s*[:=]\s*[""']?([A-Za-z0-9_\-]{6,80})";
+        var keyedValue = NativeDanmakuHttp.FirstRegexMatch(decoded, keyPattern, RegexOptions.IgnoreCase);
+        return IsTaobaoRoomIdCandidate(keyedValue ?? "") ? keyedValue : null;
+    }
+
+    private static bool IsTaobaoRoomIdCandidate(string value)
+    {
+        return !string.IsNullOrWhiteSpace(value) && Regex.IsMatch(value, @"^[A-Za-z0-9_\-]{6,80}$");
     }
 }
 

@@ -153,6 +153,27 @@ enum NativeDanmakuHTTP {
         }
         return nil
     }
+
+    static func protobufDebugFields(_ fields: [NativeProtoField]) -> [[String: Any]] {
+        fields.map { field in
+            var output: [String: Any] = [
+                "number": field.number,
+                "wireType": field.wireType
+            ]
+            if let varint = field.varint {
+                output["varint"] = varint
+            }
+            if let data = field.data {
+                output["dataBase64"] = data.base64EncodedString()
+                output["dataLength"] = data.count
+                if let text = String(data: data, encoding: .utf8),
+                   text.rangeOfCharacter(from: .controlCharacters) == nil {
+                    output["string"] = text
+                }
+            }
+            return output
+        }
+    }
 }
 
 struct NativeProtoField {
@@ -182,6 +203,10 @@ extension Array where Element == NativeProtoField {
 
     func allData(_ number: Int) -> [Data] {
         compactMap { $0.number == number && $0.wireType == 2 ? $0.data : nil }
+    }
+
+    func allStrings(_ number: Int) -> [String] {
+        allData(number).compactMap { String(data: $0, encoding: .utf8) }
     }
 }
 

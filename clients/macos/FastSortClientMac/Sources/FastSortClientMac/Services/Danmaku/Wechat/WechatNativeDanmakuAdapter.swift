@@ -275,13 +275,7 @@ final class WechatLiveAPIClient {
             userId: userId,
             userName: userName,
             content: content,
-            rawPayload: [
-                "wxMsgId": messageId,
-                "danmuUserId": userId,
-                "danmuUserName": userName,
-                "danmuContent": content,
-                "wxRoomId": liveId
-            ]
+            rawPayload: member
         )
     }
 

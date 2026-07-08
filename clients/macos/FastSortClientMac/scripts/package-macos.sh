@@ -45,7 +45,8 @@ plutil -insert ApplePersistenceIgnoreState -bool true "$PLIST"
 plutil -insert NSAppTransportSecurity -xml '<dict><key>NSAllowsArbitraryLoads</key><false/><key>NSAllowsLocalNetworking</key><true/></dict>' "$PLIST"
 
 codesign --force --deep --sign - "$APP_DIR"
-ditto -c -k --keepParent "$APP_DIR" "$ZIP_PATH"
+xattr -cr "$APP_DIR"
+ditto --noextattr --norsrc -c -k --keepParent "$APP_DIR" "$ZIP_PATH"
 cp "$ZIP_PATH" "$LATEST_ZIP_PATH"
 
 printf 'App: %s\nZip: %s\nLatest: %s\n' "$APP_DIR" "$ZIP_PATH" "$LATEST_ZIP_PATH"

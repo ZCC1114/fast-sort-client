@@ -567,15 +567,7 @@ internal sealed class XiaohongshuMessageMapper
             UserId = userId,
             UserName = userName,
             Content = content,
-            RawPayload = JsonSerializer.Serialize(new
-            {
-                xhsMsgId = messageId,
-                danmuUserId = userId,
-                danmuUserName = userName,
-                danmuContent = content,
-                xhsRoomId = roomId,
-                fansStatus
-            }, NativeDanmakuHttp.JsonOptions)
+            RawPayload = data.ToJsonString(NativeDanmakuHttp.JsonOptions)
         };
     }
 

@@ -77,6 +77,12 @@ struct XiaohongshuCookieJar {
         return normalized.isEmpty ? "unknown_sid" : normalized
     }
 
+    var canHydrateRedlive: Bool {
+        value(Self.redliveTokenKey)?.isEmpty == false
+            || value(Self.arkTokenKey)?.isEmpty == false
+            || value("customer-sso-sid")?.isEmpty == false
+    }
+
     static func normalizedToken(_ value: String) -> String {
         var token = value.trimmingCharacters(in: .whitespacesAndNewlines)
         for prefix in ["customer.red_live.", "customer.ark."] where token.hasPrefix(prefix) {
@@ -88,8 +94,17 @@ struct XiaohongshuCookieJar {
 }
 
 final class XiaohongshuRoomResolver: Sendable {
+    private let hydrateURLs = [
+        URL(string: "https://customer.xiaohongshu.com/login?service=https%3A%2F%2Fredlive.xiaohongshu.com%2Flive_plan")!,
+        URL(string: "https://redlive.xiaohongshu.com/live_plan")!,
+        URL(string: "https://redlive.xiaohongshu.com/")!
+    ]
+
     func resolveRoom(request: NativeDanmakuConnectRequest) async throws -> XiaohongshuResolvedRoom {
-        let cookieJar = XiaohongshuCookieJar(cookieHeader: request.cookieHeader)
+        var cookieJar = XiaohongshuCookieJar(cookieHeader: request.cookieHeader)
+        if cookieJar.canHydrateRedlive {
+            await hydrateRedliveCookies(cookieJar: &cookieJar)
+        }
         var userId = cookieJar.userIdFromCookies()
         if userId?.isEmpty != false {
             userId = try await fetchUserId(cookieJar: cookieJar)
@@ -100,7 +115,38 @@ final class XiaohongshuRoomResolver: Sendable {
         if let roomId = xhsRoomId(from: request.eid ?? request.roomNumber ?? "") {
             return XiaohongshuResolvedRoom(roomId: roomId, title: roomId, userId: userId, sid: cookieJar.sid(), cookieHeader: cookieJar.header())
         }
-        throw NativeDanmakuError("小红书 ark 工作台 Cookie 已采集，但还未从直播中控解析到当前直播间。请在授权窗口进入“直播中控”，等待捕获到弹幕或直播标识后再连接。")
+        let livingRoom = try await fetchLivingRoom(cookieJar: cookieJar, userId: userId)
+        return XiaohongshuResolvedRoom(
+            roomId: livingRoom.roomId,
+            title: livingRoom.title,
+            userId: userId,
+            sid: cookieJar.sid(),
+            cookieHeader: cookieJar.header()
+        )
+    }
+
+    private func hydrateRedliveCookies(cookieJar: inout XiaohongshuCookieJar) async {
+        for url in hydrateURLs {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 10
+            request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
+            request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
+            request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+            request.setValue(cookieJar.header(), forHTTPHeaderField: "Cookie")
+
+            guard let (_, response) = try? await URLSession.shared.data(for: request),
+                  let http = response as? HTTPURLResponse else { continue }
+            let headers = http.allHeaderFields.reduce(into: [String: String]()) { result, item in
+                result["\(item.key)"] = "\(item.value)"
+            }
+            let setCookieHeaders = headers.compactMap { key, value in
+                key.caseInsensitiveCompare("Set-Cookie") == .orderedSame ? value : nil
+            }
+            cookieJar.merge(setCookieHeaders: setCookieHeaders, url: url)
+            if cookieJar.value(XiaohongshuCookieJar.redliveTokenKey)?.isEmpty == false {
+                break
+            }
+        }
     }
 
     private func fetchUserId(cookieJar: XiaohongshuCookieJar) async throws -> String? {
@@ -141,16 +187,70 @@ final class XiaohongshuRoomResolver: Sendable {
         return nil
     }
 
+    private func fetchLivingRoom(cookieJar: XiaohongshuCookieJar, userId: String) async throws -> (roomId: String, title: String) {
+        var tokens = cookieJar.tokenCandidates()
+        if tokens.isEmpty {
+            tokens = [""]
+        }
+
+        for token in tokens {
+            var request = URLRequest(url: URL(string: "https://live-assistant.xiaohongshu.com/api/sns/live/living_room")!)
+            request.timeoutInterval = 12
+            request.setValue("*/*", forHTTPHeaderField: "Accept")
+            request.setValue(userId, forHTTPHeaderField: "account-id")
+            request.setValue("live-assistant.xiaohongshu.com", forHTTPHeaderField: "Host")
+            request.setValue("https://redlive.xiaohongshu.com", forHTTPHeaderField: "Origin")
+            request.setValue("https://redlive.xiaohongshu.com/", forHTTPHeaderField: "Referer")
+            request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
+            request.setValue(cookieJar.header(), forHTTPHeaderField: "Cookie")
+            if !token.isEmpty {
+                request.setValue(token, forHTTPHeaderField: "Authorization")
+            }
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                continue
+            }
+            let dataObject = object["data"] as? [String: Any] ?? [:]
+            let roomId = NativeDanmakuHTTP.firstText(dataObject, keys: ["room_id", "roomId"])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !roomId.isEmpty {
+                let title = NativeDanmakuHTTP.firstText(dataObject, keys: ["title"])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                return (roomId, title.isEmpty ? roomId : title)
+            }
+        }
+
+        throw NativeDanmakuError("小红书账号当前未开播，或 ark Cookie 无法解析当前直播。")
+    }
+
     private func xhsRoomId(from value: String) -> String? {
         let decoded = NativeDanmakuHTTP.decodeRepeatedly(value.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !decoded.isEmpty else { return nil }
-        if let roomId = NativeDanmakuHTTP.queryValue(in: decoded, name: "room_id") {
+        if let roomId = NativeDanmakuHTTP.queryValue(in: decoded, name: "room_id"),
+           isValidXhsRoomId(roomId) {
             return roomId
         }
-        if decoded.range(of: #"^[A-Za-z0-9_\-]{4,80}$"#, options: .regularExpression) != nil {
+        if isValidXhsRoomId(decoded) {
             return decoded
         }
         return nil
+    }
+
+    private func isValidXhsRoomId(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowercased = trimmed.lowercased()
+        let blockedLiterals = Set([
+            "array", "bigint", "boolean", "false", "function", "home",
+            "login", "null", "number", "object", "promise", "record",
+            "seller", "string", "symbol", "ticket", "true", "undefined"
+        ])
+        guard trimmed.range(of: #"^[A-Za-z0-9_\-]{5,80}$"#, options: .regularExpression) != nil else { return false }
+        guard trimmed.range(of: #"\d"#, options: .regularExpression) != nil else { return false }
+        guard !blockedLiterals.contains(lowercased) else { return false }
+        guard trimmed.range(of: #"^\d{1,4}$"#, options: .regularExpression) == nil else { return false }
+        return !trimmed.localizedCaseInsensitiveContains("home")
     }
 }
 
@@ -257,8 +357,6 @@ final class XiaohongshuMessageMapper: Sendable {
         let messageId = "\(data["msg_id"] ?? data["commentId"] ?? UUID().uuidString)"
         let userId = "\(profile["user_id"] ?? "")"
         let userName = "\(profile["nickname"] ?? "小红书用户")"
-        let fansGroup = profile["fans_group"] as? [String: Any] ?? [:]
-        let fansStatus = NativeDanmakuHTTP.boolValue(fansGroup["active_fans"]) ? "1" : (fansGroup.isEmpty ? "0" : "2")
         return NativeDanmakuEvent(
             eventId: messageId,
             platform: "xiaohongshu",
@@ -269,14 +367,7 @@ final class XiaohongshuMessageMapper: Sendable {
             userId: userId,
             userName: userName,
             content: content,
-            rawPayload: [
-                "xhsMsgId": messageId,
-                "danmuUserId": userId,
-                "danmuUserName": userName,
-                "danmuContent": content,
-                "xhsRoomId": roomId,
-                "fansStatus": fansStatus
-            ]
+            rawPayload: data
         )
     }
 
@@ -328,11 +419,16 @@ final class XiaohongshuNativeDanmakuAdapter: NativeDanmakuAdapter {
         }
         let session = DanmakuWebSocketSession()
         let mapper = XiaohongshuMessageMapper()
+        var urlRequest = URLRequest(url: URL(string: "wss://apppush-rws.xiaohongshu.com/rwp")!)
+        urlRequest.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
+        urlRequest.setValue("https://redlive.xiaohongshu.com", forHTTPHeaderField: "Origin")
+        urlRequest.setValue("https://redlive.xiaohongshu.com/", forHTTPHeaderField: "Referer")
+        urlRequest.setValue(room.cookieHeader, forHTTPHeaderField: "Cookie")
         var pingTask: Task<Void, Never>?
         let task = Task {
             do {
                 try await session.run(
-                    request: URLRequest(url: URL(string: "wss://apppush-rws.xiaohongshu.com/rwp")!),
+                    request: urlRequest,
                     onOpen: {
                         onEvent(NativeDanmakuEvent(platform: platformKey, event: .status, status: .living, roomId: request.roomId, platformRoomId: room.roomId))
                         for message in mapper.setupMessages(roomId: room.roomId, userId: room.userId, sid: room.sid) {

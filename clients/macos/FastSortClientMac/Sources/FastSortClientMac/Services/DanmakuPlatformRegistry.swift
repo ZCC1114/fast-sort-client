@@ -26,13 +26,13 @@ enum DanmakuDirectAdapterKind: Equatable {
         case .taobao:
             return "淘宝通过本机 adapter 读取千牛工作台登录态、解析直播间并连接 impaas 弹幕源，不经过迅拣后端转发弹幕。"
         case .xiaohongshu:
-            return "小红书通过 ark 工作台登录态进入直播中控，客户端优先使用中控接口捕获的房间和弹幕数据。"
+            return "小红书通过 ark 工作台登录态自动解析当前直播，并直连平台弹幕源。"
         case .kuaishou:
             return "快手通过本机 adapter 解析 liveStreamId/token 后直连平台 WebSocket。"
         case .shopee:
             return "Shopee 当前通过本机 adapter 直连 Shopee Live。"
         case .douyin:
-            return "抖音当前通过本机 adapter 负责签名、WSS 和 protobuf 解析。"
+            return "抖音通过本机 adapter 负责签名、WSS 和 protobuf 解析；抖音网页版入口使用 live.douyin.com Webcast WSS。"
         case .tiktok:
             return "TikTok 当前通过本机 adapter 负责 TikTokLive 协议连接。"
         case .wechat:
@@ -88,12 +88,15 @@ struct DanmakuPlatform: Identifiable, Equatable {
         case .taobao:
             return "无需输入：千牛工作台登录态会用于解析当前直播"
         case .xiaohongshu:
-            return "无需输入：采集 ark 工作台 Cookie 后，进入直播中控会用于解析当前直播"
+            return "无需输入：采集 ark 工作台 Cookie 后会自动解析当前直播"
         case .kuaishou:
             return "无需输入：快手工作台登录态会用于解析当前直播"
         case .shopee:
             return "无需输入：Shopee 工作台登录态会用于解析当前直播"
         case .douyin:
+            if key == "dy_web" {
+                return "无需输入：抖音网页版登录态会用于解析 live.douyin.com 当前直播"
+            }
             return "无需输入：抖音工作台登录态会用于解析当前直播"
         case .tiktok:
             return "无需输入：TikTok 工作台登录态会用于解析当前直播"
@@ -106,7 +109,7 @@ struct DanmakuPlatform: Identifiable, Equatable {
 
     var directDanmuAdapter: DanmakuDirectAdapterKind? {
         switch key {
-        case "fxg", "fxg_kol":
+        case "fxg", "fxg_kol", "dy_web":
             return .douyin
         case "xhs":
             return .xiaohongshu
@@ -142,6 +145,9 @@ struct DanmakuPlatform: Identifiable, Equatable {
             domains.append(parts.suffix(2).joined(separator: "."))
         }
         domains.append(contentsOf: allowedDomains)
+        if key == "tb" {
+            domains.append("alicdn.com")
+        }
         return Array(Set(domains.map(Self.normalizedDomain).filter { !$0.isEmpty }))
     }
 
@@ -169,8 +175,23 @@ enum DanmakuPlatformRegistry {
     static let platforms: [DanmakuPlatform] = [
         DanmakuPlatform(
             id: 1,
+            key: "dy_web",
+            name: "抖音网页版",
+            cookieDomain: "douyin.com",
+            contentScriptMatch: "*://*.douyin.com/*",
+            pageHandlerMatch: "*://*.douyin.com/*",
+            loginURL: URL(string: "https://www.douyin.com/user/self?from_tab_name=main&showSubTab=video&showTab=post")!,
+            cookieURLs: [
+                URL(string: "https://www.douyin.com/")!,
+                URL(string: "https://live.douyin.com/")!
+            ],
+            allowedDomains: ["bytedance.com", "snssdk.com", "byteimg.com", "yhgfb-cn-static.com"],
+            systemImage: "music.note"
+        ),
+        DanmakuPlatform(
+            id: 9,
             key: "fxg",
-            name: "抖音工作台",
+            name: "抖店工作台",
             cookieDomain: "jinritemai.com",
             contentScriptMatch: "*://fxg.jinritemai.com/*",
             pageHandlerMatch: "*://fxg.jinritemai.com/ffa/mshop/homepage/index",
@@ -208,8 +229,8 @@ enum DanmakuPlatformRegistry {
             key: "tb",
             name: "千牛工作台",
             cookieDomain: "taobao.com",
-            contentScriptMatch: "*://myseller.taobao.com/*",
-            pageHandlerMatch: "*://myseller.taobao.com/home.htm/live-dashboard-qn/",
+            contentScriptMatch: "*://*.taobao.com/*",
+            pageHandlerMatch: "*://*.taobao.com/home.htm/*live*",
             loginURL: URL(string: "https://loginmyseller.taobao.com/?from=&f=top&style=&sub=true&redirect_url=https%3A%2F%2Fmyseller.taobao.com%2Fhome.htm%2Flive-dashboard-qn%2F")!,
             cookieURLs: [],
             allowedDomains: ["tmall.com"],
