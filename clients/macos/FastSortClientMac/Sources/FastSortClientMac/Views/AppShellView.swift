@@ -203,7 +203,7 @@ private struct AppTopBar: View {
     }
 
     private func openManual() {
-        if let url = URL(string: "https://xunjian.org.cn/preview.html") {
+        if let url = URL(string: "https://xunjian.org.cn/xunjian/preview.html") {
             NSWorkspace.shared.open(url)
         }
     }

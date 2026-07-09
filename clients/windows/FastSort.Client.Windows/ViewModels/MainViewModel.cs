@@ -336,7 +336,7 @@ public sealed class MainViewModel : ViewModelBase
     {
         Process.Start(new ProcessStartInfo
         {
-            FileName = "https://xunjian.org.cn/preview.html",
+            FileName = "https://xunjian.org.cn/xunjian/preview.html",
             UseShellExecute = true
         });
     }
