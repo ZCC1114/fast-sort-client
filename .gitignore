@@ -9,6 +9,7 @@ Package.resolved
 
 # macOS app/package outputs
 clients/macos/FastSortClientMac/dist/
+clients/windows/FastSort.Client.Windows/dist/
 *.app/
 *.dSYM/
 

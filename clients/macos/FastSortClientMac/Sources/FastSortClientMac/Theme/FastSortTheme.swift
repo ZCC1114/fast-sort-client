@@ -72,8 +72,7 @@ extension View {
 
     func macPagePadding() -> some View {
         self
-            .padding(.horizontal, FastSortTheme.contentPadding)
-            .padding(.bottom, FastSortTheme.contentPadding)
+            .padding(FastSortTheme.contentPadding)
     }
 }
 
@@ -326,6 +325,138 @@ struct MacSelect<Value: Hashable>: View {
         .frame(height: 32)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title.isEmpty ? selectedLabel : "\(title) \(selectedLabel)")
+    }
+}
+
+enum MacPaginationFooterLayout {
+    case regular
+    case compact
+}
+
+struct MacPaginationFooter: View {
+    static let regularHeight: CGFloat = 48
+    static let compactHeight: CGFloat = 76
+
+    let pageIndex: Int
+    let totalPages: Int
+    let total: Int
+    let currentCount: Int
+    @Binding var pageSize: Int
+    var pageSizeOptions: [MacSelectOption<Int>] = [
+        MacSelectOption(label: "10 / 页", value: 10),
+        MacSelectOption(label: "20 / 页", value: 20),
+        MacSelectOption(label: "50 / 页", value: 50)
+    ]
+    var pageSizeWidth: CGFloat = 96
+    var layout: MacPaginationFooterLayout = .regular
+    var onPageChange: (Int) -> Void
+    var onPageSizeChange: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Spacer(minLength: layout == .compact ? 8 : 6)
+            footerContent
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+    }
+
+    @ViewBuilder
+    private var footerContent: some View {
+        if layout == .compact {
+            compactRows
+        } else {
+            regularRow
+        }
+    }
+
+    private var regularRow: some View {
+        HStack(spacing: 10) {
+            pageStatus
+            summary
+            pageSizePicker
+            Spacer(minLength: 12)
+            previousButton
+            nextButton
+        }
+    }
+
+    private var compactRows: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            summary
+            HStack(spacing: 8) {
+                pageStatus
+                pageSizePicker
+                Spacer(minLength: 8)
+                previousCompactButton
+                nextCompactButton
+            }
+        }
+    }
+
+    private var pageStatus: some View {
+        Text("\(pageIndex) / \(totalPages)")
+            .font(.system(size: 12))
+            .foregroundStyle(FastSortTheme.muted)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var summary: some View {
+        Text("共 \(total) 条，本页 \(currentCount) 条")
+            .font(.system(size: 12))
+            .foregroundStyle(FastSortTheme.muted)
+            .lineLimit(1)
+            .minimumScaleFactor(0.86)
+    }
+
+    private var pageSizePicker: some View {
+        MacSelect(selection: $pageSize, options: pageSizeOptions, width: pageSizeWidth)
+            .onChange(of: pageSize) { _, _ in
+                onPageSizeChange()
+            }
+    }
+
+    private var previousButton: some View {
+        Button("上一页") {
+            onPageChange(pageIndex - 1)
+        }
+        .buttonStyle(AccentOutlineButtonStyle())
+        .disabled(pageIndex <= 1)
+    }
+
+    private var nextButton: some View {
+        Button("下一页") {
+            onPageChange(pageIndex + 1)
+        }
+        .buttonStyle(AccentOutlineButtonStyle())
+        .disabled(pageIndex >= totalPages)
+    }
+
+    private var previousCompactButton: some View {
+        Button {
+            onPageChange(pageIndex - 1)
+        } label: {
+            Image(systemName: "chevron.left")
+                .frame(width: 12)
+        }
+        .buttonStyle(AccentOutlineButtonStyle())
+        .help("上一页")
+        .accessibilityLabel("上一页")
+        .disabled(pageIndex <= 1)
+    }
+
+    private var nextCompactButton: some View {
+        Button {
+            onPageChange(pageIndex + 1)
+        } label: {
+            Image(systemName: "chevron.right")
+                .frame(width: 12)
+        }
+        .buttonStyle(AccentOutlineButtonStyle())
+        .help("下一页")
+        .accessibilityLabel("下一页")
+        .disabled(pageIndex >= totalPages)
     }
 }
 

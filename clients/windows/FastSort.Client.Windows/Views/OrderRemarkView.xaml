@@ -35,6 +35,20 @@
                     </ListBox>
                 </StackPanel>
 
+                <DockPanel DockPanel.Dock="Bottom" Style="{StaticResource PaginationBar}">
+                    <TextBlock Text="{Binding PickBatchPageText}"
+                               Style="{StaticResource PaginationInfoText}" />
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="上一页"
+                                Command="{Binding PreviousPickBatchPageCommand}"
+                                Style="{StaticResource PaginationButton}" />
+                        <Button Content="下一页"
+                                Command="{Binding NextPickBatchPageCommand}"
+                                Style="{StaticResource PaginationButton}"
+                                Margin="0" />
+                    </StackPanel>
+                </DockPanel>
+
                 <ListBox ItemsSource="{Binding PrimaryRows}"
                          SelectedItem="{Binding SelectedRow}"
                          ItemContainerStyle="{StaticResource PlainListBoxItem}"
@@ -181,20 +195,18 @@
                     </Grid>
                 </Border>
 
-                <DockPanel Grid.Row="3" LastChildFill="False" Margin="0,14,0,0">
+                <DockPanel Grid.Row="3" Style="{StaticResource PaginationBar}">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="{Binding PageText}"
-                                   Foreground="{StaticResource FastSortMuted}"
-                                   VerticalAlignment="Center" />
+                                   Style="{StaticResource PaginationInfoText}" />
                         <TextBlock Text="{Binding StatusText}"
-                                   Foreground="{StaticResource FastSortMuted}"
+                                   Style="{StaticResource PaginationInfoText}"
                                    TextWrapping="Wrap"
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center" />
+                                   Margin="12,0,0,0" />
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button Content="上一页" Command="{Binding PreviousPageCommand}" Margin="0,0,8,0" />
-                        <Button Content="下一页" Command="{Binding NextPageCommand}" Margin="0,0,8,0" />
+                        <Button Content="上一页" Command="{Binding PreviousPageCommand}" Style="{StaticResource PaginationButton}" />
+                        <Button Content="下一页" Command="{Binding NextPageCommand}" Style="{StaticResource PaginationButton}" />
                         <Button Content="生成备注映射"
                                 Command="{Binding PrimaryActionCommand}"
                                 Style="{StaticResource PrimaryButton}"

@@ -34,8 +34,7 @@ public partial class OrderRemarkView : UserControl
                     current.Route == AppRoute.DouyinRemark &&
                     current.RefreshCommand.CanExecute(null))
                 {
-                    current.PageIndex = 1;
-                    current.SelectedRow = null;
+                    current.ResetPickBatchPagination();
                     current.RefreshCommand.Execute(null);
                 }
             },

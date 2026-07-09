@@ -52,16 +52,17 @@
                     </Grid>
                 </StackPanel>
 
-                <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="0,12,0,0">
+                <DockPanel DockPanel.Dock="Bottom" Style="{StaticResource PaginationBar}">
                     <TextBlock Text="{Binding PickBatchPageText}"
-                               Foreground="{StaticResource FastSortMuted}"
-                               VerticalAlignment="Center" />
+                               Style="{StaticResource PaginationInfoText}" />
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Content="上一页"
                                 Command="{Binding PreviousPickBatchPageCommand}"
-                                Margin="0,0,8,0" />
+                                Style="{StaticResource PaginationButton}" />
                         <Button Content="下一页"
-                                Command="{Binding NextPickBatchPageCommand}" />
+                                Command="{Binding NextPickBatchPageCommand}"
+                                Style="{StaticResource PaginationButton}"
+                                Margin="0" />
                     </StackPanel>
                 </DockPanel>
 
@@ -179,14 +180,14 @@
                     </ListBox>
                 </Grid>
 
-                <DockPanel Grid.Row="1" LastChildFill="False" Margin="0,12,0,0">
+                <DockPanel Grid.Row="1" Style="{StaticResource PaginationBar}">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding PageText}" Foreground="{StaticResource FastSortMuted}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding PageText}" Style="{StaticResource PaginationInfoText}" />
                         <CheckBox Content="重置序号" IsChecked="True" VerticalAlignment="Center" Margin="18,0,0,0" />
                     </StackPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button Content="上一页" Command="{Binding PreviousPageCommand}" Margin="0,0,8,0" />
-                        <Button Content="下一页" Command="{Binding NextPageCommand}" Margin="0,0,8,0" />
+                        <Button Content="上一页" Command="{Binding PreviousPageCommand}" Style="{StaticResource PaginationButton}" />
+                        <Button Content="下一页" Command="{Binding NextPageCommand}" Style="{StaticResource PaginationButton}" />
                         <Button Content="重置编号" Command="{Binding SecondaryActionCommand}" Style="{StaticResource PrimaryButton}" />
                     </StackPanel>
                 </DockPanel>

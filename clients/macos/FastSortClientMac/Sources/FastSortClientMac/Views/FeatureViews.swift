@@ -24,18 +24,21 @@ struct BlacklistView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let panelHeight = max(420, proxy.size.height - 126)
+            let errorReserve: CGFloat = errorText.isEmpty ? 0 : 32
+            let filterToolbarHeight: CGFloat = 64
+            let panelHeight = max(420, proxy.size.height - FastSortTheme.contentPadding * 2 - filterToolbarHeight - 14 - errorReserve)
             VStack(alignment: .leading, spacing: 14) {
                 blacklistFilterToolbar
 
                 HStack(alignment: .top, spacing: 16) {
                     listPanel
                         .frame(width: 380)
-                        .frame(maxHeight: .infinity)
+                        .frame(height: panelHeight)
                     detailPanel
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: panelHeight)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .frame(height: panelHeight)
                 .layoutPriority(1)
 
@@ -46,7 +49,6 @@ struct BlacklistView: View {
                         .lineLimit(2)
                 }
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
         }
@@ -117,7 +119,8 @@ struct BlacklistView: View {
 
     private var listPanel: some View {
         GeometryReader { proxy in
-            let listHeight = max(190, proxy.size.height - 134)
+            let footerHeight = MacPaginationFooter.compactHeight
+            let listHeight = max(190, proxy.size.height - footerHeight - 108)
             VStack(alignment: .leading, spacing: 12) {
                 Text("黑名单列表")
                     .font(.system(size: 18, weight: .semibold))
@@ -126,36 +129,22 @@ struct BlacklistView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .frame(height: listHeight)
                     .layoutPriority(1)
-                VStack(alignment: .leading, spacing: 8) {
-                    Divider()
-                    Text("共 \(total) 条，本页 \(list.count) 条")
-                        .font(.system(size: 12))
-                        .foregroundStyle(FastSortTheme.muted)
-                    HStack(spacing: 8) {
-                        Text("\(pageIndex) / \(totalPages)")
-                            .font(.system(size: 12))
-                            .foregroundStyle(FastSortTheme.muted)
-                        MacSelect(selection: $pageSize, options: [
-                            MacSelectOption(label: "10", value: 10),
-                            MacSelectOption(label: "20", value: 20),
-                            MacSelectOption(label: "50", value: 50)
-                        ], width: 72)
-                        .onChange(of: pageSize) { _, _ in
-                            Task { await changePageSize() }
-                        }
-                        Spacer()
-                        Button("上一页") {
-                            Task { await changePage(pageIndex - 1) }
-                        }
-                        .buttonStyle(AccentOutlineButtonStyle())
-                        .disabled(pageIndex <= 1)
-                        Button("下一页") {
-                            Task { await changePage(pageIndex + 1) }
-                        }
-                        .buttonStyle(AccentOutlineButtonStyle())
-                        .disabled(pageIndex >= totalPages)
+                MacPaginationFooter(
+                    pageIndex: pageIndex,
+                    totalPages: totalPages,
+                    total: total,
+                    currentCount: list.count,
+                    pageSize: $pageSize,
+                    pageSizeWidth: 88,
+                    layout: .compact,
+                    onPageChange: { nextPage in
+                        Task { await changePage(nextPage) }
+                    },
+                    onPageSizeChange: {
+                        Task { await changePageSize() }
                     }
-                }
+                )
+                .frame(height: footerHeight, alignment: .topLeading)
             }
             .padding(16)
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
@@ -393,8 +382,10 @@ struct VipOrderView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let tableHeight = max(420, proxy.size.height - 44)
-            let listHeight = max(220, tableHeight - 204)
+            let errorReserve: CGFloat = errorText.isEmpty ? 0 : 32
+            let footerHeight = MacPaginationFooter.regularHeight
+            let tableHeight = max(420, proxy.size.height - FastSortTheme.contentPadding * 2 - errorReserve)
+            let listHeight = max(220, tableHeight - footerHeight - 148)
             VStack(alignment: .leading, spacing: 14) {
                 AdaptiveHorizontalTable(minimumWidth: 1120, minHeight: tableHeight) { tableWidth in
                     VStack(spacing: 0) {
@@ -416,7 +407,6 @@ struct VipOrderView: View {
                     Text(errorText).foregroundStyle(FastSortTheme.danger)
                 }
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
         }
@@ -479,37 +469,20 @@ struct VipOrderView: View {
     }
 
     private func vipOrderFooter(width: CGFloat) -> some View {
-        VStack(spacing: 10) {
-            Divider()
-            HStack(spacing: 10) {
-                Text("\(pageIndex) / \(totalPages)")
-                    .font(.system(size: 12))
-                    .foregroundStyle(FastSortTheme.muted)
-                Text("共 \(total) 条，本页 \(orders.count) 条")
-                    .font(.system(size: 12))
-                    .foregroundStyle(FastSortTheme.muted)
-                MacSelect(selection: $pageSize, options: [
-                    MacSelectOption(label: "10 / 页", value: 10),
-                    MacSelectOption(label: "20 / 页", value: 20),
-                    MacSelectOption(label: "50 / 页", value: 50)
-                ], width: 110)
-                .onChange(of: pageSize) { _, _ in
-                    Task { await changePageSize() }
-                }
-                Spacer()
-                Button("上一页") {
-                    Task { await changePage(pageIndex - 1) }
-                }
-                .buttonStyle(AccentOutlineButtonStyle())
-                .disabled(pageIndex <= 1)
-                Button("下一页") {
-                    Task { await changePage(pageIndex + 1) }
-                }
-                .buttonStyle(AccentOutlineButtonStyle())
-                .disabled(pageIndex >= totalPages)
+        MacPaginationFooter(
+            pageIndex: pageIndex,
+            totalPages: totalPages,
+            total: total,
+            currentCount: orders.count,
+            pageSize: $pageSize,
+            onPageChange: { nextPage in
+                Task { await changePage(nextPage) }
+            },
+            onPageSizeChange: {
+                Task { await changePageSize() }
             }
-        }
-        .frame(width: width, alignment: .leading)
+        )
+        .frame(width: width, height: MacPaginationFooter.regularHeight, alignment: .topLeading)
     }
 
     private func orderHeader(width: CGFloat) -> some View {
@@ -647,7 +620,6 @@ struct PaymentView: View {
                     plansPanel
                 }
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
@@ -815,7 +787,6 @@ struct ProfileView: View {
                 content
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
@@ -1101,7 +1072,6 @@ struct SettingsView: View {
                 settingsContent
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
@@ -1276,7 +1246,6 @@ struct EntertainmentModeView: View {
                     entertainmentWorkspace
                 }
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
@@ -1961,25 +1930,40 @@ struct DouyinRemarkView: View {
     @State private var batches: [SortBatchItem] = []
     @State private var selectedBatch: SortBatchItem?
     @State private var rows: [LiveTagItem] = []
+    @State private var historyPageIndex = 1
+    @State private var historyPageSize = 10
+    @State private var historyTotal = 0
+    @State private var historyTotalPages = 1
     @State private var fields: Set<String> = ["orderName", "orderNumber", "orderCount", "orderAmounts"]
     @State private var isRunningRemark = false
     @State private var message = ""
     @State private var hasLoaded = false
 
     var body: some View {
-        ScrollView {
+        GeometryReader { proxy in
+            let contentHeight = max(420, proxy.size.height - FastSortTheme.contentPadding * 2)
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: 16) {
                     remarkBatchPanel
+                        .frame(width: 300)
+                        .frame(height: contentHeight)
                     remarkWorkspace
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .frame(height: contentHeight, alignment: .topLeading)
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(height: contentHeight)
+
                 VStack(spacing: 16) {
                     remarkBatchPanel
+                        .frame(maxWidth: .infinity)
+                        .frame(height: contentHeight)
                     remarkWorkspace
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
             }
-            .padding(.top, 20)
             .macPagePadding()
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .task(id: pageActivation.isActive) {
@@ -1991,43 +1975,83 @@ struct DouyinRemarkView: View {
     }
 
     private var remarkBatchPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            MacChoiceGroup("平台", selection: Binding(
-                get: { activePlatform },
-                set: { next in Task { await setPlatform(next) } }
-            ), options: [
-                MacChoiceOption(label: "抖音", value: "0"),
-                MacChoiceOption(label: "小红书", value: "2")
-            ], minItemWidth: 72)
-            MacChoiceGroup("批次", selection: Binding(
-                get: { activeTab },
-                set: { next in Task { await setTab(next) } }
-            ), options: [
-                MacChoiceOption(label: "当前批次", value: PickBatchTab.current),
-                MacChoiceOption(label: "历史批次", value: PickBatchTab.history)
-            ], minItemWidth: 82)
-            ForEach(batches) { batch in
-                Button {
-                    Task { await selectBatch(batch) }
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text(batch.batchName ?? "未命名批次").font(.system(size: 14, weight: .semibold))
-                        Text(batch.createdTime ?? "-").font(.system(size: 12)).foregroundStyle(FastSortTheme.muted)
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(selectedBatch?.id == batch.id ? FastSortTheme.accentSoft : FastSortTheme.groupedBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        GeometryReader { proxy in
+            let footerHeight = activeTab == .history ? MacPaginationFooter.compactHeight : 0
+            let footerSpacing: CGFloat = activeTab == .history ? 12 : 0
+            let listHeight = max(160, proxy.size.height - footerHeight - footerSpacing - 120)
+            VStack(alignment: .leading, spacing: 12) {
+                MacChoiceGroup("平台", selection: Binding(
+                    get: { activePlatform },
+                    set: { next in Task { await setPlatform(next) } }
+                ), options: [
+                    MacChoiceOption(label: "抖音", value: "0"),
+                    MacChoiceOption(label: "小红书", value: "2")
+                ], minItemWidth: 72)
+                MacChoiceGroup("批次", selection: Binding(
+                    get: { activeTab },
+                    set: { next in Task { await setTab(next) } }
+                ), options: [
+                    MacChoiceOption(label: "当前批次", value: PickBatchTab.current),
+                    MacChoiceOption(label: "历史批次", value: PickBatchTab.history)
+                ], minItemWidth: 82)
+                remarkBatchList
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(height: listHeight)
+                    .layoutPriority(1)
+                if activeTab == .history {
+                    MacPaginationFooter(
+                        pageIndex: historyPageIndex,
+                        totalPages: historyTotalPages,
+                        total: historyTotal,
+                        currentCount: batches.count,
+                        pageSize: $historyPageSize,
+                        pageSizeWidth: 88,
+                        layout: .compact,
+                        onPageChange: { nextPage in
+                            Task { await changeBatchPage(nextPage) }
+                        },
+                        onPageSizeChange: {
+                            Task { await changeHistoryPageSize() }
+                        }
+                    )
+                    .frame(height: footerHeight, alignment: .bottomLeading)
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .buttonStyle(.plain)
             }
-            if batches.isEmpty { EmptyPanel(text: "暂无批次") }
+            .padding(16)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
         }
-        .padding(16)
-        .frame(width: 300)
+        .frame(minHeight: 420)
         .webCard()
+    }
+
+    @ViewBuilder
+    private var remarkBatchList: some View {
+        if batches.isEmpty {
+            EmptyPanel(text: "暂无批次")
+        } else {
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 10) {
+                    ForEach(batches) { batch in
+                        Button {
+                            Task { await selectBatch(batch) }
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text(batch.batchName ?? "未命名批次").font(.system(size: 14, weight: .semibold))
+                                Text(batch.createdTime ?? "-").font(.system(size: 12)).foregroundStyle(FastSortTheme.muted)
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(selectedBatch?.id == batch.id ? FastSortTheme.accentSoft : FastSortTheme.groupedBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .scrollIndicators(.visible)
+        }
     }
 
     private var remarkWorkspace: some View {
@@ -2100,6 +2124,7 @@ struct DouyinRemarkView: View {
 
     private func setPlatform(_ value: String) async {
         activePlatform = value
+        historyPageIndex = 1
         selectedBatch = nil
         rows = []
         await loadBatches()
@@ -2107,6 +2132,23 @@ struct DouyinRemarkView: View {
 
     private func setTab(_ tab: PickBatchTab) async {
         activeTab = tab
+        historyPageIndex = 1
+        selectedBatch = nil
+        rows = []
+        await loadBatches()
+    }
+
+    private func changeBatchPage(_ nextPage: Int) async {
+        let safePage = min(max(1, nextPage), historyTotalPages)
+        guard safePage != historyPageIndex else { return }
+        historyPageIndex = safePage
+        selectedBatch = nil
+        rows = []
+        await loadBatches()
+    }
+
+    private func changeHistoryPageSize() async {
+        historyPageIndex = 1
         selectedBatch = nil
         rows = []
         await loadBatches()
@@ -2116,10 +2158,38 @@ struct DouyinRemarkView: View {
         guard !appState.currentUserId.isEmpty else { return }
         do {
             let result = try await PickService(apiClient: appState.makeAPIClient())
-                .getAllSortBatchList(pageIndex: 1, pageSize: 20, userId: appState.currentUserId, liveType: activePlatform)
-            batches = activeTab == .current ? (result.notComplete.map { [$0] } ?? []) : (result.historyCompletedPage?.list ?? [])
-            if let first = batches.first { await selectBatch(first) }
+                .getAllSortBatchList(
+                    pageIndex: activeTab == .history ? historyPageIndex : 1,
+                    pageSize: historyPageSize,
+                    userId: appState.currentUserId,
+                    liveType: activePlatform
+                )
+            if activeTab == .current {
+                batches = result.notComplete.map { [$0] } ?? []
+                historyTotal = 0
+                historyTotalPages = 1
+            } else {
+                let historyPage = result.historyCompletedPage
+                historyTotal = historyPage?.totalValue ?? 0
+                let calculatedHistoryPages = Int(ceil(Double(historyTotal) / Double(historyPageSize)))
+                historyTotalPages = max(1, max(historyPage?.pagesValue ?? 0, calculatedHistoryPages))
+                if historyPageIndex > historyTotalPages {
+                    historyPageIndex = historyTotalPages
+                    await loadBatches()
+                    return
+                }
+                batches = Array((historyPage?.list ?? []).prefix(historyPageSize))
+            }
+            if let first = batches.first {
+                await selectBatch(first)
+            } else {
+                selectedBatch = nil
+                rows = []
+            }
         } catch {
+            batches = []
+            selectedBatch = nil
+            rows = []
             message = error.localizedDescription
         }
     }
@@ -2249,7 +2319,6 @@ struct PrinterTestView: View {
                     commandEditor
                 }
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }

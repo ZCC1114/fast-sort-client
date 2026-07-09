@@ -87,16 +87,21 @@ struct LiveRoomsView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            ScrollView {
-                HStack(alignment: .top, spacing: 18) {
-                    roomList
-                        .frame(width: 300)
-                    livePanel
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
+            GeometryReader { proxy in
+                let contentHeight = max(420, proxy.size.height - FastSortTheme.contentPadding * 2)
+                ScrollView {
+                    HStack(alignment: .top, spacing: 18) {
+                        roomList
+                            .frame(width: 300)
+                            .frame(height: contentHeight, alignment: .top)
+                        livePanel
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .frame(height: contentHeight, alignment: .topLeading)
+                    }
+                    .macPagePadding()
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
-                .padding(.top, 20)
-                .macPagePadding()
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             }
 
             if !toastText.isEmpty {
@@ -167,7 +172,7 @@ struct LiveRoomsView: View {
                 EmptyPanel(text: "暂无直播间")
                     .frame(minHeight: 120)
             } else {
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 10) {
                         ForEach(filteredRooms) { room in
                             roomRow(room)
@@ -175,7 +180,9 @@ struct LiveRoomsView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                .frame(minHeight: 360)
+                .scrollIndicators(.visible)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(1)
             }
 
             if !errorText.isEmpty {
@@ -186,6 +193,7 @@ struct LiveRoomsView: View {
             }
         }
         .padding(16)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
         .webCard()
     }
 
@@ -294,7 +302,10 @@ struct LiveRoomsView: View {
             }
 
             commentsCard
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .layoutPriority(1)
         }
+        .frame(maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var liveInfoCard: some View {
@@ -467,7 +478,7 @@ struct LiveRoomsView: View {
             }
 
             ScrollViewReader { proxy in
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(spacing: 0) {
                         if comments.isEmpty {
                             EmptyPanel(text: liveRecordId.isEmpty ? "开始直播后显示实时弹幕" : "暂无弹幕")
@@ -480,7 +491,9 @@ struct LiveRoomsView: View {
                         }
                     }
                 }
-                .frame(minHeight: 420)
+                .scrollIndicators(.visible)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .layoutPriority(1)
                 .onChange(of: comments.count) { _, _ in
                     guard pageActivation.isActive else { return }
                     guard let last = comments.last else { return }
@@ -488,6 +501,7 @@ struct LiveRoomsView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .webCard()
     }
 

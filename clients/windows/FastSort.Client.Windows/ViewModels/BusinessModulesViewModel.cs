@@ -93,8 +93,8 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         DangerActionCommand = new AsyncRelayCommand(RunDangerActionAsync, () => CanRunAction(IsDangerVisible));
         PreviousPageCommand = new AsyncRelayCommand(PreviousPageAsync, () => !IsLoading && PageIndex > 1);
         NextPageCommand = new AsyncRelayCommand(NextPageAsync, () => !IsLoading && PageIndex < TotalPages);
-        PreviousPickBatchPageCommand = new AsyncRelayCommand(PreviousPickBatchPageAsync, () => !IsLoading && Route == AppRoute.Pick && PickBatchPageIndex > 1);
-        NextPickBatchPageCommand = new AsyncRelayCommand(NextPickBatchPageAsync, () => !IsLoading && Route == AppRoute.Pick && PickBatchPageIndex < PickBatchTotalPages);
+        PreviousPickBatchPageCommand = new AsyncRelayCommand(PreviousPickBatchPageAsync, () => !IsLoading && HasBatchPagination && PickBatchPageIndex > 1);
+        NextPickBatchPageCommand = new AsyncRelayCommand(NextPickBatchPageAsync, () => !IsLoading && HasBatchPagination && PickBatchPageIndex < PickBatchTotalPages);
         ConfigureRoute(AppRoute.Blacklist);
     }
 
@@ -442,6 +442,8 @@ public sealed class BusinessModulesViewModel : ViewModelBase
 
     public string PickBatchPageText => $"{PickBatchPageIndex} / {PickBatchTotalPages} · 共 {PickBatchTotal} 条";
 
+    private bool HasBatchPagination => Route is AppRoute.Pick or AppRoute.DouyinRemark;
+
     public BusinessRowViewModel? SelectedRow
     {
         get => _selectedRow;
@@ -473,6 +475,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
         PickBatchPageIndex = 1;
         PageIndex = 1;
         _selectedPickBatch = null;
+        _selectedRemarkBatch = null;
         SelectedRow = null;
         DetailRows.Clear();
     }
@@ -829,6 +832,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     {
         PickBatchPageIndex = Math.Max(1, PickBatchPageIndex - 1);
         _selectedPickBatch = null;
+        _selectedRemarkBatch = null;
         SelectedRow = null;
         DetailRows.Clear();
         PageIndex = 1;
@@ -839,6 +843,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
     {
         PickBatchPageIndex = Math.Min(PickBatchTotalPages, PickBatchPageIndex + 1);
         _selectedPickBatch = null;
+        _selectedRemarkBatch = null;
         SelectedRow = null;
         DetailRows.Clear();
         PageIndex = 1;
@@ -1126,7 +1131,7 @@ public sealed class BusinessModulesViewModel : ViewModelBase
             return;
         }
 
-        var result = await _pickService.GetAllSortBatchListAsync(PageIndex, PageSize, userId, NormalizeRemarkLiveType(), default);
+        var result = await _pickService.GetAllSortBatchListAsync(PickBatchPageIndex, PickBatchPageSize, userId, NormalizeRemarkLiveType(), default);
         var useHistory = IsHistoryTab(FilterText);
         var batches = useHistory
             ? result.HistoryCompletedPage?.List ?? []
@@ -1141,10 +1146,11 @@ public sealed class BusinessModulesViewModel : ViewModelBase
             "",
             batch.CreatedTime ?? "",
             batch)).ToList();
-        ReplacePrimaryRows(rows);
+        ReplacePrimaryRows(rows, useHistory ? PickBatchPageIndex : 1, PickBatchPageSize);
         ReplaceRows(rows);
         ReplaceDetailRows([]);
-        Total = useHistory ? result.HistoryCompletedPage?.TotalValue ?? Rows.Count : Rows.Count;
+        PickBatchTotal = useHistory ? result.HistoryCompletedPage?.TotalValue ?? PrimaryRows.Count : PrimaryRows.Count;
+        Total = 0;
         ReplaceMetrics(new("平台", PlatformName(NormalizeRemarkLiveType())), new("行数", Rows.Count.ToString(CultureInfo.InvariantCulture)));
         StatusText = "选择批次后加载/导出；标签加载完成后再次点击会导出备注映射。";
     }

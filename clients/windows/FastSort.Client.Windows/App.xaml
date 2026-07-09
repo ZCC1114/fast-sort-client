@@ -143,6 +143,25 @@
             <Setter Property="Padding" Value="12" />
         </Style>
 
+        <Style x:Key="PaginationBar" TargetType="DockPanel">
+            <Setter Property="LastChildFill" Value="False" />
+            <Setter Property="Margin" Value="0,10,0,0" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+        </Style>
+
+        <Style x:Key="PaginationInfoText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource FastSortMuted}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="PaginationButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinWidth" Value="64" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
         <Style x:Key="SidebarRouteButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />

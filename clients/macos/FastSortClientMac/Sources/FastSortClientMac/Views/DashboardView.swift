@@ -43,7 +43,6 @@ struct DashboardView: View {
                 }
                 dashboardGrid
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }

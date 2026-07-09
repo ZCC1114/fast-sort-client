@@ -173,8 +173,9 @@
                 </Border>
 
                 <Grid Grid.Row="1" Background="{StaticResource FastSortGroupedBackground}">
-                    <ScrollViewer Padding="24,20,24,24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <Grid Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                    <ScrollViewer Padding="24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"
+                              MinHeight="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
                             <views:DashboardView DataContext="{Binding Dashboard}"
                                                  Visibility="{Binding DataContext.SelectedRoute, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumEqualsToVisibilityConverter}, ConverterParameter=Dashboard}" />
                             <views:LiveRoomsView DataContext="{Binding LiveRooms}"

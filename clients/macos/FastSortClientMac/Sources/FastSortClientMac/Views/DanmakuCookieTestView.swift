@@ -22,7 +22,6 @@ struct DanmakuCookieTestView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .padding(.top, 20)
             .macPagePadding()
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
         }

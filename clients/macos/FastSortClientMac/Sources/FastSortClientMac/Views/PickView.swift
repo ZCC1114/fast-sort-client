@@ -48,15 +48,20 @@ struct PickView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             GeometryReader { proxy in
+                let errorReserve: CGFloat = errorText.isEmpty ? 0 : 32
+                let errorSpacing: CGFloat = errorText.isEmpty ? 0 : 16
+                let contentHeight = max(420, proxy.size.height - FastSortTheme.contentPadding * 2 - errorReserve - errorSpacing)
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .top, spacing: 16) {
                         batchColumn
                             .frame(width: 300)
-                            .frame(maxHeight: .infinity)
+                            .frame(height: contentHeight)
                         tagTable
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .frame(height: contentHeight)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(height: contentHeight)
                     .layoutPriority(1)
                     if !errorText.isEmpty {
                         Text(errorText)
@@ -65,7 +70,6 @@ struct PickView: View {
                             .lineLimit(2)
                     }
                 }
-                .padding(.top, 20)
                 .macPagePadding()
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             }
@@ -177,7 +181,9 @@ struct PickView: View {
 
     private var batchColumn: some View {
         GeometryReader { proxy in
-            let listHeight = max(140, proxy.size.height - (activeTab == .history ? 148 : 80))
+            let footerHeight = activeTab == .history ? MacPaginationFooter.compactHeight : 0
+            let footerSpacing: CGFloat = activeTab == .history ? 12 : 0
+            let listHeight = max(140, proxy.size.height - footerHeight - footerSpacing - 104)
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 10) {
                     Text(activeTab == .current ? "当前批次" : "历史批次")
@@ -192,41 +198,22 @@ struct PickView: View {
                     .frame(height: listHeight)
                     .layoutPriority(1)
                 if activeTab == .history {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Divider()
-                        Text("历史共 \(historyTotal) 条，本页 \(historyBatches.count) 条")
-                            .font(.system(size: 12))
-                            .foregroundStyle(FastSortTheme.muted)
-                        HStack(spacing: 8) {
-                            Button {
-                                Task { await changeBatchPage(historyPageIndex - 1) }
-                            } label: {
-                                Image(systemName: "chevron.left")
-                            }
-                            .buttonStyle(AccentOutlineButtonStyle())
-                            .help("上一页")
-                            .disabled(historyPageIndex <= 1)
-                            Text("\(historyPageIndex) / \(historyTotalPages)")
-                                .font(.system(size: 12))
-                                .foregroundStyle(FastSortTheme.muted)
-                            MacSelect(selection: $historyPageSize, options: [
-                                MacSelectOption(label: "10", value: 10),
-                                MacSelectOption(label: "20", value: 20),
-                                MacSelectOption(label: "50", value: 50)
-                            ], width: 72)
-                            .onChange(of: historyPageSize) { _, _ in
-                                Task { await changeHistoryPageSize() }
-                            }
-                            Button {
-                                Task { await changeBatchPage(historyPageIndex + 1) }
-                            } label: {
-                                Image(systemName: "chevron.right")
-                            }
-                            .buttonStyle(AccentOutlineButtonStyle())
-                            .help("下一页")
-                            .disabled(historyPageIndex >= historyTotalPages)
+                    MacPaginationFooter(
+                        pageIndex: historyPageIndex,
+                        totalPages: historyTotalPages,
+                        total: historyTotal,
+                        currentCount: historyBatches.count,
+                        pageSize: $historyPageSize,
+                        pageSizeWidth: 88,
+                        layout: .compact,
+                        onPageChange: { nextPage in
+                            Task { await changeBatchPage(nextPage) }
+                        },
+                        onPageSizeChange: {
+                            Task { await changeHistoryPageSize() }
                         }
-                    }
+                    )
+                    .frame(height: footerHeight, alignment: .topLeading)
                 }
             }
             .padding(16)
@@ -306,7 +293,9 @@ struct PickView: View {
 
     private var tagTable: some View {
         GeometryReader { proxy in
-            let footerHeight: CGFloat = canCompleteSelectedBatch ? 94 : 56
+            let paginationHeight = MacPaginationFooter.regularHeight
+            let batchActionHeight: CGFloat = canCompleteSelectedBatch ? 38 : 0
+            let footerHeight = paginationHeight + (canCompleteSelectedBatch ? 10 + batchActionHeight : 0)
             let listHeight = max(220, proxy.size.height - footerHeight - 98)
             VStack(alignment: .leading, spacing: 14) {
                 tagToolbar
@@ -330,34 +319,20 @@ struct PickView: View {
                 .layoutPriority(1)
 
                 VStack(spacing: 10) {
-                    Divider()
-                    HStack {
-                        Text("\(pageIndex) / \(totalPages)")
-                            .font(.system(size: 12))
-                            .foregroundStyle(FastSortTheme.muted)
-                        Text("共 \(total) 条，本页 \(rows.count) 条")
-                            .font(.system(size: 12))
-                            .foregroundStyle(FastSortTheme.muted)
-                        MacSelect(selection: $pageSize, options: [
-                            MacSelectOption(label: "10 / 页", value: 10),
-                            MacSelectOption(label: "20 / 页", value: 20),
-                            MacSelectOption(label: "50 / 页", value: 50)
-                        ], width: 110)
-                        .onChange(of: pageSize) { _, _ in
+                    MacPaginationFooter(
+                        pageIndex: pageIndex,
+                        totalPages: totalPages,
+                        total: total,
+                        currentCount: rows.count,
+                        pageSize: $pageSize,
+                        onPageChange: { nextPage in
+                            Task { await changePage(nextPage) }
+                        },
+                        onPageSizeChange: {
                             Task { await changePageSize() }
                         }
-                        Spacer()
-                        Button("上一页") {
-                            Task { await changePage(pageIndex - 1) }
-                        }
-                        .buttonStyle(AccentOutlineButtonStyle())
-                        .disabled(pageIndex <= 1)
-                        Button("下一页") {
-                            Task { await changePage(pageIndex + 1) }
-                        }
-                        .buttonStyle(AccentOutlineButtonStyle())
-                        .disabled(pageIndex >= totalPages)
-                    }
+                    )
+                    .frame(height: paginationHeight, alignment: .topLeading)
 
                     if canCompleteSelectedBatch {
                         HStack {
@@ -369,9 +344,10 @@ struct PickView: View {
                             }
                             .buttonStyle(PrimaryButtonStyle())
                         }
-                        .padding(.top, 2)
+                        .frame(height: batchActionHeight, alignment: .center)
                     }
                 }
+                .frame(height: footerHeight, alignment: .topLeading)
             }
             .padding(16)
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
