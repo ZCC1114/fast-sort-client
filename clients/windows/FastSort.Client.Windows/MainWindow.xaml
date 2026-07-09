@@ -160,8 +160,8 @@
                 <Border Grid.Row="0" Background="{StaticResource FastSortSurface}" BorderBrush="{StaticResource FastSortBorder}" BorderThickness="0,0,0,1">
                     <DockPanel LastChildFill="True" Margin="24,0">
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Content="Manual" Command="{Binding OpenManualCommand}" Style="{StaticResource TopbarTextButton}" Margin="0,0,12,0" />
-                            <Button Content="Upgrade VIP" Command="{Binding SelectRouteCommand}" CommandParameter="{Binding PaymentRoute}" Style="{StaticResource VipButton}" Margin="0,0,12,0" />
+                            <Button Content="操作手册" Command="{Binding OpenManualCommand}" Style="{StaticResource TopbarTextButton}" Margin="0,0,12,0" />
+                            <Button Content="升级 VIP" Command="{Binding OpenVipCenterCommand}" Style="{StaticResource VipButton}" Margin="0,0,12,0" />
                             <TextBlock Text="{Binding ProfileName}" VerticalAlignment="Center" Foreground="{StaticResource FastSortText}" FontSize="13" FontWeight="Medium" Margin="0,0,12,0" />
                             <TextBlock Text="{Binding VipStatusText}" VerticalAlignment="Center" Foreground="{StaticResource FastSortMuted}" FontSize="13" FontWeight="Medium" />
                         </StackPanel>

@@ -23,6 +23,7 @@ struct AppShellView: View {
                 AppTopBar(
                     profileName: appState.profileName,
                     vipStatusText: appState.vipStatusText,
+                    token: appState.token,
                     navigationState: navigationState
                 )
                 CachedRouteHost(
@@ -149,6 +150,7 @@ private struct AppSidebar: View {
 private struct AppTopBar: View {
     let profileName: String
     let vipStatusText: String
+    let token: String
     let navigationState: NavigationState
     @State private var selectedRoute: AppRoute = .dashboard
     @State private var routeListenerID: UUID?
@@ -164,19 +166,14 @@ private struct AppTopBar: View {
                     .foregroundStyle(FastSortTheme.muted)
             }
             Spacer()
-            Button("Manual") {
+            Button("操作手册") {
                 openManual()
             }
             .buttonStyle(TopbarTextButtonStyle())
-            Button("Upgrade VIP") {
-                navigationState.navigate(to: .payment)
+            Button("升级 VIP") {
+                openVipCenter()
             }
             .buttonStyle(VipButtonStyle())
-            .onHover { hovering in
-                if hovering {
-                    navigationState.requestPrewarm(.payment)
-                }
-            }
             if !profileName.isEmpty {
                 Label(profileName, systemImage: "crown.fill")
                     .font(.system(size: 13, weight: .medium))
@@ -207,6 +204,15 @@ private struct AppTopBar: View {
 
     private func openManual() {
         if let url = URL(string: "https://xunjian.org.cn/preview.html") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func openVipCenter() {
+        let encodedToken = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedBaseURL = "https://xunjian.org.cn".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let raw = "https://xunjian.org.cn/homepage/#/vip?token=\(encodedToken)&baseUrl=\(encodedBaseURL)&source=xj"
+        if let url = URL(string: raw) {
             NSWorkspace.shared.open(url)
         }
     }

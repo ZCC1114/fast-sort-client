@@ -54,6 +54,7 @@ public sealed class MainViewModel : ViewModelBase
         SelectRouteCommand = new RelayCommand<RouteItemViewModel>(SelectRoute);
         LogoutCommand = new AsyncRelayCommand(LogoutAsync);
         OpenManualCommand = new RelayCommand<object>(_ => OpenManual());
+        OpenVipCenterCommand = new RelayCommand<object>(_ => OpenVipCenter());
         UpdateRouteSelection();
     }
 
@@ -82,6 +83,8 @@ public sealed class MainViewModel : ViewModelBase
     public AsyncRelayCommand LogoutCommand { get; }
 
     public RelayCommand<object> OpenManualCommand { get; }
+
+    public RelayCommand<object> OpenVipCenterCommand { get; }
 
     public string Token
     {
@@ -334,6 +337,17 @@ public sealed class MainViewModel : ViewModelBase
         Process.Start(new ProcessStartInfo
         {
             FileName = "https://xunjian.org.cn/preview.html",
+            UseShellExecute = true
+        });
+    }
+
+    private void OpenVipCenter()
+    {
+        var token = Uri.EscapeDataString(Token);
+        var baseUrl = Uri.EscapeDataString("https://xunjian.org.cn");
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = $"https://xunjian.org.cn/homepage/#/vip?token={token}&baseUrl={baseUrl}&source=xj",
             UseShellExecute = true
         });
     }
