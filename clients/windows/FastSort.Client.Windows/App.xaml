@@ -143,10 +143,9 @@
             <Setter Property="Padding" Value="12" />
         </Style>
 
-        <Style x:Key="PaginationBar" TargetType="DockPanel">
-            <Setter Property="LastChildFill" Value="False" />
-            <Setter Property="Margin" Value="0,10,0,0" />
-            <Setter Property="MinHeight" Value="38" />
+        <Style x:Key="PaginationGrid" TargetType="Grid">
+            <Setter Property="Margin" Value="0,8,0,0" />
+            <Setter Property="MinHeight" Value="36" />
             <Setter Property="VerticalAlignment" Value="Bottom" />
         </Style>
 
