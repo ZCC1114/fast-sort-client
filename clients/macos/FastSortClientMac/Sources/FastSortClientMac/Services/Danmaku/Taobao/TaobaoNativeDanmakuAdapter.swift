@@ -7,109 +7,181 @@ struct TaobaoNativePollResult {
 }
 
 final class TaobaoRoomResolver: Sendable {
-    private let workbenchURLs = [
-        "https://myseller.taobao.com/home.htm/live-dashboard-qn/",
-        "https://myseller.taobao.com/home.htm/live-dashboard-qn"
-    ]
-
     func resolveRoomId(request: NativeDanmakuConnectRequest) async throws -> String {
-        if let roomId = taobaoRoomId(from: request.roomNumber ?? "") {
-            return roomId
-        }
-        if let eid = taobaoRoomId(from: request.eid ?? "") {
-            return eid
+        let cookieHeader = request.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cookieHeader.isEmpty else {
+            throw NativeDanmakuAdapterError.missingCookie("淘宝")
         }
 
-        var redirectedToLogin = false
-        for urlText in workbenchURLs {
-            guard let url = URL(string: urlText) else { continue }
-            let (html, finalURL) = try await fetchTaobaoPage(url: url, cookieHeader: request.cookieHeader)
-            redirectedToLogin = redirectedToLogin || isLoginRedirect(finalURL)
-            if let roomId = taobaoRoomId(from: html) {
-                return roomId
+        let mtop = TaobaoMTopClient(cookieHeader: cookieHeader)
+        let roomPayload = try await mtop.request(api: "mtop.taobao.dreamweb.room.list", data: [:])
+        let rooms = roomPayload["rooms"] as? [[String: Any]] ?? []
+
+        for room in rooms {
+            guard let roomNumber = room["roomNum"] else { continue }
+            let livePayload = try await mtop.request(
+                api: "mtop.taobao.dreamweb.live.list.query",
+                data: [
+                    "roomNum": roomNumber,
+                    "pageNum": 1,
+                    "roomStatus": 1,
+                    "pageSize": 1
+                ]
+            )
+            let lives = livePayload["data"] as? [[String: Any]] ?? []
+            for live in lives where NativeDanmakuHTTP.flexibleInt(live["roomStatus"]) == 1 {
+                if let topic = topicRoomId(from: live) {
+                    return topic
+                }
+
+                let liveId = NativeDanmakuHTTP.firstText(live, keys: ["id", "liveId"])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !liveId.isEmpty else { continue }
+                let detail = try await mtop.request(
+                    api: "mtop.taobao.dreamweb.live.detail",
+                    data: ["liveId": liveId]
+                )
+                if let topic = topicRoomId(from: detail) {
+                    return topic
+                }
             }
         }
 
-        if redirectedToLogin {
-            throw NativeDanmakuAdapterError.loginExpired("淘宝")
-        }
         throw NativeDanmakuAdapterError.notStarted("淘宝")
     }
 
-    private func fetchTaobaoPage(url: URL, cookieHeader: String) async throws -> (String, URL?) {
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 12
-        request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "Accept")
-        request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
-        request.setValue("https://myseller.taobao.com/", forHTTPHeaderField: "Referer")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        let (data, response) = try await URLSession.shared.data(for: request)
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw NativeDanmakuError("淘宝工作台 HTTP \(http.statusCode)")
-        }
-        return (String(data: data, encoding: .utf8) ?? "", response.url)
-    }
-
-    private func isLoginRedirect(_ url: URL?) -> Bool {
-        guard let url else { return false }
-        let host = url.host?.lowercased() ?? ""
-        let path = url.path.lowercased()
-        return host.contains("login") || path.contains("login") || host.hasSuffix("login.taobao.com")
-    }
-
-    private func taobaoRoomId(from text: String) -> String? {
-        let decoded = NativeDanmakuHTTP.decodeRepeatedly(text)
-            .replacingOccurrences(of: "\\u0026", with: "&")
-            .replacingOccurrences(of: "\\/", with: "/")
-
-        if let roomId = NativeDanmakuHTTP.firstRegexMatch(
-            in: decoded,
-            pattern: #"(?:https?:)?//(?:impaas|impaasgw)\.alicdn\.com/live/message/([A-Za-z0-9_\-]{6,80})/"#,
-            options: [.caseInsensitive]
-        ) {
-            return roomId
-        }
-        if let roomId = NativeDanmakuHTTP.firstRegexMatch(
-            in: decoded,
-            pattern: #"/live/message/([A-Za-z0-9_\-]{6,80})/"#,
-            options: [.caseInsensitive]
-        ) {
-            return roomId
-        }
-
-        let queryKeys = ["wh_cid", "roomId", "room_id", "liveId", "live_id", "liveRoomId", "liveRoomID", "livingRoomId", "liveIdStr"]
-        for key in queryKeys {
-            if let value = NativeDanmakuHTTP.queryValue(in: decoded, name: key), isRoomIdCandidate(value) {
+    private func topicRoomId(from payload: [String: Any]) -> String? {
+        for key in ["topic", "topicId", "wh_cid", "roomId", "room_id"] {
+            let value = NativeDanmakuHTTP.firstText(payload, keys: [key])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if isRoomIdCandidate(value) {
                 return value
             }
         }
-        if let livePlayURL = NativeDanmakuHTTP.queryValue(in: decoded, name: "livePlayUrl"),
-           let roomId = NativeDanmakuHTTP.firstRegexMatch(
-            in: NativeDanmakuHTTP.decodeRepeatedly(livePlayURL),
-            pattern: #"liveplatform/([A-Fa-f0-9\-]{16,})___"#
-           ) {
-            return roomId
+
+        if let liveDO = payload["liveDO"] as? [String: Any], let topic = topicRoomId(from: liveDO) {
+            return topic
         }
-        if let roomId = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: #"liveplatform/([A-Fa-f0-9\-]{16,})___"#) {
-            return roomId
-        }
-        let keyPattern = ##"["']?(?:wh_cid|roomId|room_id|liveId|live_id|liveRoomId|liveRoomID|livingRoomId|liveIdStr)["']?\s*[:=]\s*["']?([A-Za-z0-9_\-]{6,80})"##
-        if let roomId = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: keyPattern, options: [.caseInsensitive]) {
-            return roomId
-        }
-        let queryPattern = #"(?:wh_cid|roomId|room_id|liveId|live_id|liveRoomId|liveRoomID|livingRoomId|liveIdStr)=([A-Za-z0-9_\-]{6,80})"#
-        if let roomId = NativeDanmakuHTTP.firstRegexMatch(in: decoded, pattern: queryPattern, options: [.caseInsensitive]) {
-            return NativeDanmakuHTTP.decodeRepeatedly(roomId)
-        }
-        if isRoomIdCandidate(decoded.trimmingCharacters(in: .whitespacesAndNewlines)) {
-            return decoded.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let text = payload["liveInfoDOString"] as? String,
+           let data = text.data(using: .utf8),
+           let liveDO = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let topic = topicRoomId(from: liveDO) {
+            return topic
         }
         return nil
     }
 
     private func isRoomIdCandidate(_ value: String) -> Bool {
         !value.isEmpty && value.range(of: #"^[A-Za-z0-9_\-]{6,80}$"#, options: .regularExpression) != nil
+    }
+}
+
+private final class TaobaoMTopClient: @unchecked Sendable {
+    private let appKey = "12574478"
+    private var cookieHeader: String
+
+    init(cookieHeader: String) {
+        self.cookieHeader = cookieHeader
+    }
+
+    func request(api: String, data payload: [String: Any]) async throws -> [String: Any] {
+        let dataText = try jsonText(payload)
+        var lastMessage = "淘宝接口请求失败"
+
+        for attempt in 0..<2 {
+            let timestamp = String(Int64(Date().timeIntervalSince1970 * 1_000))
+            let token = cookieValue(named: "_m_h5_tk")?.split(separator: "_", maxSplits: 1).first.map(String.init) ?? ""
+            let sign = NativeDanmakuHTTP.md5Hex("\(token)&\(timestamp)&\(appKey)&\(dataText)")
+            guard var components = URLComponents(string: "https://h5api.m.taobao.com/h5/\(api.lowercased())/1.0/") else {
+                throw NativeDanmakuError("淘宝 MTop URL 构造失败")
+            }
+            components.queryItems = [
+                URLQueryItem(name: "jsv", value: "2.7.2"),
+                URLQueryItem(name: "appKey", value: appKey),
+                URLQueryItem(name: "t", value: timestamp),
+                URLQueryItem(name: "sign", value: sign),
+                URLQueryItem(name: "api", value: api),
+                URLQueryItem(name: "v", value: "1.0"),
+                URLQueryItem(name: "type", value: "originaljson"),
+                URLQueryItem(name: "dataType", value: "originaljsonp"),
+                URLQueryItem(name: "data", value: dataText)
+            ]
+            guard let url = components.url else {
+                throw NativeDanmakuError("淘宝 MTop URL 构造失败")
+            }
+
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 15
+            request.setValue(NativeDanmakuHTTP.desktopUserAgent, forHTTPHeaderField: "User-Agent")
+            request.setValue("application/json,text/plain,*/*", forHTTPHeaderField: "Accept")
+            request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+            request.setValue("https://qn.taobao.com", forHTTPHeaderField: "Origin")
+            request.setValue("https://qn.taobao.com/home.htm/QnworkbenchHome/", forHTTPHeaderField: "Referer")
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                mergeResponseCookies(http, requestURL: url)
+                guard (200..<300).contains(http.statusCode) else {
+                    throw NativeDanmakuError("淘宝 MTop HTTP \(http.statusCode)")
+                }
+            }
+            guard let root = try JSONSerialization.jsonObject(with: responseData) as? [String: Any] else {
+                throw NativeDanmakuError("淘宝 MTop 返回不是 JSON")
+            }
+            let ret = root["ret"] as? [String] ?? []
+            if ret.contains(where: { $0.uppercased().hasPrefix("SUCCESS") }) {
+                return root["data"] as? [String: Any] ?? [:]
+            }
+
+            lastMessage = ret.first ?? lastMessage
+            let normalized = lastMessage.uppercased()
+            if attempt == 0,
+               normalized.contains("TOKEN_EMPTY") || normalized.contains("TOKEN_EXOIRED") || normalized.contains("TOKEN_EXPIRED") {
+                continue
+            }
+            if normalized.contains("SESSION_EXPIRED") || normalized.contains("LOGIN") || normalized.contains("USER_VALIDATE") {
+                throw NativeDanmakuAdapterError.loginExpired("淘宝")
+            }
+            break
+        }
+
+        throw NativeDanmakuError("淘宝当前直播接口返回：\(lastMessage)")
+    }
+
+    private func jsonText(_ payload: [String: Any]) throws -> String {
+        guard JSONSerialization.isValidJSONObject(payload) else {
+            throw NativeDanmakuError("淘宝 MTop 参数不是有效 JSON")
+        }
+        let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys, .withoutEscapingSlashes])
+        return String(data: data, encoding: .utf8) ?? "{}"
+    }
+
+    private func cookieValue(named name: String) -> String? {
+        cookieHeader.split(separator: ";").compactMap { pair -> (String, String)? in
+            let components = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard components.count == 2 else { return nil }
+            return (components[0].trimmingCharacters(in: .whitespacesAndNewlines), String(components[1]))
+        }.first(where: { $0.0 == name })?.1
+    }
+
+    private func mergeResponseCookies(_ response: HTTPURLResponse, requestURL: URL) {
+        let fields = response.allHeaderFields.reduce(into: [String: String]()) { result, entry in
+            result[String(describing: entry.key)] = String(describing: entry.value)
+        }
+        let responseCookies = HTTPCookie.cookies(withResponseHeaderFields: fields, for: requestURL)
+        guard !responseCookies.isEmpty else { return }
+
+        var pairs = cookieHeader.split(separator: ";").compactMap { pair -> (String, String)? in
+            let components = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard components.count == 2 else { return nil }
+            return (components[0].trimmingCharacters(in: .whitespacesAndNewlines), String(components[1]))
+        }
+        for cookie in responseCookies {
+            pairs.removeAll { $0.0 == cookie.name }
+            pairs.append((cookie.name, cookie.value))
+        }
+        cookieHeader = pairs.map { "\($0.0)=\($0.1)" }.joined(separator: "; ")
     }
 }
 
@@ -324,10 +396,49 @@ final class TaobaoNativeDanmakuAdapter: NativeDanmakuAdapter {
         }
         let deviceId = stableDeviceId(roomId)
         let poller = TaobaoDanmakuPoller()
+        onEvent(
+            NativeDanmakuEvent(
+                platform: platformKey,
+                event: .status,
+                status: .connecting,
+                roomId: request.roomId,
+                platformRoomId: roomId,
+                content: "已通过 Cookie 找到淘宝当前直播，正在验证评论源。"
+            )
+        )
+        var end = Int(Date().timeIntervalSince1970)
+        var start = max(0, end - 4)
+        let firstResult = try await poller.fetchMessages(
+            roomId: roomId,
+            start: start,
+            end: end,
+            deviceId: deviceId,
+            cookieHeader: request.cookieHeader
+        )
+        if let nextEnd = firstResult.nextEndTime {
+            let interval = max(firstResult.pullInterval ?? 4, 1)
+            start = nextEnd
+            end = nextEnd + interval
+        }
+        onEvent(
+            NativeDanmakuEvent(
+                platform: platformKey,
+                event: .status,
+                status: .living,
+                roomId: request.roomId,
+                platformRoomId: roomId,
+                content: "淘宝当前直播与评论源均已验证，正在接收弹幕。"
+            )
+        )
+        for event in firstResult.events {
+            onEvent(event)
+        }
+
+        let initialStart = start
+        let initialEnd = end
         let task = Task {
-            onEvent(NativeDanmakuEvent(platform: platformKey, event: .status, status: .living, roomId: request.roomId, platformRoomId: roomId))
-            var end = Int(Date().timeIntervalSince1970)
-            var start = max(0, end - 4)
+            var start = initialStart
+            var end = initialEnd
             while !Task.isCancelled {
                 do {
                     let result = try await poller.fetchMessages(

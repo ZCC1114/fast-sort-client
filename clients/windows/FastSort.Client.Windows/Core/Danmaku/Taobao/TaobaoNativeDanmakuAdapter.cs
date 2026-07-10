@@ -12,134 +12,223 @@ internal sealed record TaobaoNativePollResult(long? NextEndTime, int? PullInterv
 
 internal sealed class TaobaoRoomResolver
 {
-    private static readonly HttpClient HttpClient = new(new HttpClientHandler { AllowAutoRedirect = true });
-    private static readonly string[] WorkbenchUrls =
-    [
-        "https://myseller.taobao.com/home.htm/live-dashboard-qn/",
-        "https://myseller.taobao.com/home.htm/live-dashboard-qn"
-    ];
-
     public async Task<string> ResolveRoomIdAsync(NativeDanmakuConnectRequest request, CancellationToken cancellationToken)
     {
-        if (TaobaoRoomIdFrom(request.RoomNumber ?? "") is { Length: > 0 } roomNumber)
+        if (string.IsNullOrWhiteSpace(request.CookieHeader))
         {
-            return roomNumber;
+            throw new NativeDanmakuException("淘宝缺少 Cookie，请先登录千牛工作台并采集 Cookie");
         }
 
-        if (TaobaoRoomIdFrom(request.Eid ?? "") is { Length: > 0 } eid)
+        var mtop = new TaobaoMTopClient(request.CookieHeader);
+        var roomPayload = await mtop.RequestAsync(
+            "mtop.taobao.dreamweb.room.list",
+            new JsonObject(),
+            cancellationToken).ConfigureAwait(false);
+        var rooms = roomPayload["rooms"] as JsonArray ?? [];
+        foreach (var room in rooms.OfType<JsonObject>())
         {
-            return eid;
-        }
-
-        var redirectedToLogin = false;
-        foreach (var urlText in WorkbenchUrls)
-        {
-            var (html, finalUrl) = await FetchTaobaoPageAsync(new Uri(urlText), request.CookieHeader, cancellationToken).ConfigureAwait(false);
-            redirectedToLogin = redirectedToLogin || IsLoginRedirect(finalUrl);
-            if (TaobaoRoomIdFrom(html) is { Length: > 0 } roomId)
+            if (room["roomNum"] is not { } roomNumber)
             {
-                return roomId;
+                continue;
+            }
+
+            var livePayload = await mtop.RequestAsync(
+                "mtop.taobao.dreamweb.live.list.query",
+                new JsonObject
+                {
+                    ["roomNum"] = roomNumber.DeepClone(),
+                    ["pageNum"] = 1,
+                    ["roomStatus"] = 1,
+                    ["pageSize"] = 1
+                },
+                cancellationToken).ConfigureAwait(false);
+            var lives = livePayload["data"] as JsonArray ?? [];
+            foreach (var live in lives.OfType<JsonObject>().Where(item => NativeDanmakuHttp.FlexibleInt(item["roomStatus"]) == 1))
+            {
+                if (TopicRoomIdFrom(live) is { Length: > 0 } topic)
+                {
+                    return topic;
+                }
+
+                var liveId = live["id"] ?? live["liveId"];
+                if (liveId is null)
+                {
+                    continue;
+                }
+
+                var detail = await mtop.RequestAsync(
+                    "mtop.taobao.dreamweb.live.detail",
+                    new JsonObject { ["liveId"] = liveId.DeepClone() },
+                    cancellationToken).ConfigureAwait(false);
+                if (TopicRoomIdFrom(detail) is { Length: > 0 } detailTopic)
+                {
+                    return detailTopic;
+                }
             }
         }
 
-        throw new NativeDanmakuException(redirectedToLogin ? "淘宝登录态已失效，请重新授权千牛工作台" : "淘宝当前账号未开播，未能解析当前直播 roomId");
+        throw new NativeDanmakuException("淘宝当前账号未开播，未能从 Cookie 查询到当前直播");
     }
 
-    private static async Task<(string Html, Uri? FinalUrl)> FetchTaobaoPageAsync(Uri url, string cookieHeader, CancellationToken cancellationToken)
+    private static string? TopicRoomIdFrom(JsonObject payload)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.TryAddWithoutValidation("User-Agent", NativeDanmakuHttp.DesktopUserAgent);
-        request.Headers.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-        request.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
-        request.Headers.TryAddWithoutValidation("Referer", "https://myseller.taobao.com/");
-        request.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
-
-        using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
+        foreach (var key in new[] { "topic", "topicId", "wh_cid", "roomId", "room_id" })
         {
-            throw new NativeDanmakuException($"淘宝工作台 HTTP {(int)response.StatusCode}");
-        }
-
-        return (await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false), response.RequestMessage?.RequestUri);
-    }
-
-    private static bool IsLoginRedirect(Uri? url)
-    {
-        if (url is null)
-        {
-            return false;
-        }
-
-        var host = url.Host.ToLowerInvariant();
-        var path = url.AbsolutePath.ToLowerInvariant();
-        return host.Contains("login", StringComparison.Ordinal) ||
-               path.Contains("login", StringComparison.Ordinal) ||
-               host.EndsWith("login.taobao.com", StringComparison.Ordinal);
-    }
-
-    private static string? TaobaoRoomIdFrom(string text)
-    {
-        var decoded = NativeDanmakuHttp.DecodeRepeatedly(text)
-            .Replace("\\u0026", "&", StringComparison.Ordinal)
-            .Replace("\\/", "/", StringComparison.Ordinal);
-
-        if (NativeDanmakuHttp.FirstRegexMatch(
-                decoded,
-                @"(?:https?:)?//(?:impaas|impaasgw)\.alicdn\.com/live/message/([A-Za-z0-9_\-]{6,80})/",
-                RegexOptions.IgnoreCase) is { } impaasRoomId)
-        {
-            return impaasRoomId;
-        }
-
-        if (NativeDanmakuHttp.FirstRegexMatch(
-                decoded,
-                @"/live/message/([A-Za-z0-9_\-]{6,80})/",
-                RegexOptions.IgnoreCase) is { } liveMessageRoomId)
-        {
-            return liveMessageRoomId;
-        }
-
-        string[] queryKeys = ["wh_cid", "roomId", "room_id", "liveId", "live_id", "liveRoomId", "liveRoomID", "livingRoomId", "liveIdStr"];
-        foreach (var key in queryKeys)
-        {
-            var value = NativeDanmakuHttp.QueryValue(decoded, key);
-            if (IsRoomIdCandidate(value ?? ""))
+            var value = NativeDanmakuHttp.FirstText(payload, key).Trim();
+            if (IsRoomIdCandidate(value))
             {
                 return value;
             }
         }
 
-        var livePlayUrl = NativeDanmakuHttp.QueryValue(decoded, "livePlayUrl");
-        if (!string.IsNullOrWhiteSpace(livePlayUrl) &&
-            NativeDanmakuHttp.FirstRegexMatch(NativeDanmakuHttp.DecodeRepeatedly(livePlayUrl), @"liveplatform/([A-Fa-f0-9\-]{16,})___") is { } playRoomId)
+        if (payload["liveDO"] is JsonObject liveDo && TopicRoomIdFrom(liveDo) is { Length: > 0 } nestedTopic)
         {
-            return playRoomId;
+            return nestedTopic;
         }
 
-        if (NativeDanmakuHttp.FirstRegexMatch(decoded, @"liveplatform/([A-Fa-f0-9\-]{16,})___") is { } roomId)
+        var liveInfoText = NativeDanmakuHttp.FirstText(payload, "liveInfoDOString");
+        if (!string.IsNullOrWhiteSpace(liveInfoText))
         {
-            return roomId;
+            try
+            {
+                if (JsonNode.Parse(liveInfoText) is JsonObject parsed && TopicRoomIdFrom(parsed) is { Length: > 0 } parsedTopic)
+                {
+                    return parsedTopic;
+                }
+            }
+            catch (JsonException)
+            {
+            }
         }
-
-        const string keyPattern = @"[""']?(?:wh_cid|roomId|room_id|liveId|live_id|liveRoomId|liveRoomID|livingRoomId|liveIdStr)[""']?\s*[:=]\s*[""']?([A-Za-z0-9_\-]{6,80})";
-        if (NativeDanmakuHttp.FirstRegexMatch(decoded, keyPattern, RegexOptions.IgnoreCase) is { } keyedRoomId)
-        {
-            return keyedRoomId;
-        }
-
-        const string queryPattern = @"(?:wh_cid|roomId|room_id|liveId|live_id|liveRoomId|liveRoomID|livingRoomId|liveIdStr)=([A-Za-z0-9_\-]{6,80})";
-        if (NativeDanmakuHttp.FirstRegexMatch(decoded, queryPattern, RegexOptions.IgnoreCase) is { } queryRoomId)
-        {
-            return NativeDanmakuHttp.DecodeRepeatedly(queryRoomId);
-        }
-
-        var trimmed = decoded.Trim();
-        return IsRoomIdCandidate(trimmed) ? trimmed : null;
+        return null;
     }
 
     private static bool IsRoomIdCandidate(string value)
     {
         return !string.IsNullOrWhiteSpace(value) && Regex.IsMatch(value, @"^[A-Za-z0-9_\-]{6,80}$");
+    }
+}
+
+internal sealed class TaobaoMTopClient
+{
+    private const string AppKey = "12574478";
+    private static readonly HttpClient HttpClient = new(new HttpClientHandler { UseCookies = false });
+    private string _cookieHeader;
+
+    public TaobaoMTopClient(string cookieHeader)
+    {
+        _cookieHeader = cookieHeader;
+    }
+
+    public async Task<JsonObject> RequestAsync(string api, JsonObject payload, CancellationToken cancellationToken)
+    {
+        var dataText = payload.ToJsonString(NativeDanmakuHttp.JsonOptions);
+        var lastMessage = "淘宝接口请求失败";
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var timestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString();
+            var token = CookieValue("_m_h5_tk")?.Split('_', 2)[0] ?? "";
+            var sign = NativeDanmakuHttp.Md5Hex($"{token}&{timestamp}&{AppKey}&{dataText}");
+            var query = new Dictionary<string, string?>
+            {
+                ["jsv"] = "2.7.2",
+                ["appKey"] = AppKey,
+                ["t"] = timestamp,
+                ["sign"] = sign,
+                ["api"] = api,
+                ["v"] = "1.0",
+                ["type"] = "originaljson",
+                ["dataType"] = "originaljsonp",
+                ["data"] = dataText
+            };
+            var queryText = string.Join("&", query.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value ?? "")}"));
+            var url = new Uri($"https://h5api.m.taobao.com/h5/{api.ToLowerInvariant()}/1.0/?{queryText}");
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.TryAddWithoutValidation("User-Agent", NativeDanmakuHttp.DesktopUserAgent);
+            request.Headers.TryAddWithoutValidation("Accept", "application/json,text/plain,*/*");
+            request.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+            request.Headers.TryAddWithoutValidation("Origin", "https://qn.taobao.com");
+            request.Headers.TryAddWithoutValidation("Referer", "https://qn.taobao.com/home.htm/QnworkbenchHome/");
+            request.Headers.TryAddWithoutValidation("Cookie", _cookieHeader);
+
+            using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            MergeResponseCookies(response);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new NativeDanmakuException($"淘宝 MTop HTTP {(int)response.StatusCode}");
+            }
+
+            var root = NativeDanmakuHttp.ParseObject(await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false))
+                ?? throw new NativeDanmakuException("淘宝 MTop 返回不是 JSON");
+            var ret = root["ret"] as JsonArray ?? [];
+            if (ret.Any(item => item?.ToString().StartsWith("SUCCESS", StringComparison.OrdinalIgnoreCase) == true))
+            {
+                return root["data"] as JsonObject ?? new JsonObject();
+            }
+
+            lastMessage = ret.FirstOrDefault()?.ToString() ?? lastMessage;
+            var normalized = lastMessage.ToUpperInvariant();
+            if (attempt == 0 &&
+                (normalized.Contains("TOKEN_EMPTY", StringComparison.Ordinal) ||
+                 normalized.Contains("TOKEN_EXOIRED", StringComparison.Ordinal) ||
+                 normalized.Contains("TOKEN_EXPIRED", StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            if (normalized.Contains("SESSION_EXPIRED", StringComparison.Ordinal) ||
+                normalized.Contains("LOGIN", StringComparison.Ordinal) ||
+                normalized.Contains("USER_VALIDATE", StringComparison.Ordinal))
+            {
+                throw new NativeDanmakuException("淘宝登录态已失效，请重新登录千牛工作台");
+            }
+            break;
+        }
+
+        throw new NativeDanmakuException($"淘宝当前直播接口返回：{lastMessage}");
+    }
+
+    private string? CookieValue(string name)
+    {
+        return ParseCookieHeader().FirstOrDefault(pair => string.Equals(pair.Key, name, StringComparison.Ordinal)).Value;
+    }
+
+    private void MergeResponseCookies(HttpResponseMessage response)
+    {
+        if (!response.Headers.TryGetValues("Set-Cookie", out var headers))
+        {
+            return;
+        }
+
+        var pairs = ParseCookieHeader();
+        foreach (var header in headers)
+        {
+            var cookiePair = header.Split(';', 2)[0];
+            var separator = cookiePair.IndexOf('=');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            var name = cookiePair[..separator].Trim();
+            var value = cookiePair[(separator + 1)..];
+            pairs.RemoveAll(pair => string.Equals(pair.Key, name, StringComparison.Ordinal));
+            pairs.Add(new KeyValuePair<string, string>(name, value));
+        }
+        _cookieHeader = string.Join("; ", pairs.Select(pair => $"{pair.Key}={pair.Value}"));
+    }
+
+    private List<KeyValuePair<string, string>> ParseCookieHeader()
+    {
+        return _cookieHeader.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(item => item.Trim())
+            .Select(item => new { Item = item, Separator = item.IndexOf('=') })
+            .Where(item => item.Separator > 0)
+            .Select(item => new KeyValuePair<string, string>(
+                item.Item[..item.Separator].Trim(),
+                item.Item[(item.Separator + 1)..]))
+            .ToList();
     }
 }
 
@@ -445,15 +534,44 @@ public sealed class TaobaoNativeDanmakuAdapter : INativeDanmakuAdapter
         try
         {
             var roomId = await new TaobaoRoomResolver().ResolveRoomIdAsync(request, cancellationToken).ConfigureAwait(false);
-            await onEvent(NativeDanmakuEvent.StatusEvent(PlatformKey, NativeDanmakuStatus.Living, $"已解析淘宝直播 roomId：{roomId}")).ConfigureAwait(false);
-
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var poller = new TaobaoDanmakuPoller();
             var deviceId = NativeDanmakuHttp.Sha1Hex(roomId)[..24];
+            await onEvent(NativeDanmakuEvent.StatusEvent(
+                PlatformKey,
+                NativeDanmakuStatus.Connecting,
+                "已通过 Cookie 找到淘宝当前直播，正在验证评论源。")).ConfigureAwait(false);
+            var end = DateTimeOffset.Now.ToUnixTimeSeconds();
+            var start = Math.Max(0, end - 4);
+            var firstResult = await poller.FetchMessagesAsync(
+                roomId,
+                start,
+                end,
+                deviceId,
+                request.CookieHeader,
+                cancellationToken).ConfigureAwait(false);
+            if (firstResult.NextEndTime is { } firstNextEnd)
+            {
+                var firstInterval = Math.Max(firstResult.PullInterval ?? 4, 1);
+                start = firstNextEnd;
+                end = firstNextEnd + firstInterval;
+            }
+
+            await onEvent(NativeDanmakuEvent.StatusEvent(
+                PlatformKey,
+                NativeDanmakuStatus.Living,
+                "淘宝当前直播与评论源均已验证，正在接收弹幕。")).ConfigureAwait(false);
+            foreach (var nativeEvent in firstResult.Events)
+            {
+                await onEvent(nativeEvent).ConfigureAwait(false);
+            }
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var initialStart = start;
+            var initialEnd = end;
             var loop = Task.Run(async () =>
             {
-                var end = DateTimeOffset.Now.ToUnixTimeSeconds();
-                var start = Math.Max(0, end - 4);
+                var start = initialStart;
+                var end = initialEnd;
                 while (!cts.IsCancellationRequested)
                 {
                     try
@@ -502,8 +620,15 @@ public sealed class TaobaoNativeDanmakuAdapter : INativeDanmakuAdapter
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            await onEvent(NativeDanmakuEvent.ErrorEvent(PlatformKey, ex.Message)).ConfigureAwait(false);
-            return new NativeDanmakuConnection(PlatformKey, NativeDanmakuStatus.Error);
+            var status = ex.Message.Contains("登录态已失效", StringComparison.Ordinal)
+                ? NativeDanmakuStatus.LoginExpired
+                : ex.Message.Contains("未开播", StringComparison.Ordinal)
+                    ? NativeDanmakuStatus.NotStarted
+                    : NativeDanmakuStatus.Error;
+            await onEvent(status == NativeDanmakuStatus.Error
+                ? NativeDanmakuEvent.ErrorEvent(PlatformKey, ex.Message)
+                : NativeDanmakuEvent.StatusEvent(PlatformKey, status, ex.Message)).ConfigureAwait(false);
+            return new NativeDanmakuConnection(PlatformKey, status);
         }
     }
 }

@@ -92,8 +92,8 @@
 
 - 弹幕捕手授权配置 ID：`3`
 - 业务 key：`tb`
-- 登录页：`https://loginmyseller.taobao.com/?from=&f=top&style=&sub=true&redirect_url=https%3A%2F%2Fmyseller.taobao.com%2Fhome.htm%2Flive-dashboard-qn%2F`
-- 成功页：`myseller.taobao.com/home.htm/live-dashboard-qn/`
+- 登录页：`https://qn.taobao.com/home.htm/QnworkbenchHome/`（未登录时由千牛自动跳转登录页）
+- 成功页：任意 `*.taobao.com/home.htm/*` 千牛工作台页，不要求进入直播管理
 - Cookie 主域：`taobao.com`
 - 可能补充域：`tmall.com`
 - 保存形态：完整 Cookie header
@@ -102,7 +102,9 @@
 后续派生：
 
 - 默认不再要求手填淘宝直播链接。
-- 用千牛工作台 Cookie 打开 `myseller.taobao.com/home.htm/live-dashboard-qn/` 并解析当前开播 `roomId`；历史直播链接/roomId 只作为调试兜底。主要来源包括 `wh_cid`、`liveId/roomId`、`livePlayUrl`、`liveplatform/{roomId}___`。
+- 运行时不读取千牛页面 URL、DOM 或抓包结果，也不打开直播管理页。
+- 用千牛 Cookie 调用 `mtop.taobao.dreamweb.room.list` 获取直播房间，再调用 `mtop.taobao.dreamweb.live.list.query`（`roomStatus=1`）查询当前开播场次。
+- 当前场次的 `topic` 就是 impaas 评论轮询 UUID；若列表未直接返回 `topic`，再用 `mtop.taobao.dreamweb.live.detail` 补取。
 - 生成稳定 `deviceId`：`sha1(roomId)` 前 24 位。
 - 轮询淘宝 `impaas` / `impaasgw` 弹幕源。
 - 弹幕 payload 解码后提取 `content/text/msg`、`tbNick/snsNick/publisherNick`、`tbUserIdEncode/userId`、`msgId/messageId`、`liveId`。

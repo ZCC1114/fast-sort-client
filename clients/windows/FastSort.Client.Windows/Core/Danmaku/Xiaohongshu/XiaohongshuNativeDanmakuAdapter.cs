@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text;
@@ -6,6 +7,10 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using FastSort.Client.Windows.Core.Danmaku.Cookie;
 using FastSort.Client.Windows.Core.Danmaku.Shared;
+using NetCookie = System.Net.Cookie;
+using NetCookieCollection = System.Net.CookieCollection;
+using NetCookieContainer = System.Net.CookieContainer;
+using NetCookieException = System.Net.CookieException;
 
 namespace FastSort.Client.Windows.Core.Danmaku.Xiaohongshu;
 
@@ -37,15 +42,31 @@ internal sealed class XiaohongshuCookieJar
         return _cookies.TryGetValue(key, out var value) ? value : null;
     }
 
+    public IReadOnlyDictionary<string, string> Snapshot => _cookies;
+
     public void MergeSetCookieHeaders(IEnumerable<string> headers)
     {
         foreach (var header in headers)
         {
-            var firstPart = header.Split(';', 2, StringSplitOptions.TrimEntries).FirstOrDefault() ?? "";
-            var parts = firstPart.Split('=', 2, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]))
+            foreach (var item in SplitSetCookieHeader(header))
             {
-                _cookies[parts[0]] = parts[1];
+                var firstPart = item.Split(';', 2, StringSplitOptions.TrimEntries).FirstOrDefault() ?? "";
+                var parts = firstPart.Split('=', 2, StringSplitOptions.TrimEntries);
+                if (parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]))
+                {
+                    _cookies[parts[0]] = parts[1];
+                }
+            }
+        }
+    }
+
+    public void MergeCookies(NetCookieCollection cookies)
+    {
+        foreach (NetCookie cookie in cookies)
+        {
+            if (!string.IsNullOrWhiteSpace(cookie.Name) && !string.IsNullOrWhiteSpace(cookie.Value))
+            {
+                _cookies[cookie.Name] = cookie.Value;
             }
         }
     }
@@ -77,28 +98,39 @@ internal sealed class XiaohongshuCookieJar
         return result;
     }
 
-    public string? UserIdFromCookies()
+    public IReadOnlyList<string> UserIdCandidatesFromCookies()
     {
+        var result = new List<string>();
+        void Add(string? value)
+        {
+            value = value?.Trim();
+            if (!string.IsNullOrWhiteSpace(value) &&
+                !result.Contains(value, StringComparer.Ordinal))
+            {
+                result.Add(value);
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(Value(RedliveUserKey)))
         {
-            return Value(RedliveUserKey);
+            Add(Value(RedliveUserKey));
         }
 
         if (!string.IsNullOrWhiteSpace(Value(ArkUserKey)))
         {
-            return Value(ArkUserKey);
+            Add(Value(ArkUserKey));
         }
 
         var webSession = Value("web_session");
         if (string.IsNullOrWhiteSpace(webSession) || !webSession.Contains('.', StringComparison.Ordinal))
         {
-            return null;
+            return result;
         }
 
         var parts = webSession.Split('.');
         if (parts.Length < 2)
         {
-            return null;
+            return result;
         }
 
         var payload = NativeDanmakuHttp.PaddedBase64(parts[1].Replace('-', '+').Replace('_', '/'));
@@ -108,22 +140,24 @@ internal sealed class XiaohongshuCookieJar
             foreach (var key in new[] { "userId", "user_id", "userid", "uid", "id" })
             {
                 var value = NativeDanmakuHttp.FirstText(root, key).Trim();
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    return value;
-                }
+                Add(value);
             }
         }
         catch (FormatException)
         {
         }
 
-        return null;
+        return result;
+    }
+
+    public string? UserIdFromCookies()
+    {
+        return UserIdCandidatesFromCookies().FirstOrDefault();
     }
 
     public string Sid()
     {
-        var raw = Value(RedliveTokenKey) ?? Value(ArkTokenKey) ?? "";
+        var raw = Value(RedliveTokenKey) ?? "";
         var normalized = NormalizedToken(raw);
         return string.IsNullOrWhiteSpace(normalized) ? "unknown_sid" : normalized;
     }
@@ -146,11 +180,19 @@ internal sealed class XiaohongshuCookieJar
 
         return token;
     }
+
+    private static IEnumerable<string> SplitSetCookieHeader(string header)
+    {
+        return Regex.Split(header, @",\s*(?=[^;,=\s]+=)")
+            .Select(part => part.Trim())
+            .Where(part => !string.IsNullOrWhiteSpace(part));
+    }
 }
 
 internal sealed class XiaohongshuRoomResolver
 {
     private static readonly HttpClient HttpClient = new(new HttpClientHandler { AllowAutoRedirect = true });
+    private static readonly HttpClient NoRedirectHttpClient = new(new HttpClientHandler { AllowAutoRedirect = false });
     private static readonly Uri[] HydrateUrls =
     [
         new("https://customer.xiaohongshu.com/login?service=https%3A%2F%2Fredlive.xiaohongshu.com%2Flive_plan"),
@@ -168,27 +210,24 @@ internal sealed class XiaohongshuRoomResolver
             await HydrateRedliveCookiesAsync(cookieJar, cancellationToken).ConfigureAwait(false);
         }
 
-        var userId = cookieJar.UserIdFromCookies();
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            userId = await FetchUserIdAsync(cookieJar, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (string.IsNullOrWhiteSpace(userId))
+        var userIds = await ResolveUserIdsAsync(cookieJar, cancellationToken).ConfigureAwait(false);
+        var firstUserId = userIds.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(firstUserId))
         {
             throw new NativeDanmakuException("Xiaohongshu login expired. Re-authorize in ark workbench.");
         }
 
-        if (XhsRoomIdFrom(request.Eid ?? request.RoomNumber ?? "") is { Length: > 0 } roomId)
+        var explicitRoomId = XhsRoomIdFrom(request.Eid ?? request.RoomNumber ?? "");
+        if (!string.IsNullOrWhiteSpace(explicitRoomId))
         {
-            return new XiaohongshuResolvedRoom(roomId, roomId, userId, cookieJar.Sid(), cookieJar.Header());
+            return new XiaohongshuResolvedRoom(explicitRoomId, explicitRoomId, firstUserId, cookieJar.Sid(), cookieJar.Header());
         }
 
-        var livingRoom = await FetchLivingRoomAsync(cookieJar, userId, cancellationToken).ConfigureAwait(false);
+        var livingRoom = await FetchLivingRoomAsync(cookieJar, userIds, cancellationToken).ConfigureAwait(false);
         return new XiaohongshuResolvedRoom(
             livingRoom.RoomId,
             livingRoom.Title,
-            userId,
+            livingRoom.UserId,
             cookieJar.Sid(),
             cookieJar.Header());
     }
@@ -208,32 +247,153 @@ internal sealed class XiaohongshuRoomResolver
         XiaohongshuCookieJar cookieJar,
         CancellationToken cancellationToken)
     {
+        await HydrateRedliveCookiesWithRedirectsAsync(cookieJar, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(cookieJar.Value("access-token-redlive.xiaohongshu.com")))
+        {
+            return;
+        }
+
+        await HydrateRedliveCookiesManuallyAsync(cookieJar, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task HydrateRedliveCookiesWithRedirectsAsync(
+        XiaohongshuCookieJar cookieJar,
+        CancellationToken cancellationToken)
+    {
+        var container = new NetCookieContainer();
+        foreach (var pair in cookieJar.Snapshot)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+            {
+                continue;
+            }
+
+            try
+            {
+                container.Add(new NetCookie(pair.Key, pair.Value, "/", ".xiaohongshu.com"));
+            }
+            catch (NetCookieException)
+            {
+            }
+        }
+
+        using var handler = new HttpClientHandler
+        {
+            AllowAutoRedirect = true,
+            CookieContainer = container,
+            UseCookies = true
+        };
+        using var client = new HttpClient(handler);
+
         foreach (var url in HydrateUrls)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.TryAddWithoutValidation("User-Agent", NativeDanmakuHttp.DesktopUserAgent);
             request.Headers.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
             request.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
-            request.Headers.TryAddWithoutValidation("Cookie", cookieJar.Header());
 
-            using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (response.Headers.TryGetValues("Set-Cookie", out var headers))
             {
                 cookieJar.MergeSetCookieHeaders(headers);
             }
+            var mergeUrls = HydrateUrls.ToList();
+            if (response.RequestMessage?.RequestUri is { } finalUri)
+            {
+                mergeUrls.Add(finalUri);
+            }
+
+            foreach (var mergeUrl in mergeUrls)
+            {
+                cookieJar.MergeCookies(container.GetCookies(mergeUrl));
+            }
 
             if (!string.IsNullOrWhiteSpace(cookieJar.Value("access-token-redlive.xiaohongshu.com")))
             {
-                break;
+                return;
             }
         }
     }
 
-    private static async Task<string?> FetchUserIdAsync(
+    private static async Task HydrateRedliveCookiesManuallyAsync(
         XiaohongshuCookieJar cookieJar,
         CancellationToken cancellationToken)
     {
-        var candidates = new (Uri Url, Func<JsonObject, string?> Extractor)[]
+        foreach (var seedUrl in HydrateUrls)
+        {
+            var currentUrl = seedUrl;
+            for (var redirectCount = 0; redirectCount < 8; redirectCount++)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, currentUrl);
+                request.Headers.TryAddWithoutValidation("User-Agent", NativeDanmakuHttp.DesktopUserAgent);
+                request.Headers.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                request.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+                request.Headers.TryAddWithoutValidation("Cookie", cookieJar.Header());
+
+                using var response = await NoRedirectHttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                if (response.Headers.TryGetValues("Set-Cookie", out var headers))
+                {
+                    cookieJar.MergeSetCookieHeaders(headers);
+                }
+
+                if (!string.IsNullOrWhiteSpace(cookieJar.Value("access-token-redlive.xiaohongshu.com")))
+                {
+                    return;
+                }
+
+                if ((int)response.StatusCode < 300 ||
+                    (int)response.StatusCode >= 400 ||
+                    response.Headers.Location is null)
+                {
+                    break;
+                }
+
+                currentUrl = response.Headers.Location.IsAbsoluteUri
+                    ? response.Headers.Location
+                    : new Uri(currentUrl, response.Headers.Location);
+            }
+        }
+    }
+
+    private static async Task<IReadOnlyList<string>> ResolveUserIdsAsync(
+        XiaohongshuCookieJar cookieJar,
+        CancellationToken cancellationToken)
+    {
+        var result = cookieJar.UserIdCandidatesFromCookies().ToList();
+        void Add(string? value)
+        {
+            value = value?.Trim();
+            if (!string.IsNullOrWhiteSpace(value) &&
+                !result.Contains(value, StringComparer.Ordinal))
+            {
+                result.Add(value);
+            }
+        }
+
+        foreach (var userId in await FetchUserIdCandidatesAsync(cookieJar, cancellationToken).ConfigureAwait(false))
+        {
+            Add(userId);
+        }
+
+        return result;
+    }
+
+    private static async Task<IReadOnlyList<string>> FetchUserIdCandidatesAsync(
+        XiaohongshuCookieJar cookieJar,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<string>();
+        void Add(string? value)
+        {
+            value = value?.Trim();
+            if (!string.IsNullOrWhiteSpace(value) &&
+                !result.Contains(value, StringComparer.Ordinal))
+            {
+                result.Add(value);
+            }
+        }
+
+        var candidates = new (Uri Url, Func<JsonObject, IEnumerable<string?>> Extractor)[]
         {
             (
                 new Uri("https://www.xiaohongshu.com/api/sns/web/v1/user/self"),
@@ -241,7 +401,11 @@ internal sealed class XiaohongshuRoomResolver
                 {
                     var data = root["data"] as JsonObject;
                     var user = data?["user"] as JsonObject;
-                    return NativeDanmakuHttp.FirstText(user, "id", "userid");
+                    return new[]
+                    {
+                        NativeDanmakuHttp.FirstText(user, "id"),
+                        NativeDanmakuHttp.FirstText(user, "userid")
+                    };
                 }
             ),
             (
@@ -250,9 +414,25 @@ internal sealed class XiaohongshuRoomResolver
                 {
                     var data = root["data"] as JsonObject;
                     var user = data?["user"] as JsonObject;
-                    return NativeDanmakuHttp.FirstText(data, "id") is { Length: > 0 } id
-                        ? id
-                        : NativeDanmakuHttp.FirstText(user, "id");
+                    return new[]
+                    {
+                        NativeDanmakuHttp.FirstText(data, "id"),
+                        NativeDanmakuHttp.FirstText(user, "id")
+                    };
+                }
+            ),
+            (
+                new Uri("https://ark.xiaohongshu.com/api/edith/seller/info/v2"),
+                root =>
+                {
+                    var data = root["data"] as JsonObject;
+                    return new[]
+                    {
+                        NativeDanmakuHttp.FirstText(data, "sns_user_id"),
+                        NativeDanmakuHttp.FirstText(data, "user_id"),
+                        NativeDanmakuHttp.FirstText(data, "userId"),
+                        NativeDanmakuHttp.FirstText(data, "seller_id")
+                    };
                 }
             )
         };
@@ -261,25 +441,89 @@ internal sealed class XiaohongshuRoomResolver
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, candidate.Url);
             request.Headers.TryAddWithoutValidation("User-Agent", NativeDanmakuHttp.DesktopUserAgent);
-            request.Headers.TryAddWithoutValidation("Referer", "https://www.xiaohongshu.com/");
+            request.Headers.TryAddWithoutValidation(
+                "Referer",
+                string.Equals(candidate.Url.Host, "ark.xiaohongshu.com", StringComparison.OrdinalIgnoreCase)
+                    ? "https://ark.xiaohongshu.com/app-system/home"
+                    : "https://www.xiaohongshu.com/");
             request.Headers.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
             request.Headers.TryAddWithoutValidation("Cookie", cookieJar.Header());
 
-            using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+            try
             {
-                continue;
-            }
+                using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
 
-            var root = NativeDanmakuHttp.ParseObject(await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false));
-            var userId = root is null ? null : candidate.Extractor(root)?.Trim();
-            if (!string.IsNullOrWhiteSpace(userId))
+                var root = NativeDanmakuHttp.ParseObject(await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false));
+                if (root is null)
+                {
+                    continue;
+                }
+                foreach (var userId in candidate.Extractor(root))
+                {
+                    Add(userId);
+                }
+            }
+            catch (HttpRequestException)
             {
-                return userId;
+            }
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
             }
         }
 
-        return null;
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://www.xiaohongshu.com/");
+            request.Headers.TryAddWithoutValidation("User-Agent", NativeDanmakuHttp.DesktopUserAgent);
+            request.Headers.TryAddWithoutValidation("Referer", "https://www.xiaohongshu.com/");
+            request.Headers.TryAddWithoutValidation("Accept", "application/json, text/plain, */*");
+            request.Headers.TryAddWithoutValidation("Cookie", cookieJar.Header());
+            using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+            {
+                var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                var match = Regex.Match(text, @"""user[Ii]d"":""([0-9a-zA-Z]+)""");
+                if (match.Success)
+                {
+                    Add(match.Groups[1].Value);
+                }
+            }
+        }
+        catch (HttpRequestException)
+        {
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+        }
+
+        return result;
+    }
+
+    private static async Task<(string RoomId, string Title, string UserId)> FetchLivingRoomAsync(
+        XiaohongshuCookieJar cookieJar,
+        IReadOnlyList<string> userIds,
+        CancellationToken cancellationToken)
+    {
+        var attempts = new List<string>();
+        foreach (var userId in userIds.Where(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            try
+            {
+                var livingRoom = await FetchLivingRoomAsync(cookieJar, userId, cancellationToken).ConfigureAwait(false);
+                return (livingRoom.RoomId, livingRoom.Title, userId);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                attempts.Add($"userId={userId} {ex.Message}");
+            }
+        }
+
+        var detail = attempts.Count == 0 ? "no-attempt" : string.Join(" | ", attempts);
+        throw new NativeDanmakuException($"小红书 living_room 未返回 room_id；已尝试 {userIds.Count} 个 userId；{detail}");
     }
 
     private static async Task<(string RoomId, string Title)> FetchLivingRoomAsync(
@@ -292,6 +536,7 @@ internal sealed class XiaohongshuRoomResolver
         {
             tokens = [""];
         }
+        var attempts = new List<string>();
 
         foreach (var token in tokens)
         {
@@ -309,13 +554,26 @@ internal sealed class XiaohongshuRoomResolver
             }
 
             using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var tokenSource = string.IsNullOrWhiteSpace(token) ? "empty" : "present";
+            var raw = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
+                attempts.Add($"token={tokenSource} HTTP {(int)response.StatusCode} {ResponseSnippet(raw)}");
                 continue;
             }
 
-            var root = NativeDanmakuHttp.ParseObject(await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false));
+            var root = NativeDanmakuHttp.ParseObject(raw);
+            if (root is null)
+            {
+                attempts.Add($"token={tokenSource} invalid-json {ResponseSnippet(raw)}");
+                continue;
+            }
             var data = root?["data"] as JsonObject;
+            var dataKeys = data is null ? "" : string.Join(",", data.Select(pair => pair.Key).OrderBy(key => key, StringComparer.Ordinal));
+            var code = NativeDanmakuHttp.FirstText(root, "code");
+            var success = NativeDanmakuHttp.FirstText(root, "success");
+            var message = NativeDanmakuHttp.FirstText(root, "msg", "message", "result").Trim();
+            attempts.Add($"token={tokenSource} code={code} success={success} msg={(string.IsNullOrWhiteSpace(message) ? "-" : message)} dataKeys=[{dataKeys}]");
             var roomId = NativeDanmakuHttp.FirstText(data, "room_id").Trim();
             if (!string.IsNullOrWhiteSpace(roomId))
             {
@@ -324,7 +582,21 @@ internal sealed class XiaohongshuRoomResolver
             }
         }
 
-        throw new NativeDanmakuException("Xiaohongshu account is not live.");
+        var detail = attempts.Count == 0 ? "no-attempt" : string.Join(" | ", attempts);
+        throw new NativeDanmakuException($"小红书 living_room 未返回 room_id；userId={userId}，attempts={detail}");
+    }
+
+    private static string ResponseSnippet(byte[] data)
+    {
+        if (data.Length == 0)
+        {
+            return "";
+        }
+
+        var text = Encoding.UTF8.GetString(data)
+            .Replace("\n", " ", StringComparison.Ordinal)
+            .Replace("\r", " ", StringComparison.Ordinal);
+        return text[..Math.Min(180, text.Length)];
     }
 
     private static string? XhsRoomIdFrom(string value)
@@ -538,11 +810,8 @@ internal sealed class XiaohongshuMessageMapper
             return null;
         }
 
-        var messageId = NativeDanmakuHttp.FirstText(data, "msg_id", "commentId");
-        if (string.IsNullOrWhiteSpace(messageId))
-        {
-            messageId = Guid.NewGuid().ToString();
-        }
+        var xhsMessageId = NativeDanmakuHttp.FirstText(data, "msg_id", "commentId");
+        var messageId = Guid.NewGuid().ToString();
 
         var userId = NativeDanmakuHttp.FirstText(profile, "user_id");
         var userName = NativeDanmakuHttp.FirstText(profile, "nickname");
@@ -555,6 +824,19 @@ internal sealed class XiaohongshuMessageMapper
         var fansStatus = fansGroup is null
             ? "0"
             : NativeDanmakuHttp.BoolValue(fansGroup["active_fans"]) ? "1" : "2";
+        var rawPayload = new Dictionary<string, object?>
+        {
+            ["xhsMsgId"] = xhsMessageId,
+            ["msgId"] = messageId,
+            ["danmuUserId"] = userId,
+            ["danmuUserName"] = userName,
+            ["danmuContent"] = content,
+            ["xhsRoomId"] = roomId,
+            ["orderNumber"] = "",
+            ["blackLevel"] = "0",
+            ["fansStatus"] = fansStatus,
+            ["createdUsers"] = Array.Empty<string>()
+        };
 
         return new NativeDanmakuEvent
         {
@@ -567,7 +849,7 @@ internal sealed class XiaohongshuMessageMapper
             UserId = userId,
             UserName = userName,
             Content = content,
-            RawPayload = data.ToJsonString(NativeDanmakuHttp.JsonOptions)
+            RawPayload = JsonSerializer.Serialize(rawPayload, NativeDanmakuHttp.JsonOptions)
         };
     }
 
@@ -606,6 +888,8 @@ public sealed class XiaohongshuNativeDanmakuAdapter : INativeDanmakuAdapter
             var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var session = new NativeDanmakuWebSocketSession();
             var mapper = new XiaohongshuMessageMapper();
+            var sidSource = room.Sid == "unknown_sid" ? "unknown_sid" : "redlive";
+            var frameCount = 0;
             Task? heartbeatTask = null;
 
             var loop = Task.Run(async () =>
@@ -617,7 +901,10 @@ public sealed class XiaohongshuNativeDanmakuAdapter : INativeDanmakuAdapter
                         options => XiaohongshuRoomResolver.ApplySocketHeaders(options, room.CookieHeader),
                         async socket =>
                         {
-                            await onEvent(NativeDanmakuEvent.StatusEvent(PlatformKey, NativeDanmakuStatus.Living, "Xiaohongshu native adapter connected.")).ConfigureAwait(false);
+                            await onEvent(NativeDanmakuEvent.StatusEvent(
+                                PlatformKey,
+                                NativeDanmakuStatus.Living,
+                                $"小红书 WSS 已打开，roomId={room.RoomId}，sid={sidSource}。")).ConfigureAwait(false);
                             foreach (var setup in mapper.SetupMessages(room.RoomId, room.UserId, room.Sid))
                             {
                                 await socket.SendTextAsync(setup, cts.Token).ConfigureAwait(false);
@@ -642,10 +929,19 @@ public sealed class XiaohongshuNativeDanmakuAdapter : INativeDanmakuAdapter
                         },
                         async (result, data) =>
                         {
+                            frameCount++;
                             var decoded = mapper.DecodeMessage(result, data, room.RoomId, request.RoomId);
                             if (!string.IsNullOrWhiteSpace(decoded.Ack))
                             {
                                 await session.SendTextAsync(decoded.Ack, cts.Token).ConfigureAwait(false);
+                            }
+
+                            if (frameCount == 1 && decoded.Events.Count == 0)
+                            {
+                                await onEvent(NativeDanmakuEvent.StatusEvent(
+                                    PlatformKey,
+                                    NativeDanmakuStatus.Living,
+                                    $"小红书 WSS 已收到首帧，但首帧没有弹幕；roomId={room.RoomId}。")).ConfigureAwait(false);
                             }
 
                             foreach (var nativeEvent in decoded.Events)

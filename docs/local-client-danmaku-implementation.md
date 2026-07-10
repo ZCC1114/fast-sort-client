@@ -27,16 +27,16 @@
 - `DanmakuCookieSessionParser` 统一解析 `liveSession`，兼容 raw Cookie、JSON Cookie 字段、cookie map、cookie item array。
 - `LocalDanmakuHelperManager`、`DanmakuLocalConnectionBuilder`、`DanmakuLocalLivePrepareModels` 已从 macOS 正式源码删除。
 - 抖音 native adapter 已完成基础链路：工作台/历史字段解析直播标识 -> 随包 `sign.js` 签名 -> WSS/protobuf/ack/heartbeat -> 统一事件。
-- 淘宝 native adapter 已完成基础链路：千牛工作台 Cookie -> 当前直播 roomId -> impaas 弹幕轮询。
+- 淘宝 macOS/Windows native adapter 已完成无页面依赖链路：千牛 Cookie -> MTop 当前直播 `topic` -> impaas 弹幕轮询。
 - 快手 native adapter 已完成基础链路：快手工作台 Cookie -> owner/liveStreamId/token -> 平台 WebSocket/protobuf 弹幕。
 - 视频号 native adapter 已完成基础链路：`sessionid/wxuin` -> 视频号助手接口 -> `join_live` -> `msg` polling。
-- 小红书 native adapter 已完成基础链路：ark/客服工作台 Cookie -> 本机补齐直播登录态 -> living_room -> 平台 WebSocket 文本弹幕。
+- 小红书 macOS 已完成 Cookie 原生主链路：千帆 Cookie -> ark 当前直播接口 -> `redlive-ark` RWP 鉴权 -> `room` 注册/进房 -> 本机解析评论；运行时不打开或依赖直播中控页面。
 
 未完成：
 
-- 抖音、小红书、视频号、淘宝、快手仍需用真实开播账号做实播验证和协议边界加固。
+- 抖音、小红书、视频号、快手仍需用真实开播账号做实播验证和协议边界加固；淘宝已用真实千牛登录态验证 Cookie 查询链路与页面捕获的 impaas UUID 一致，仍需补一次“持续开播并发送评论”的端到端回归。
 - 抖音仍需继续加固“仅通过工作台 Cookie 自动解析当前直播间”的接口路径；解析不到时阻断，不要求用户手填。
-- 小红书仍需继续调研 ark 工作台直连弹幕路径；当前是本机 native 兼容链路，不启动外部服务。
+- 小红书仍需用真实开播账号完成评论实播回归和断线重连加固；当前链路不启动外部服务，也不依赖 WebView 页面捕获。
 - TikTok、Shopee 需要等迅拣后端正式平台枚举和保存接口确认后再接入正式直播页。
 
 未实现平台必须明确提示 native adapter 未实现，不允许回退到外部 Python 服务。

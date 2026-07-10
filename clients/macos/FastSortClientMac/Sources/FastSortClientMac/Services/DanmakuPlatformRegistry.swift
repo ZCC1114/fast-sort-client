@@ -24,9 +24,9 @@ enum DanmakuDirectAdapterKind: Equatable {
     var helpText: String {
         switch self {
         case .taobao:
-            return "淘宝通过本机 adapter 读取千牛工作台登录态、解析直播间并连接 impaas 弹幕源，不经过迅拣后端转发弹幕。"
+            return "淘宝登录只用于采集千牛 Cookie；开播后由本机 adapter 查询当前直播并连接 impaas 评论源，无需打开或保持直播管理页面。"
         case .xiaohongshu:
-            return "小红书通过 ark 工作台登录态自动解析当前直播，并直连平台弹幕源。"
+            return "小红书登录只用于采集千帆 Cookie；开播后由本机 adapter 查询当前直播并直连平台长链接收评论，无需打开或保持直播中控页面。"
         case .kuaishou:
             return "快手通过本机 adapter 解析 liveStreamId/token 后直连平台 WebSocket。"
         case .shopee:
@@ -86,9 +86,9 @@ struct DanmakuPlatform: Identifiable, Equatable {
     var danmuInputPlaceholder: String {
         switch directDanmuAdapter {
         case .taobao:
-            return "无需输入：千牛工作台登录态会用于解析当前直播"
+            return "无需输入：登录采集 Cookie，开播后直接连接弹幕"
         case .xiaohongshu:
-            return "无需输入：采集 ark 工作台 Cookie 后会自动解析当前直播"
+            return "无需输入：登录采集 Cookie，开播后直接连接弹幕"
         case .kuaishou:
             return "无需输入：快手工作台登录态会用于解析当前直播"
         case .shopee:
@@ -218,7 +218,7 @@ enum DanmakuPlatformRegistry {
             name: "小红书工作台",
             cookieDomain: "xiaohongshu.com",
             contentScriptMatch: "*://ark.xiaohongshu.com/*",
-            pageHandlerMatch: "*://ark.xiaohongshu.com/app-system/home*",
+            pageHandlerMatch: "*://ark.xiaohongshu.com/*",
             loginURL: URL(string: "https://customer.xiaohongshu.com/login?service=https://ark.xiaohongshu.com/app-system/home")!,
             cookieURLs: [],
             allowedDomains: [],
@@ -230,8 +230,8 @@ enum DanmakuPlatformRegistry {
             name: "千牛工作台",
             cookieDomain: "taobao.com",
             contentScriptMatch: "*://*.taobao.com/*",
-            pageHandlerMatch: "*://*.taobao.com/home.htm/*live*",
-            loginURL: URL(string: "https://loginmyseller.taobao.com/?from=&f=top&style=&sub=true&redirect_url=https%3A%2F%2Fmyseller.taobao.com%2Fhome.htm%2Flive-dashboard-qn%2F")!,
+            pageHandlerMatch: "*://*.taobao.com/home.htm/*",
+            loginURL: URL(string: "https://qn.taobao.com/home.htm/QnworkbenchHome/")!,
             cookieURLs: [],
             allowedDomains: ["tmall.com"],
             systemImage: "shippingbox.fill"

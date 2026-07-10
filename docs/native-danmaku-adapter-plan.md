@@ -69,10 +69,10 @@ macOS 当前已经完成以下基础层：
 - `DanmakuCookieTestView`：授权测试页连接弹幕统一走 native adapter，不再保留页面内淘宝/快手重复协议代码，也不再连接本地 helper。
 - `FeatureViews`：娱乐模式已切到 native adapter 生命周期，不再连接抖音 `8865` helper。
 - `DouyinNativeDanmakuAdapter`：已实现随包 `sign.js`、JavaScriptCore 签名、WSS、gzip/protobuf、ack/heartbeat、聊天/礼物/进场/点赞/互动/关播事件解析。
-- `TaobaoNativeDanmakuAdapter`：已实现千牛工作台 Cookie 解析当前直播 roomId，并轮询 impaas 弹幕消息。
+- `TaobaoNativeDanmakuAdapter`：macOS/Windows 均仅用千牛 Cookie 通过 MTop 查询当前直播 `topic`，再轮询 impaas 弹幕；运行时不依赖直播管理页面。
 - `KuaishouNativeDanmakuAdapter`：已实现快手工作台 Cookie 解析 owner/liveStreamId/token，并直连平台 WebSocket/protobuf 弹幕。
 - `WechatNativeDanmakuAdapter`：已实现 `sessionid/wxuin` 初始化视频号助手接口、`join_live` 获取 `liveCookies`、`msg` polling 弹幕。
-- `XiaohongshuNativeDanmakuAdapter`：已实现 ark/客服工作台 Cookie 本机补齐直播登录态、living_room 解析和平台 WebSocket 文本弹幕。
+- `XiaohongshuNativeDanmakuAdapter`：macOS 使用 ark Cookie 查询当前直播，通过 `redlive-ark`/`porch` 鉴权 RWP 长链并订阅 `room` 评论；不再调用旧 `living_room`，也不依赖直播中控页面捕获。
 - macOS 已删除 `LocalDanmakuHelperManager`、`DanmakuLocalConnectionBuilder`、`DanmakuLocalLivePrepareModels`，正式源码不再包含 Python helper 启动和本地端口构造能力。
 
 macOS 当前仍未实现的平台：
@@ -512,8 +512,9 @@ Windows 验收：
 
 2. roomId 解析
    - 不要求用户提供 roomId 或直播分享链接。
-   - 用千牛 Cookie 请求工作台接口或直播页，解析当前开播 roomId。
-   - 支持 `wh_cid`、`liveplatform/{roomId}`、UUID roomId。
+   - 用千牛 Cookie 调用 `mtop.taobao.dreamweb.room.list` 和 `mtop.taobao.dreamweb.live.list.query(roomStatus=1)`。
+   - 使用当前场次 `topic` 作为 impaas UUID；缺失时调用 `mtop.taobao.dreamweb.live.detail` 补取。
+   - 不读取当前 WebView URL、DOM 或网络捕获，不打开直播管理页。
 
 3. 弹幕获取
    - 以当前 Swift 直连逻辑为第一版：请求 `live/message/{roomId}/{start}/{end}?deviceId=...`。
@@ -636,13 +637,13 @@ Windows 验收：
 
 ### 小红书 native adapter
 
-优先级：P4，macOS 已完成兼容 adapter，仍需要继续做 ark 工作台直连接口调研。
+优先级：P4，macOS 已完成 ark Cookie 原生直连 adapter，仍需真实开播账号完成评论实播回归。
 
 原因：
 
 - 当前正确方向是 ark 工作台 Cookie。
-- macOS 当前测试页已经移除直播助手入口，可从 ark 直播中控捕获房间标识和弹幕 payload，不启动外部服务。
-- 后续仍要把当前直播解析和弹幕来源进一步固化为 ark 工作台 native 请求链路，避免依赖页面已经打开。
+- macOS 通过 `/api/edith/live/commerce/live/room/living/info` 获取当前 `roomId`，再连接平台 RWP 长链，不启动外部服务。
+- 授权窗口仅负责登录和采集 Cookie；连接弹幕时不导航直播中控，也不要求授权窗口保持打开。
 
 参考边界：
 
@@ -782,12 +783,12 @@ Windows 任务：
 
 ### 阶段 F：小红书 ark native adapter
 
-状态：macOS 基础 adapter 已完成，Windows 待实现，macOS 待实播账号验证和 ark 直连接口加固。
+状态：macOS ark Cookie 原生 adapter 已完成，Windows 待同步，macOS 待真实评论实播验证和断线重连加固。
 
 任务：
 
-- macOS 已实现 XHS native adapter：ark/客服工作台 Cookie 本机补齐直播登录态、解析 userId/living_room、连接平台 WebSocket、解析 text 弹幕。
-- 后续继续完成 ark 工作台直连协议调研，减少对直播登录态补齐跳转的依赖。
+- macOS 已实现 XHS 主链路：Cookie 查询当前直播 -> `redlive-ark` RWP 登录 -> `room` 注册/进房 -> 评论解析与 sync ACK。
+- 登录 WebView 仅采集 Cookie；弹幕运行时不再依赖 ark 页面跳转、DOM 或网络捕获。
 - Windows 实现同等 adapter，不启动 `xhs_live`。
 - macOS 已接入正式直播页。
 

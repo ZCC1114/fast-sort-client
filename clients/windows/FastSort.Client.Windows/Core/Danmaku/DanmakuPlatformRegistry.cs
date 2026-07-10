@@ -164,7 +164,10 @@ public static class DanmakuPlatformRegistry
             "*://ark.xiaohongshu.com/*",
             "*://ark.xiaohongshu.com/app-system/home",
             new Uri("https://customer.xiaohongshu.com/login?service=https://ark.xiaohongshu.com/app-system/home"),
-            [],
+            [
+                new Uri("https://redlive.xiaohongshu.com/live_plan"),
+                new Uri("https://redlive.xiaohongshu.com/")
+            ],
             []),
         new(
             3,
@@ -173,8 +176,8 @@ public static class DanmakuPlatformRegistry
             "千牛工作台",
             "taobao.com",
             "*://*.taobao.com/*",
-            "*://*.taobao.com/home.htm/*live*",
-            new Uri("https://loginmyseller.taobao.com/?from=&f=top&style=&sub=true&redirect_url=https%3A%2F%2Fmyseller.taobao.com%2Fhome.htm%2Flive-dashboard-qn%2F"),
+            "*://*.taobao.com/home.htm/*",
+            new Uri("https://qn.taobao.com/home.htm/QnworkbenchHome/"),
             [],
             ["tmall.com"]),
         new(
